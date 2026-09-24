@@ -8,11 +8,11 @@ import Intake from "./pages/Intake";
 import Sourcing from "./pages/Sourcing";
 import QuoteBuilder from "./pages/QuoteBuilder";
 import Pipeline from "./pages/Pipeline";
+import Ledger from "./pages/Ledger";
 import Settings from "./pages/Settings";
 import PlaceholderPage from "./pages/PlaceholderPage";
 
 const PLACEHOLDER_ROUTES = [
-  { path: "ledger", title: "Ledger", description: "Purchase orders, deliveries, and invoices in one financial view." },
   { path: "crosshairs", title: "Crosshairs", description: "The accounts and opportunities currently in your sights." },
   { path: "okrs", title: "OKRs", description: "Quarterly objectives and key results." },
   { path: "content", title: "Content", description: "Plan and track content production." },
@@ -45,6 +45,7 @@ function AppRoutes() {
           <Route path="sourcing" element={<Sourcing />} />
           <Route path="quote-builder" element={<QuoteBuilder />} />
           <Route path="pipeline" element={<Pipeline />} />
+          <Route path="ledger" element={<Ledger />} />
           <Route path="settings" element={<Settings />} />
           {PLACEHOLDER_ROUTES.map(({ path, title, description }) => (
             <Route

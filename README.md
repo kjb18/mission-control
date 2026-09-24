@@ -12,6 +12,7 @@ Supabase, ClickUp, Google Calendar, and Claude.
 - ClickUp API (backlog tasks, RFQ sourcing tasks)
 - Google Calendar API (OAuth read/write sync)
 - Anthropic Claude (RFQ parsing, via a Supabase Edge Function)
+- Brevo (transactional invoice emails, via a Supabase Edge Function)
 - Cloudflare Pages Functions (iOS Shortcut webhook)
 - `vite-plugin-pwa` (installable, offline-capable PWA)
 - React Router
@@ -39,6 +40,7 @@ npm run dev
 **Deliberately not client variables** — see Security notes below:
 - `VITE_GOOGLE_CLIENT_SECRET` / any Google client secret
 - `VITE_ANTHROPIC_API_KEY` / any Anthropic key
+- `VITE_BREVO_API_KEY` / any Brevo key
 
 ### ⚠️ Security notes
 
@@ -88,6 +90,15 @@ Credentials → this OAuth Client ID → **Authorized JavaScript origins**,
 add `http://localhost:5173` (dev) and your Cloudflare Pages URL (prod).
 Without this, `Connect Google Calendar` in Settings will fail.
 
+**Brevo API key — belongs in Supabase Edge Function secrets, same
+reasoning as Anthropic's.** Only `send-invoice` calls Brevo, and it runs
+server-side. The key was confirmed live and working (a read-only account
+check during this session, no email sent) before deploying:
+
+```bash
+supabase secrets set BREVO_API_KEY=xkeysib-...
+```
+
 ### Database migrations
 
 Run, in order, in the Supabase SQL Editor (Project → SQL Editor → New
@@ -113,17 +124,26 @@ query → paste → Run):
    `pdf_url`, `line_items`) to snapshot every computed value at send time,
    the private `quotations` storage bucket, and enabling Postgres
    Realtime on `rfqs` (the Pipeline board's live updates).
+6. `0006_delivery_and_po_receipt.sql` — `deliveries.delivery_note_number`/
+   `photo_path`/`items_delivered`, `purchase_orders.po_document_path`, an
+   index on `invoices.due_date` (the Ledger's primary sort/filter column),
+   and the private `deliveries`/`purchase-orders` storage buckets — these
+   two, unlike `quotations`, get real storage RLS policies (owner-only)
+   since the owner uploads to them directly from the browser rather than
+   through a service-role Edge Function.
 
 ### RFQ status lifecycle
 
 `intake_confirmed` (Intake confirm) → `sourcing` (first supplier quote
 logged/selected on the Sourcing Desk) → `sourced` (every line sourced) →
-`quoted` (Quote Builder send) → `awarded` / `delivered` (no automated
-trigger — moved by dragging a card on the Pipeline board). `sourcing` was
-introduced this session so the Pipeline board has five columns that each
-mean something distinct; before this, both "not started" and "in
-progress" sourcing were the same `intake_confirmed` status. The Sourcing
-Desk and Business Pulse's "RFQs Unanswered" both already account for it.
+`quoted` (Quote Builder send) → `awarded` (PO receipt form, Quoted
+column) → `delivered` (Confirm Delivery form, Awarded column — the only
+step in the lifecycle now automated end-to-end, including creating the
+invoice). Every transition can also still be done manually by dragging a
+card, which is the only way to move `awarded`/`delivered` if the PO or
+delivery forms aren't used. `sourcing` was introduced in session 5 so the
+Pipeline board has five columns that each mean something distinct. The
+Sourcing Desk and Business Pulse's "RFQs Unanswered" both account for it.
 
 ### Deploying the Edge Functions
 
@@ -133,7 +153,9 @@ in and linked to this project:
 ```bash
 supabase functions deploy parse-rfq
 supabase functions deploy render-quotation
+supabase functions deploy send-invoice
 supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+supabase secrets set BREVO_API_KEY=xkeysib-...
 ```
 
 ### Cloudflare Pages Function environment variables
@@ -305,12 +327,38 @@ already overdue), **amber** ≤72h, **green** otherwise, neutral if no
 closing date.
 
 Cards move two ways: automatically, via a Postgres Realtime subscription
-on `rfqs` — any status change from Intake, Sourcing Desk, or Quote
-Builder (in this tab, another tab, or another device) refetches the
-board with no manual refresh — and manually, by dragging a card to
-another column, which just updates `rfqs.status` directly. That manual
-path is how `awarded`/`delivered` transitions happen at all right now,
-since nothing else in the app sets them yet.
+on `rfqs` — any status change from Intake, Sourcing Desk, Quote Builder,
+or the two forms below (in this tab, another tab, or another device)
+refetches the board with no manual refresh — and manually, by dragging a
+card to another column, which just updates `rfqs.status` directly.
+
+**Quoted column — Receive PO:** PO number, date, amount, and an optional
+PO document (PDF or image) uploaded to the private `purchase-orders`
+bucket. Resolves the RFQ's most recent `quotations` row (the actual link
+a PO traces back to an RFQ — `purchase_orders` has no `rfq_id` column of
+its own) to set `quotation_id`, creates the `purchase_orders` record, and
+flips the RFQ to `awarded`.
+
+**Awarded column — Confirm Delivery:** delivery date, delivery note
+number, an items-delivered list pre-filled from the RFQ's `rfq_lines`
+(quantities editable — see the migration note on why `rfq_lines` and not
+a "PO lines" table), and an optional delivery-note photo uploaded to the
+private `deliveries` bucket. On confirm: writes the `deliveries` record,
+flips the PO and RFQ to `delivered`, creates the `invoices` record (net
+30 terms, invoice number derived from the PO number), and calls
+`send-invoice` (best-effort/non-fatal — the delivery and invoice are
+already saved either way; a failed email surfaces in the UI so it can be
+sent manually).
+
+## Ledger (`/ledger`)
+
+Receivables ageing over `invoices` joined to `clients`. Ageing status is
+computed, not stored: `paid` (status or `paid_date` set), else `overdue`
+if `due_date` has passed, else `current` — "days overdue" is negative
+when the invoice isn't due yet, per spec. A summary row totals
+outstanding and overdue amounts and counts overdue invoices; overdue rows
+get a red highlight. **Mark as Paid** sets `status='paid'` and stamps
+`paid_date`.
 
 ## Project structure
 
@@ -321,7 +369,8 @@ src/
                   client, RFQ confirmation orchestration, sourcing data
                   access, price history, outreach, quote builder
                   computation, PDF rendering client, pipeline/realtime,
-                  app settings, other hooks
+                  app settings, ledger, purchase orders, delivery,
+                  send-invoice client, other hooks
   components/     Sidebar, TopBar, Layout, CheckInGate, LoginScreen, icons
   pages/
     Home.jsx      Composes the five homepage zones
@@ -334,17 +383,21 @@ src/
     QuoteBuilder.jsx  Line pricing, PDF preview/approval, send
                   + quoteBuilder/ sub-components
     Pipeline.jsx  Five-column Kanban with realtime + drag-and-drop
+                  + pipeline/ (PO receipt + delivery confirmation modals)
+    Ledger.jsx    Receivables ageing table
     Settings.jsx  Pricing (FX rate), Google Calendar connect/disconnect
     PlaceholderPage.jsx   Scaffolded routes for future sessions
 supabase/
   migrations/     0001_init, 0002_update_owner_email,
                   0003_intake_and_matching, 0004_sourcing_desk,
-                  0005_quote_builder_and_pipeline
+                  0005_quote_builder_and_pipeline,
+                  0006_delivery_and_po_receipt
   functions/
     parse-rfq/          Claude extraction, part-signature matching,
                   and supplier outreach drafting (three modes)
     render-quotation/   Branded quotation PDF via pdf-lib (not
                   pdfkit — see note below), uploaded to Storage
+    send-invoice/       Brevo transactional invoice email
 functions/
   api/intake.js   Cloudflare Pages Function — iOS Shortcut webhook
 ```
@@ -390,6 +443,7 @@ layout matches the spec exactly (checked by rendering the actual output).
 
 - `VITE_GOOGLE_CLIENT_SECRET` — unused by design
 - `VITE_ANTHROPIC_API_KEY` — goes to `supabase secrets set` instead
+- `VITE_BREVO_API_KEY` — same; `send-invoice` is server-side only
 
 In Supabase, add the deployed Cloudflare Pages URL to **Auth → URL
 Configuration → Redirect URLs**, and in Google Cloud Console add it to the

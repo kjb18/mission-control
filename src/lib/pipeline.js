@@ -27,6 +27,7 @@ function normalizeCard(row) {
     title: row.title,
     closingDate: row.closing_date,
     status: row.status,
+    clientId: row.client_id,
     clientName: row.clients?.name ?? "Unknown client",
     lineCount: row.rfq_lines?.[0]?.count ?? 0,
   };
