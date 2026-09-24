@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../lib/AuthContext";
 import {
   isGoogleAuthConfigured,
@@ -6,12 +6,41 @@ import {
   requestAccessToken,
   disconnectGoogleCalendar,
 } from "../lib/googleAuth";
+import { fetchFxRate, updateFxRate, DEFAULT_FX_RATE } from "../lib/settings";
 
 export default function Settings() {
   const { user } = useAuth();
   const [connected, setConnected] = useState(hasConnectedBefore());
   const [status, setStatus] = useState(null);
   const [connecting, setConnecting] = useState(false);
+  const [fxRateInput, setFxRateInput] = useState(String(DEFAULT_FX_RATE));
+  const [fxStatus, setFxStatus] = useState(null);
+  const [savingFx, setSavingFx] = useState(false);
+
+  useEffect(() => {
+    fetchFxRate()
+      .then((rate) => setFxRateInput(String(rate)))
+      .catch(() => {});
+  }, []);
+
+  async function handleSaveFxRate(e) {
+    e.preventDefault();
+    const parsed = Number(fxRateInput);
+    if (!parsed || parsed <= 0) {
+      setFxStatus({ type: "error", message: "Enter a valid positive FX rate." });
+      return;
+    }
+    setSavingFx(true);
+    setFxStatus(null);
+    try {
+      await updateFxRate(parsed);
+      setFxStatus({ type: "success", message: "FX rate updated." });
+    } catch (err) {
+      setFxStatus({ type: "error", message: err.message });
+    } finally {
+      setSavingFx(false);
+    }
+  }
 
   async function handleConnect() {
     setConnecting(true);
@@ -45,6 +74,37 @@ export default function Settings() {
       <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
         <h2 className="text-sm font-semibold text-white mb-3">Account</h2>
         <p className="text-sm text-white/60">Signed in as {user?.email}</p>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+        <h2 className="text-sm font-semibold text-white mb-3">Pricing</h2>
+        <p className="text-sm text-white/50 mb-4">
+          USD→PHP FX rate used for landed cost on the Sourcing Desk and Quote Builder.
+        </p>
+        <form onSubmit={handleSaveFxRate} className="flex items-end gap-2">
+          <label className="block">
+            <span className="block text-xs text-white/40 mb-1">FX Rate (PHP per USD)</span>
+            <input
+              type="number"
+              step="0.01"
+              value={fxRateInput}
+              onChange={(e) => setFxRateInput(e.target.value)}
+              className="input w-40"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={savingFx}
+            className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-60 text-base-950 text-sm font-medium"
+          >
+            {savingFx ? "Saving…" : "Save"}
+          </button>
+        </form>
+        {fxStatus && (
+          <p className={`text-xs mt-3 ${fxStatus.type === "error" ? "text-red-400" : "text-emerald-300"}`}>
+            {fxStatus.message}
+          </p>
+        )}
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-base-900 p-5">

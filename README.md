@@ -107,14 +107,32 @@ query → paste → Run):
    (pre-populated: KHM Megatools, Goldpeak Tools), and a one-time backfill
    of any RFQ still at the old `open` status to `intake_confirmed` so
    nothing already in the pipeline goes missing from the Sourcing Desk.
+5. `0005_quote_builder_and_pipeline.sql` — singleton `app_settings` table
+   (FX rate, editable from Settings), extra `quotations` columns
+   (`subtotal`, `vat_amount`, `blended_margin_percent`, `fx_rate_used`,
+   `pdf_url`, `line_items`) to snapshot every computed value at send time,
+   the private `quotations` storage bucket, and enabling Postgres
+   Realtime on `rfqs` (the Pipeline board's live updates).
 
-### Deploying the `parse-rfq` Edge Function
+### RFQ status lifecycle
+
+`intake_confirmed` (Intake confirm) → `sourcing` (first supplier quote
+logged/selected on the Sourcing Desk) → `sourced` (every line sourced) →
+`quoted` (Quote Builder send) → `awarded` / `delivered` (no automated
+trigger — moved by dragging a card on the Pipeline board). `sourcing` was
+introduced this session so the Pipeline board has five columns that each
+mean something distinct; before this, both "not started" and "in
+progress" sourcing were the same `intake_confirmed` status. The Sourcing
+Desk and Business Pulse's "RFQs Unanswered" both already account for it.
+
+### Deploying the Edge Functions
 
 Requires the [Supabase CLI](https://supabase.com/docs/guides/cli), logged
 in and linked to this project:
 
 ```bash
 supabase functions deploy parse-rfq
+supabase functions deploy render-quotation
 supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 ```
 
@@ -249,6 +267,51 @@ resolves or creates the supplier by name and writes straight to
 **Auto-advance**: once every line on the open RFQ is `sourced`, its status
 flips to `sourced` and a **Proceed to Quote Builder** button appears.
 
+## Quote Builder (`/quote-builder`)
+
+Loads RFQs at status `sourced`. Per line: **landed cost** = winning
+supplier's unit price × FX rate × 1.12 (12% freight & duties) — same
+formula as the Sourcing Desk, now both reading the same live rate from
+`app_settings` instead of each hardcoding it. **Sell price** = landed
+cost × (1 + markup%), markup defaulting to 25% and adjustable per line;
+**margin%** = (sell − landed) / sell. Totals: subtotal (Σ line totals),
+VAT at 12%, grand total, and a quantity-weighted blended margin.
+
+**PDF preview**: **Generate PDF Preview** calls `render-quotation` with
+exactly the numbers on screen and renders the result inline (an
+`<iframe>` over the signed Storage URL, plus a direct open/download
+link). Changing any markup after generating marks the preview stale and
+disables approval until it's regenerated — what's approved is always
+what was actually rendered.
+
+**Send flow**: requires the approval checkbox. Fetches the client's
+primary contact (`contacts` table, `is_primary` preferred) for the
+cover email (subject `Quotation — [RFQ reference] — [client name]`) —
+a static professional template, deliberately not Claude-generated like
+the Sourcing outreach draft, since a client-facing quotation email
+should never risk the model inventing pricing details that could drift
+from the actual PDF. Sent via `mailto:` (same real limitation as
+outreach: **no attachments** — the UI says so and links the downloadable
+PDF). On send: writes an immutable `quotations` record (every computed
+value, plus a `line_items` snapshot) and flips the RFQ to `quoted`.
+
+## Pipeline Board (`/pipeline`)
+
+Five columns — Intake, Sourcing, Quoted, Awarded, Delivered — one per
+RFQ status (see lifecycle above). Each card: client name, RFQ reference,
+closing date, line count (`rfq_lines(count)`), and a left-border urgency
+color computed from `closing_date` versus now: **red** ≤24h (including
+already overdue), **amber** ≤72h, **green** otherwise, neutral if no
+closing date.
+
+Cards move two ways: automatically, via a Postgres Realtime subscription
+on `rfqs` — any status change from Intake, Sourcing Desk, or Quote
+Builder (in this tab, another tab, or another device) refetches the
+board with no manual refresh — and manually, by dragging a card to
+another column, which just updates `rfqs.status` directly. That manual
+path is how `awarded`/`delivered` transitions happen at all right now,
+since nothing else in the app sets them yet.
+
 ## Project structure
 
 ```
@@ -256,7 +319,9 @@ src/
   lib/            Supabase client, auth/check-in context, ClickUp,
                   Google Calendar + OAuth, pipeline-events, parse-rfq
                   client, RFQ confirmation orchestration, sourcing data
-                  access, price history, outreach, other hooks
+                  access, price history, outreach, quote builder
+                  computation, PDF rendering client, pipeline/realtime,
+                  app settings, other hooks
   components/     Sidebar, TopBar, Layout, CheckInGate, LoginScreen, icons
   pages/
     Home.jsx      Composes the five homepage zones
@@ -266,16 +331,36 @@ src/
     Intake.jsx    Paste/upload/webhook intake + review + confirm
     Sourcing.jsx  Sourcing Desk (comparison grid, outreach, price
                   history, manual quote entry) + sourcing/ sub-components
-    Settings.jsx  Google Calendar connect/disconnect
+    QuoteBuilder.jsx  Line pricing, PDF preview/approval, send
+                  + quoteBuilder/ sub-components
+    Pipeline.jsx  Five-column Kanban with realtime + drag-and-drop
+    Settings.jsx  Pricing (FX rate), Google Calendar connect/disconnect
     PlaceholderPage.jsx   Scaffolded routes for future sessions
 supabase/
   migrations/     0001_init, 0002_update_owner_email,
-                  0003_intake_and_matching, 0004_sourcing_desk
-  functions/parse-rfq/   Claude extraction, part-signature matching,
+                  0003_intake_and_matching, 0004_sourcing_desk,
+                  0005_quote_builder_and_pipeline
+  functions/
+    parse-rfq/          Claude extraction, part-signature matching,
                   and supplier outreach drafting (three modes)
+    render-quotation/   Branded quotation PDF via pdf-lib (not
+                  pdfkit — see note below), uploaded to Storage
 functions/
   api/intake.js   Cloudflare Pages Function — iOS Shortcut webhook
 ```
+
+**Library note (`render-quotation`):** built with **pdf-lib**, not
+pdfkit as literally named in the task. pdfkit loads its bundled standard
+fonts via `fs` reads relative to `__dirname`, which is a well-documented
+break point in Deno's npm compatibility layer (Edge Functions run on
+Deno, not Node) — pure filesystem-free PDF construction was the actual
+goal pdfkit represented, and pdf-lib delivers that (fonts embedded as
+data, zero native/fs dependencies) reliably in this runtime, which is
+why it's what Supabase's own Edge Function PDF examples use. Puppeteer,
+the task's other named option, isn't viable at all here regardless —
+Edge Functions have no Chromium binary to launch. Verified with a real
+deploy + request: valid PDF, uploaded to Storage, signed URL returned,
+layout matches the spec exactly (checked by rendering the actual output).
 
 ## Deploying (Cloudflare Pages)
 

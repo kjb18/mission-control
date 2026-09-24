@@ -1,15 +1,17 @@
 import { supabase } from "./supabaseClient";
 
+// Fallback only — the live rate comes from app_settings (src/lib/settings.js)
+// and should be threaded through wherever these are called.
 export const FX_RATE_PHP = 57.8;
 export const FREIGHT_DUTY_RATE = 0.12;
 
-export function landedCostPHP(unitPrice) {
-  const php = Number(unitPrice ?? 0) * FX_RATE_PHP;
+export function landedCostPHP(unitPrice, fxRate = FX_RATE_PHP) {
+  const php = Number(unitPrice ?? 0) * fxRate;
   return php * (1 + FREIGHT_DUTY_RATE);
 }
 
-export function unitPricePHP(unitPrice) {
-  return Number(unitPrice ?? 0) * FX_RATE_PHP;
+export function unitPricePHP(unitPrice, fxRate = FX_RATE_PHP) {
+  return Number(unitPrice ?? 0) * fxRate;
 }
 
 export function daysToWeeks(days) {
@@ -21,14 +23,31 @@ export function weeksToDays(weeks) {
   return Math.round(Number(weeks) * 7);
 }
 
-export async function fetchIntakeConfirmedRfqs() {
+/** RFQs still on the Sourcing Desk: not yet started, or in progress. */
+export async function fetchSourcingDeskRfqs() {
   const { data, error } = await supabase
     .from("rfqs")
     .select("id, title, rfq_number, closing_date, status, client_id, clients(name)")
-    .eq("status", "intake_confirmed")
+    .in("status", ["intake_confirmed", "sourcing"])
     .order("closing_date", { ascending: true, nullsFirst: false });
   if (error) throw error;
   return (data ?? []).map((r) => ({ ...r, clientName: r.clients?.name ?? null }));
+}
+
+/** Bumps intake_confirmed -> sourcing the moment work actually starts. */
+async function ensureRfqInSourcing(rfqLineId) {
+  const { data: line } = await supabase
+    .from("rfq_lines")
+    .select("rfq_id")
+    .eq("id", rfqLineId)
+    .single();
+  if (!line) return;
+
+  await supabase
+    .from("rfqs")
+    .update({ status: "sourcing" })
+    .eq("id", line.rfq_id)
+    .eq("status", "intake_confirmed");
 }
 
 export async function fetchRfqLines(rfqId) {
@@ -97,6 +116,7 @@ export async function addManualQuote(rfqLineId, { supplierName, brand, unitPrice
     status: "received",
   });
   if (error) throw error;
+  await ensureRfqInSourcing(rfqLineId);
 }
 
 /** Task 1: pick the winning quote for a line. */
@@ -106,6 +126,7 @@ export async function selectSupplierQuote(rfqLineId, supplierQuoteId) {
     .update({ status: "sourced", winning_supplier_quote_id: supplierQuoteId })
     .eq("id", rfqLineId);
   if (error) throw error;
+  await ensureRfqInSourcing(rfqLineId);
 }
 
 /** Task 6: once every line on the RFQ is sourced, close out the RFQ stage. */

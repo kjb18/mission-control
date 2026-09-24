@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  fetchIntakeConfirmedRfqs,
+  fetchSourcingDeskRfqs,
   fetchRfqLines,
   fetchSuppliers,
   fetchSupplierQuotes,
@@ -10,6 +10,7 @@ import {
   maybeMarkRfqSourced,
 } from "../lib/sourcing";
 import { fetchPriceHistory } from "../lib/priceHistory";
+import { fetchFxRate, DEFAULT_FX_RATE } from "../lib/settings";
 import SupplierComparisonGrid from "./sourcing/SupplierComparisonGrid";
 import ManualQuoteForm from "./sourcing/ManualQuoteForm";
 import OutreachPanel from "./sourcing/OutreachPanel";
@@ -27,10 +28,12 @@ export default function Sourcing() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const [fxRate, setFxRate] = useState(DEFAULT_FX_RATE);
 
   useEffect(() => {
-    fetchIntakeConfirmedRfqs().then(setRfqs).catch((e) => setError(e.message));
+    fetchSourcingDeskRfqs().then(setRfqs).catch((e) => setError(e.message));
     fetchSuppliers().then(setSuppliers).catch(() => {});
+    fetchFxRate().then(setFxRate).catch(() => {});
   }, []);
 
   const loadLines = useCallback(async (id) => {
@@ -119,7 +122,7 @@ export default function Sourcing() {
 
       <div className="rounded-2xl border border-white/10 bg-base-900 p-4">
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">RFQ (status: intake_confirmed)</span>
+          <span className="block text-xs text-white/40 mb-1">RFQ (awaiting or in sourcing)</span>
           <select
             value={rfqId ?? ""}
             onChange={(e) => setRfqId(e.target.value || null)}
@@ -207,6 +210,7 @@ export default function Sourcing() {
               line={currentLine}
               onSelect={handleSelectQuote}
               busy={busy}
+              fxRate={fxRate}
             />
           </section>
 

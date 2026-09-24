@@ -2,7 +2,7 @@ import { landedCostPHP, unitPricePHP, daysToWeeks, FX_RATE_PHP, FREIGHT_DUTY_RAT
 
 const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
-export default function SupplierComparisonGrid({ quotes, line, onSelect, busy }) {
+export default function SupplierComparisonGrid({ quotes, line, onSelect, busy, fxRate = FX_RATE_PHP }) {
   if (quotes.length === 0) {
     return (
       <p className="text-sm text-white/30 py-6 text-center">
@@ -44,7 +44,7 @@ export default function SupplierComparisonGrid({ quotes, line, onSelect, busy })
                   )}
                 </td>
                 <td className="py-2.5 pr-3 text-white/60">{q.brand || "—"}</td>
-                <td className="py-2.5 pr-3 text-white/85">{currency.format(unitPricePHP(q.unit_price))}</td>
+                <td className="py-2.5 pr-3 text-white/85">{currency.format(unitPricePHP(q.unit_price, fxRate))}</td>
                 <td className="py-2.5 pr-3 text-white/60">
                   {daysToWeeks(q.lead_time_days) ?? "—"} wk
                 </td>
@@ -56,7 +56,7 @@ export default function SupplierComparisonGrid({ quotes, line, onSelect, busy })
                   )}
                 </td>
                 <td className="py-2.5 pr-3 text-white font-medium">
-                  {currency.format(landedCostPHP(q.unit_price))}
+                  {currency.format(landedCostPHP(q.unit_price, fxRate))}
                 </td>
                 <td className="py-2.5">
                   {isWinner ? (
@@ -77,7 +77,7 @@ export default function SupplierComparisonGrid({ quotes, line, onSelect, busy })
         </tbody>
       </table>
       <p className="text-[11px] text-white/25 mt-2">
-        Landed cost = unit price × {FX_RATE_PHP} FX + {FREIGHT_DUTY_RATE * 100}% freight &amp; duties.
+        Landed cost = unit price × {fxRate} FX + {FREIGHT_DUTY_RATE * 100}% freight &amp; duties.
       </p>
     </div>
   );
