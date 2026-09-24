@@ -6,10 +6,17 @@ import { ChevronLeftIcon } from "../../components/icons";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
+const LEGEND = [
+  { label: "RFQ", color: "bg-amber-400" },
+  { label: "Delivery", color: "bg-emerald-400" },
+  { label: "Invoice", color: "bg-blue-400" },
+  { label: "Meeting", color: "bg-violet-400" },
+];
+
 export default function MonthCalendar() {
   const today = new Date();
   const [cursor, setCursor] = useState({ year: today.getFullYear(), month: today.getMonth() });
-  const { eventsByDate } = useMonthEvents(cursor.year, cursor.month);
+  const { eventsByDate, calendarError } = useMonthEvents(cursor.year, cursor.month);
 
   const firstOfMonth = new Date(cursor.year, cursor.month, 1);
   const firstWeekday = (firstOfMonth.getDay() + 6) % 7; // Monday = 0
@@ -37,7 +44,7 @@ export default function MonthCalendar() {
       <SectionHeader
         eyebrow="Overview"
         title="Month Calendar"
-        subtitle="RFQ, quote, PO, and invoice closing dates for the month."
+        subtitle="RFQ, delivery, and invoice dates, plus synced Google Calendar meetings."
         action={
           <div className="flex items-center gap-1">
             <button
@@ -59,7 +66,21 @@ export default function MonthCalendar() {
         }
       />
 
+      {calendarError && (
+        <p className="text-xs text-amber-300/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2 mb-3">
+          {calendarError}
+        </p>
+      )}
+
       <div className="rounded-2xl border border-white/10 bg-base-900 p-3">
+        <div className="flex flex-wrap gap-3 px-1 pb-2 mb-1 border-b border-white/5">
+          {LEGEND.map(({ label, color }) => (
+            <span key={label} className="flex items-center gap-1.5 text-[11px] text-white/40">
+              <span className={`w-1.5 h-1.5 rounded-full ${color}`} />
+              {label}
+            </span>
+          ))}
+        </div>
         <div className="grid grid-cols-7 mb-1">
           {WEEKDAY_LABELS.map((w) => (
             <div key={w} className="text-center text-[11px] text-white/30 py-1">

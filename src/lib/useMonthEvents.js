@@ -1,56 +1,42 @@
 import { useEffect, useState } from "react";
-import { supabase } from "./supabaseClient";
-
-const SOURCES = [
-  { table: "rfqs", label: "RFQ", color: "bg-amber-400" },
-  { table: "quotations", label: "Quotation", color: "bg-sky-400" },
-  { table: "purchase_orders", label: "PO", color: "bg-violet-400" },
-  { table: "invoices", label: "Invoice", color: "bg-rose-400" },
-];
+import { fetchPipelineEventsByDate, mergeMeetingEvents } from "./pipelineEvents";
+import { useGoogleCalendarEvents } from "./useGoogleCalendarEvents";
 
 export function useMonthEvents(year, month) {
-  const [eventsByDate, setEventsByDate] = useState({});
+  const [pipelineMap, setPipelineMap] = useState({});
   const [loading, setLoading] = useState(true);
+
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month + 1, 0, 23, 59, 59);
+  const startISO = toISODate(monthStart);
+  const endISO = toISODate(monthEnd);
 
   useEffect(() => {
     let cancelled = false;
-    const start = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-    const end = new Date(year, month + 1, 0);
-    const endISO = `${year}-${String(month + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
-
-    async function load() {
-      setLoading(true);
-      const results = await Promise.all(
-        SOURCES.map(({ table }) =>
-          supabase
-            .from(table)
-            .select("id, closing_date")
-            .gte("closing_date", start)
-            .lte("closing_date", endISO)
-        )
-      );
-
-      if (cancelled) return;
-
-      const map = {};
-      results.forEach((res, idx) => {
-        const { label, color } = SOURCES[idx];
-        (res.data ?? []).forEach((row) => {
-          if (!row.closing_date) return;
-          if (!map[row.closing_date]) map[row.closing_date] = [];
-          map[row.closing_date].push({ label, color });
-        });
-      });
-
-      setEventsByDate(map);
-      setLoading(false);
-    }
-
-    load();
+    setLoading(true);
+    fetchPipelineEventsByDate(startISO, endISO).then((map) => {
+      if (!cancelled) {
+        setPipelineMap(map);
+        setLoading(false);
+      }
+    });
     return () => {
       cancelled = true;
     };
-  }, [year, month]);
+  }, [startISO, endISO]);
 
-  return { eventsByDate, loading };
+  const { events: meetingEvents, error: calendarError } = useGoogleCalendarEvents(
+    monthStart,
+    monthEnd
+  );
+
+  const eventsByDate = mergeMeetingEvents(pipelineMap, meetingEvents);
+
+  return { eventsByDate, loading, calendarError };
+}
+
+function toISODate(date) {
+  const offset = date.getTimezoneOffset();
+  const local = new Date(date.getTime() - offset * 60 * 1000);
+  return local.toISOString().slice(0, 10);
 }
