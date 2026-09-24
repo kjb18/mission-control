@@ -4,11 +4,12 @@ import { CheckInProvider } from "./lib/CheckInContext";
 import LoginScreen from "./components/LoginScreen";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
+import Intake from "./pages/Intake";
+import Settings from "./pages/Settings";
 import PlaceholderPage from "./pages/PlaceholderPage";
 
 const PLACEHOLDER_ROUTES = [
   { path: "pipeline", title: "Pipeline", description: "RFQ → quote → PO → delivery → invoice, tracked stage by stage." },
-  { path: "intake", title: "Intake", description: "Capture new RFQs and client requests as they arrive." },
   { path: "sourcing", title: "Sourcing", description: "Match RFQ lines to part signatures and collect supplier quotes." },
   { path: "quote-builder", title: "Quote Builder", description: "Assemble client-facing quotations from sourced pricing." },
   { path: "ledger", title: "Ledger", description: "Purchase orders, deliveries, and invoices in one financial view." },
@@ -18,7 +19,6 @@ const PLACEHOLDER_ROUTES = [
   { path: "seo", title: "SEO", description: "Search visibility and optimization tracking." },
   { path: "contacts", title: "Contacts", description: "Every client and contact in one directory." },
   { path: "learning-hub", title: "Learning Hub", description: "Reference material and training resources." },
-  { path: "settings", title: "Settings", description: "Account, notification, and workspace preferences." },
 ];
 
 function AppRoutes() {
@@ -41,6 +41,8 @@ function AppRoutes() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Home />} />
+          <Route path="intake" element={<Intake />} />
+          <Route path="settings" element={<Settings />} />
           {PLACEHOLDER_ROUTES.map(({ path, title, description }) => (
             <Route
               key={path}

@@ -2,13 +2,22 @@ import { useState } from "react";
 import { useLocalStorage } from "../../lib/useLocalStorage";
 import { startOfWeek, addDays, toISODate, formatWeekday, formatDayNumber } from "../../lib/dateUtils";
 import { useWeekEvents } from "../../lib/useWeekEvents";
-import { createEvent, CALENDAR_PUSH_ENABLED } from "../../lib/googleCalendar";
+import { createEvent, updateEvent } from "../../lib/googleCalendar";
+import { hasConnectedBefore } from "../../lib/googleAuth";
 import SectionHeader from "./SectionHeader";
 
 const HOURS = Array.from({ length: 11 }, (_, i) => 8 + i); // 8am - 6pm
 
 function slotKey(dateISO, hour) {
   return `${dateISO}_${hour}`;
+}
+
+// Block values used to be plain strings; normalize old data transparently.
+function blockLabel(value) {
+  return typeof value === "string" ? value : value?.label ?? "";
+}
+function blockEventId(value) {
+  return typeof value === "string" ? null : value?.googleEventId ?? null;
 }
 
 export default function WeeklyPlan() {
@@ -33,27 +42,45 @@ export default function WeeklyPlan() {
   function openEditor(dateISO, hour) {
     const key = slotKey(dateISO, hour);
     setEditingSlot(key);
-    setDraft(blocks[key] ?? "");
+    setDraft(blockLabel(blocks[key]));
   }
 
   async function commit(dateISO, hour) {
     if (!editingSlot) return;
     const label = draft.trim();
-    setBlocks((prev) => {
-      const next = { ...prev };
-      if (label) next[editingSlot] = label;
-      else delete next[editingSlot];
-      return next;
-    });
+    const existing = blocks[editingSlot];
+    const existingEventId = blockEventId(existing);
     setEditingSlot(null);
     setDraft("");
 
-    if (label) {
-      const start = new Date(`${dateISO}T${String(hour).padStart(2, "0")}:00:00`);
-      const end = new Date(start.getTime() + 60 * 60 * 1000);
-      const result = await createEvent({ title: label, start, end });
-      setSyncNotice(result?.skipped ? result.reason : "Synced to Google Calendar.");
+    if (!label) {
+      setBlocks((prev) => {
+        const next = { ...prev };
+        delete next[editingSlot];
+        return next;
+      });
+      return;
     }
+
+    const start = new Date(`${dateISO}T${String(hour).padStart(2, "0")}:00:00`);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+    let result;
+    if (existingEventId) {
+      result = await updateEvent(existingEventId, { title: label, start, end });
+    } else {
+      result = await createEvent({ title: label, start, end });
+    }
+
+    const googleEventId = result?.skipped ? existingEventId : result?.id ?? null;
+    setBlocks((prev) => ({ ...prev, [editingSlot]: { label, googleEventId } }));
+    setSyncNotice(
+      result?.skipped
+        ? result.reason
+        : existingEventId
+        ? "Google Calendar event updated."
+        : "Synced to Google Calendar."
+    );
   }
 
   return (
@@ -64,10 +91,10 @@ export default function WeeklyPlan() {
         subtitle="Block your five working days. Click a slot to add a focus block."
       />
 
-      {!CALENDAR_PUSH_ENABLED && (
+      {!hasConnectedBefore() && (
         <p className="text-xs text-white/30 mb-3">
-          Calendar sync: read-only (Google OAuth not connected yet — new blocks won't push to
-          Google Calendar).
+          Google Calendar isn't connected — connect it in Settings to push new blocks and see
+          private events.
         </p>
       )}
       {calendarError && (
@@ -119,7 +146,7 @@ export default function WeeklyPlan() {
                 const iso = toISODate(d);
                 const key = slotKey(iso, hour);
                 const isEditing = editingSlot === key;
-                const value = blocks[key];
+                const value = blockLabel(blocks[key]);
                 const meetings = meetingsForSlot(iso, hour);
                 return (
                   <div

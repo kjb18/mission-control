@@ -31,15 +31,24 @@ export default function TimeBlocksToday() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [syncStatus, setSyncStatus] = useState(null);
 
-  function addBlock(e) {
+  async function addBlock(e) {
     e.preventDefault();
     if (!time || !label.trim()) return;
-    const next = [...blocks, { id: crypto.randomUUID(), time, label: label.trim() }].sort(
-      (a, b) => a.time.localeCompare(b.time)
-    );
-    setBlocks(next);
+    const trimmedLabel = label.trim();
+    const id = crypto.randomUUID();
+    setBlocks((prev) => [...prev, { id, time, label: trimmedLabel }].sort((a, b) => a.time.localeCompare(b.time)));
     setTime("");
     setLabel("");
+
+    const start = new Date(`${todayISODate()}T${time}:00`);
+    const end = new Date(start.getTime() + 30 * 60 * 1000);
+    const result = await createEvent({ title: trimmedLabel, start, end });
+    if (!result?.skipped && result?.id) {
+      setBlocks((prev) => prev.map((b) => (b.id === id ? { ...b, googleEventId: result.id } : b)));
+      setSyncStatus("Synced to Google Calendar.");
+    } else if (result?.skipped) {
+      setSyncStatus(result.reason);
+    }
   }
 
   function removeBlock(id) {

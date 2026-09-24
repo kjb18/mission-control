@@ -5,6 +5,10 @@ export const CLICKUP_WORKSPACE_ID = "90161542297";
 export const CLICKUP_ADMIN_FOLDER_ID = "90169022938";
 export const STALE_DAYS_THRESHOLD = 14;
 
+// List new "Source and quote" RFQ tasks land in (Ultra Power CRM, inside
+// the Admin folder) — change this constant to redirect them elsewhere.
+export const CLICKUP_RFQ_TASK_LIST_ID = "901614335408";
+
 function assertConfigured() {
   if (!API_KEY) {
     throw new Error("VITE_CLICKUP_API_KEY is not set.");
@@ -85,6 +89,17 @@ export async function updateTaskDueDate(taskId, dueDate) {
     body: JSON.stringify({
       due_date: dueDate.getTime(),
       due_date_time: true,
+    }),
+  });
+}
+
+export async function createTask(listId, { name, dueDate, description }) {
+  return clickupFetch(`/list/${listId}/task`, {
+    method: "POST",
+    body: JSON.stringify({
+      name,
+      description,
+      ...(dueDate ? { due_date: dueDate.getTime(), due_date_time: true } : {}),
     }),
   });
 }

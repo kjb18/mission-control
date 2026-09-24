@@ -2,15 +2,17 @@
 
 Operations command center for **Ultra Power Industrial Resources, Inc.** A
 single-user Progressive Web App built with React, Vite, Tailwind CSS,
-Supabase, ClickUp, and Google Calendar.
+Supabase, ClickUp, Google Calendar, and Claude.
 
 ## Stack
 
 - React 18 + Vite
 - Tailwind CSS
-- Supabase (Postgres, Auth, RLS)
-- ClickUp API (backlog tasks)
-- Google Calendar API (read-sync)
+- Supabase (Postgres, Auth, RLS, Edge Functions)
+- ClickUp API (backlog tasks, RFQ sourcing tasks)
+- Google Calendar API (OAuth read/write sync)
+- Anthropic Claude (RFQ parsing, via a Supabase Edge Function)
+- Cloudflare Pages Functions (iOS Shortcut webhook)
 - `vite-plugin-pwa` (installable, offline-capable PWA)
 - React Router
 
@@ -22,7 +24,7 @@ cp .env.example .env.local   # fill in the values below
 npm run dev
 ```
 
-### Environment variables
+### Client (Vite) environment variables
 
 | Variable | Description |
 | --- | --- |
@@ -30,119 +32,200 @@ npm run dev
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key |
 | `VITE_OWNER_EMAIL` | The single authorized login email (magic link) |
 | `VITE_CLICKUP_API_KEY` | ClickUp personal API token, used to read/write tasks in the Admin folder |
-| `VITE_GOOGLE_API_KEY` | Google API key, used to read events from the calendar below |
+| `VITE_GOOGLE_API_KEY` | Google API key — fallback read path when Calendar isn't connected via OAuth |
 | `VITE_GOOGLE_CALENDAR_ID` | Google Calendar ID to sync (e.g. a Gmail address) |
+| `VITE_GOOGLE_CLIENT_ID` | Google OAuth Client ID — powers the Settings → Connect Google Calendar flow |
 
-### ⚠️ Security note on client-side API keys
+**Deliberately not client variables** — see Security notes below:
+- `VITE_GOOGLE_CLIENT_SECRET` / any Google client secret
+- `VITE_ANTHROPIC_API_KEY` / any Anthropic key
 
-This is a static PWA with no backend — every `VITE_*` variable is bundled
+### ⚠️ Security notes
+
+**ClickUp/Google API keys (`VITE_CLICKUP_API_KEY`, `VITE_GOOGLE_API_KEY`):**
+this is a static PWA with no backend — every `VITE_*` variable is bundled
 into the public JS and shipped to the browser. That's the intended,
-industry-standard design for `VITE_SUPABASE_ANON_KEY` (it's meant to be
-public; Supabase's row-level security is what actually protects data).
+industry-standard design for `VITE_SUPABASE_ANON_KEY` (meant to be public;
+Supabase's RLS is what actually protects data). It is **not** the standard
+model for the ClickUp/Google keys — anyone who knows the site's URL can
+extract them from DevTools, without signing in, since the magic-link gate
+only protects app *data*, not the static files Cloudflare serves. The
+ClickUp token in particular grants full read/write access to the whole
+workspace. Acceptable for a private, unlisted URL used by a single owner;
+a real exposure if the URL is ever shared. Closing this properly means
+proxying both APIs through a server component (a Cloudflare Pages
+Function, same pattern as `functions/api/intake.js`) that holds the real
+keys and the client calls instead.
 
-It is **not** the standard model for `VITE_CLICKUP_API_KEY` or
-`VITE_GOOGLE_API_KEY`. Those tokens are embedded in the deployed bundle in
-plain text — anyone who knows the site's URL can extract them from
-DevTools/view-source, without ever signing in, since the Supabase
-magic-link gate only protects the app's *data*, not the static files
-Cloudflare Pages serves. The ClickUp personal token in particular grants
-full read/write access to the whole ClickUp workspace, not just the Admin
-folder.
+**Google OAuth Client Secret — intentionally never used, anywhere in this
+repo.** A client secret authenticates a *confidential* client (a server
+that can keep it secret) during the Authorization Code exchange. Mission
+Control has no server for the OAuth flow — putting the secret in a
+`VITE_` variable would ship it to every visitor's browser in plain text,
+which isn't "a bit exposed," it defeats the entire concept of a secret.
+Google's own guidance for browser apps is the token-client (implicit-style)
+flow used here (`src/lib/googleAuth.js`, via Google Identity Services) —
+it exchanges the Client ID and the page's origin for an access token
+directly, no secret involved. **Do not add `VITE_GOOGLE_CLIENT_SECRET` to
+Cloudflare or anywhere client-side.** If a background/offline sync (no
+user present) is wanted later, that requires the server-side Authorization
+Code flow — the secret would live in a real backend then, never in Vite.
 
-This is acceptable for a private, unlisted URL used by a single owner, but
-it's a real exposure if the URL is ever shared or discovered. To close it
-properly in a future session: proxy both APIs through a small backend
-(e.g. a Cloudflare Pages Function) that holds the real keys server-side and
-the client calls instead of ClickUp/Google directly.
+**Anthropic API key — belongs in Supabase Edge Function secrets, not
+Cloudflare.** The `parse-rfq` function is the only thing that calls Claude,
+and it runs server-side on Supabase, not in the browser. Setting
+`VITE_ANTHROPIC_API_KEY` would ship a billable, metered API key to every
+visitor's browser — worse than the ClickUp/Google case, since this one
+maps directly to your Anthropic invoice. Once you have the key:
+
+```bash
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+```
+
+**Google Calendar OAuth requires one manual Console step:** in [Google
+Cloud Console](https://console.cloud.google.com) → APIs & Services →
+Credentials → this OAuth Client ID → **Authorized JavaScript origins**,
+add `http://localhost:5173` (dev) and your Cloudflare Pages URL (prod).
+Without this, `Connect Google Calendar` in Settings will fail.
 
 ### Database migrations
 
 Run, in order, in the Supabase SQL Editor (Project → SQL Editor → New
 query → paste → Run):
 
-1. `supabase/migrations/0001_init.sql` — creates all 14 tables (`clients`,
-   `contacts`, `suppliers`, `part_signatures`, `rfqs`, `rfq_lines`,
-   `supplier_quotes`, `quotations`, `purchase_orders`, `deliveries`,
-   `invoices`, `daily_logs`, `habits`, `okrs`), their foreign keys, indexes
-   on every `closing_date`/`status` column, `updated_at` triggers, and
-   row-level security policies for single-owner access.
-2. `supabase/migrations/0002_update_owner_email.sql` — corrects the
-   `is_owner()` RLS function to `khalil@ultrapowerindustrialinc.com` (the
-   real login email; session 1 used the wrong domain). Update it there
-   again if the login email ever changes.
+1. `0001_init.sql` — all 14 core tables, FKs, `closing_date`/`status`
+   indexes, `updated_at` triggers, single-owner RLS.
+2. `0002_update_owner_email.sql` — corrects `is_owner()` to
+   `khalil@ultrapowerindustrialinc.com`.
+3. `0003_intake_and_matching.sql` — `intake_queue` staging table (RLS:
+   owner full access, plus an `anon`-insert-only policy scoped to
+   `source='webhook'` for the Cloudflare Function), `pg_trgm` extension +
+   trigram index on `part_signatures.description`, and the
+   `match_part_signatures()` fuzzy-matching RPC used by `parse-rfq`.
+
+### Deploying the `parse-rfq` Edge Function
+
+Requires the [Supabase CLI](https://supabase.com/docs/guides/cli), logged
+in and linked to this project:
+
+```bash
+supabase functions deploy parse-rfq
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+```
+
+### Cloudflare Pages Function environment variables
+
+`functions/api/intake.js` receives the iOS Shortcut webhook. Set these in
+Cloudflare Pages → Settings → **Environment variables** (a different list
+from the client `VITE_*` build variables above — these stay server-side
+and are never bundled into the browser JS):
+
+| Variable | Value |
+| --- | --- |
+| `SUPABASE_URL` | Same as `VITE_SUPABASE_URL` |
+| `SUPABASE_ANON_KEY` | Same as `VITE_SUPABASE_ANON_KEY` |
+| `INTAKE_WEBHOOK_SECRET` | A random token (one was generated this session — see the handoff message); the iOS Shortcut sends it as the `x-intake-secret` header |
 
 ## Authentication
 
 Magic-link email via Supabase Auth, locked to
 `khalil@ultrapowerindustrialinc.com`. Sessions persist in `localStorage`
-(`persistSession: true`), so signing in on one device keeps you signed in
-there — and the same link/session model works across devices, since
-Supabase issues its own JWT per device on sign-in.
+(`persistSession: true`) across devices.
 
 ## Daily check-in gate
 
-Every day, before the homepage is usable, Mission Control asks for an
-energy level, a one-word feeling, and a gratitude note. Completion is
-stored in `daily_logs` (one row per `log_date`). A green dot appears in the
-top bar once the day's check-in is complete — tap it any time to redo it.
+Energy level, one-word feeling, and gratitude, stored in `daily_logs`
+(one row per day). Green topbar dot once complete; tap it to redo.
 
 ## ClickUp backlog
 
 The **Backlog** panel (Growth Layer) mirrors open tasks from the ClickUp
-**Admin** folder (`90169022938` in workspace `90161542297`) across all its
-lists. Each task shows its name, due date, and days since last activity
-(ClickUp's `date_updated`); anything ≥14 days stale gets a red counter.
-Tasks are draggable onto **Today's Time Blocks** in the Focus Engine — on
-drop, Mission Control schedules the block at the next free half-hour,
-updates the task's ClickUp due date to match, and attempts a Google
-Calendar push (see below).
+**Admin** folder across all its lists — name, due date, and days since
+last activity (ClickUp's `date_updated`), with a red counter at ≥14 days
+stale. Draggable onto **Today's Time Blocks**: on drop, Mission Control
+schedules the block at the next free half-hour, updates the ClickUp due
+date, and pushes a Google Calendar event (if connected).
 
-## Google Calendar sync
+## Google Calendar sync (OAuth)
 
-**Read** is fully wired: events from `VITE_GOOGLE_CALENDAR_ID` are pulled
-into the Weekly Plan (as read-only blocks at their real time, plus a
-per-day dot) and the Month Calendar (dot per day), color-coded:
+Connect via **Settings → Connect Google Calendar** (Google Identity
+Services token-client flow, Client-ID-only — see Security notes). Once
+connected:
 
-| Source | Color |
-| --- | --- |
-| RFQ closing date | amber |
-| Delivery date | green |
-| Invoice closing date | blue |
-| Google Calendar meeting | purple |
+- **Read** uses your OAuth token, which works for **private** calendars
+  (fixing the earlier API-key limitation, which only worked for calendars
+  shared publicly and is kept as a fallback when not connected). Events
+  populate the Weekly Plan (read-only blocks at their real time + a
+  per-day dot) and Month Calendar (dot per day).
+- **Write**: creating or editing a time block (Weekly Plan slot, the
+  Focus Engine's manual Add form, or a ClickUp drag-drop) pushes a Google
+  Calendar event with a 5-minute popup reminder. Editing an
+  already-pushed block **updates** the same Google event rather than
+  creating a duplicate.
+- Dot/event colors: RFQ closing date amber, delivery date green, invoice
+  closing date blue, Google Calendar meeting purple, RFQ-closing events
+  created by Intake confirmation amber (`colorId: "6"`, Tangerine — the
+  closest match in Google's fixed palette, which has no literal "amber").
 
-**Push is intentionally disabled** (`CALENDAR_PUSH_ENABLED = false` in
-`src/lib/googleCalendar.js`). Creating/writing Calendar events requires
-Google OAuth 2.0 user consent — a plain API key can only *read* public
-calendar data, never insert events. The push function is fully written and
-called wherever a block is created (weekly plan slot, or a ClickUp task
-drag-drop); it currently short-circuits and returns a clear "read-sync
-only" status instead of failing with a 401. To enable it: create an OAuth
-Client ID in Google Cloud Console, add a consent flow (e.g. Google
-Identity Services), and flip the flag once a valid access token is
-available.
+If not connected, pushes are skipped with a clear status message instead
+of failing; nothing is ever silently lost — the block still saves locally.
 
-**Also note:** reading events requires the calendar's sharing setting to
-allow it. `khalil.banares@gmail.com`'s calendar currently returns 404 to
-the API key — in Google Calendar → Settings → that calendar → **Access
-permissions for events**, enable "Make available to public" (or switch to
-a domain/service-account model later) for the pull-sync to return data.
+## Intake (paste / upload / webhook → Claude → review → confirm)
+
+Three ways to start an RFQ, all converging on the same reviewable staging
+step before anything is written to `rfqs`/`rfq_lines`:
+
+1. **Paste email text** — sent straight to the `parse-rfq` Edge Function.
+2. **Upload PDF or image** — sent to the same function as a base64
+   `document`/`image` content block; Claude reads it directly (no OCR
+   step needed).
+3. **iOS Shortcut webhook** (`POST /api/intake`, header `x-intake-secret`)
+   — the Shortcut does its own parsing and posts JSON directly; Mission
+   Control stages it in `intake_queue` (status `pending`) rather than
+   Claude re-parsing it. Review a pending item from the **iOS Shortcut
+   Webhook** tab in Intake — that step runs `parse-rfq` in `match_only`
+   mode, which does the part-signature lookup but skips Claude entirely.
+
+`parse-rfq`'s system prompt is exactly as specified: it extracts client
+name, RFQ reference, closing date, and line items. The literal instruction
+to "check each description against part_signatures" is real, just not
+performed by Claude itself (a single Messages API call has no database
+access) — the Edge Function does that check as a concrete second step
+after Claude responds, via `match_part_signatures()` (Postgres trigram
+similarity) plus a `supplier_quotes`/`suppliers` join for pricing and
+supplier history. Matches ≥50% similarity are pre-selected in the review
+UI; every field and every match choice is editable before confirming.
+
+**On confirm:** writes `rfqs` + `rfq_lines` (resolving/creating the client
+by name), then best-effort (non-fatal if either fails — the RFQ is already
+saved) creates a ClickUp task *"Source and quote [reference] — closes
+[date]"* in the **Ultra Power CRM** list (`src/lib/clickup.js` →
+`CLICKUP_RFQ_TASK_LIST_ID` — change that constant to redirect it; no list
+was specified, so this was the closest semantic fit among the Admin
+folder's lists) and an amber Google Calendar event on the closing date.
 
 ## Project structure
 
 ```
 src/
-  lib/            Supabase client, auth/check-in context, ClickUp, Google
-                  Calendar, pipeline-events, and other hooks
+  lib/            Supabase client, auth/check-in context, ClickUp,
+                  Google Calendar + OAuth, pipeline-events, parse-rfq
+                  client, RFQ confirmation orchestration, other hooks
   components/     Sidebar, TopBar, Layout, CheckInGate, LoginScreen, icons
   pages/
     Home.jsx      Composes the five homepage zones
     home/         Weekly Plan, Focus Engine (incl. Backlog drop target),
                   Business Pulse, Growth Layer (incl. ClickUp Backlog),
                   Month Calendar
+    Intake.jsx    Paste/upload/webhook intake + review + confirm
+    Settings.jsx  Google Calendar connect/disconnect
     PlaceholderPage.jsx   Scaffolded routes for future sessions
 supabase/
-  migrations/0001_init.sql
-  migrations/0002_update_owner_email.sql
+  migrations/     0001_init, 0002_update_owner_email,
+                  0003_intake_and_matching
+  functions/parse-rfq/   Claude extraction + part-signature matching
+functions/
+  api/intake.js   Cloudflare Pages Function — iOS Shortcut webhook
 ```
 
 ## Deploying (Cloudflare Pages)
@@ -153,7 +236,7 @@ supabase/
 | Build output directory | `dist` |
 | Root directory | `/` |
 
-Add these environment variables in the Cloudflare Pages project settings:
+### Client (`VITE_*`) build variables
 
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
@@ -161,7 +244,19 @@ Add these environment variables in the Cloudflare Pages project settings:
 - `VITE_CLICKUP_API_KEY`
 - `VITE_GOOGLE_API_KEY`
 - `VITE_GOOGLE_CALENDAR_ID`
+- `VITE_GOOGLE_CLIENT_ID`
+
+### Pages Function variables (server-side only, separate from the above)
+
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `INTAKE_WEBHOOK_SECRET`
+
+### Never add to Cloudflare (see Security notes)
+
+- `VITE_GOOGLE_CLIENT_SECRET` — unused by design
+- `VITE_ANTHROPIC_API_KEY` — goes to `supabase secrets set` instead
 
 In Supabase, add the deployed Cloudflare Pages URL to **Auth → URL
-Configuration → Redirect URLs** so magic-link emails redirect back
-correctly.
+Configuration → Redirect URLs**, and in Google Cloud Console add it to the
+OAuth Client's **Authorized JavaScript origins**.

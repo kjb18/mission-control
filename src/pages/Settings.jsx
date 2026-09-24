@@ -1,0 +1,100 @@
+import { useState } from "react";
+import { useAuth } from "../lib/AuthContext";
+import {
+  isGoogleAuthConfigured,
+  hasConnectedBefore,
+  requestAccessToken,
+  disconnectGoogleCalendar,
+} from "../lib/googleAuth";
+
+export default function Settings() {
+  const { user } = useAuth();
+  const [connected, setConnected] = useState(hasConnectedBefore());
+  const [status, setStatus] = useState(null);
+  const [connecting, setConnecting] = useState(false);
+
+  async function handleConnect() {
+    setConnecting(true);
+    setStatus(null);
+    try {
+      await requestAccessToken({ interactive: true });
+      setConnected(true);
+      setStatus({ type: "success", message: "Google Calendar connected." });
+    } catch (err) {
+      setStatus({ type: "error", message: err.message ?? "Couldn't connect Google Calendar." });
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  function handleDisconnect() {
+    disconnectGoogleCalendar();
+    setConnected(false);
+    setStatus({ type: "success", message: "Google Calendar disconnected." });
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto px-4 md:px-6 py-10 space-y-8">
+      <div>
+        <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">
+          Settings
+        </p>
+        <h1 className="text-2xl font-semibold text-white">Account & Integrations</h1>
+      </div>
+
+      <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+        <h2 className="text-sm font-semibold text-white mb-3">Account</h2>
+        <p className="text-sm text-white/60">Signed in as {user?.email}</p>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-white">Google Calendar</h2>
+          <span
+            className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${
+              connected ? "text-emerald-300 bg-emerald-400/15" : "text-white/40 bg-white/5"
+            }`}
+          >
+            {connected ? "Connected" : "Not connected"}
+          </span>
+        </div>
+        <p className="text-sm text-white/50 mb-4">
+          Connect your Google account so time blocks you create in Mission Control push to
+          Google Calendar with a 5-minute reminder, and so private calendar events can be read
+          into the Weekly Plan and Month Calendar.
+        </p>
+
+        {!isGoogleAuthConfigured() ? (
+          <p className="text-xs text-amber-300/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
+            VITE_GOOGLE_CLIENT_ID is not set.
+          </p>
+        ) : connected ? (
+          <button
+            onClick={handleDisconnect}
+            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-medium"
+          >
+            Disconnect Google Calendar
+          </button>
+        ) : (
+          <button
+            onClick={handleConnect}
+            disabled={connecting}
+            className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-60 text-base-950 text-sm font-medium"
+          >
+            {connecting ? "Connecting…" : "Connect Google Calendar"}
+          </button>
+        )}
+
+        {status && (
+          <p
+            className={`text-xs mt-3 ${
+              status.type === "error" ? "text-red-400" : "text-emerald-300"
+            }`}
+          >
+            {status.message}
+          </p>
+        )}
+      </section>
+    </div>
+  );
+}
