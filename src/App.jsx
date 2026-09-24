@@ -13,15 +13,11 @@ import Crosshairs from "./pages/Crosshairs";
 import Wins from "./pages/Wins";
 import Okrs from "./pages/Okrs";
 import Brewing from "./pages/Brewing";
+import LearningHub from "./pages/LearningHub";
+import Contacts from "./pages/Contacts";
+import Seo from "./pages/Seo";
+import Content from "./pages/Content";
 import Settings from "./pages/Settings";
-import PlaceholderPage from "./pages/PlaceholderPage";
-
-const PLACEHOLDER_ROUTES = [
-  { path: "content", title: "Content", description: "Plan and track content production." },
-  { path: "seo", title: "SEO", description: "Search visibility and optimization tracking." },
-  { path: "contacts", title: "Contacts", description: "Every client and contact in one directory." },
-  { path: "learning-hub", title: "Learning Hub", description: "Reference material and training resources." },
-];
 
 function AppRoutes() {
   const { session, isLoading } = useAuth();
@@ -52,14 +48,11 @@ function AppRoutes() {
           <Route path="wins" element={<Wins />} />
           <Route path="okrs" element={<Okrs />} />
           <Route path="brewing" element={<Brewing />} />
+          <Route path="learning-hub" element={<LearningHub />} />
+          <Route path="contacts" element={<Contacts />} />
+          <Route path="seo" element={<Seo />} />
+          <Route path="content" element={<Content />} />
           <Route path="settings" element={<Settings />} />
-          {PLACEHOLDER_ROUTES.map(({ path, title, description }) => (
-            <Route
-              key={path}
-              path={path}
-              element={<PlaceholderPage title={title} description={description} />}
-            />
-          ))}
         </Route>
       </Routes>
     </CheckInProvider>

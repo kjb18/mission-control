@@ -153,3 +153,38 @@ export async function checkSupplierBlacklist(name) {
     .maybeSingle();
   return Boolean(data?.is_blacklisted);
 }
+
+/** Settings → Blacklist manager. */
+export async function fetchBlacklistedSuppliers() {
+  const { data, error } = await supabase
+    .from("suppliers")
+    .select("id, name")
+    .eq("is_blacklisted", true)
+    .order("name");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addSupplierToBlacklist(name) {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  const { data: existing } = await supabase
+    .from("suppliers")
+    .select("id")
+    .ilike("name", trimmed)
+    .limit(1)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await supabase.from("suppliers").update({ is_blacklisted: true }).eq("id", existing.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase.from("suppliers").insert({ name: trimmed, is_blacklisted: true });
+    if (error) throw error;
+  }
+}
+
+export async function removeSupplierFromBlacklist(id) {
+  const { error } = await supabase.from("suppliers").update({ is_blacklisted: false }).eq("id", id);
+  if (error) throw error;
+}

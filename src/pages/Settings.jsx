@@ -7,6 +7,7 @@ import {
   disconnectGoogleCalendar,
 } from "../lib/googleAuth";
 import { fetchFxRate, updateFxRate, DEFAULT_FX_RATE } from "../lib/settings";
+import { fetchBlacklistedSuppliers, addSupplierToBlacklist, removeSupplierFromBlacklist } from "../lib/sourcing";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -16,12 +17,46 @@ export default function Settings() {
   const [fxRateInput, setFxRateInput] = useState(String(DEFAULT_FX_RATE));
   const [fxStatus, setFxStatus] = useState(null);
   const [savingFx, setSavingFx] = useState(false);
+  const [blacklist, setBlacklist] = useState([]);
+  const [blacklistInput, setBlacklistInput] = useState("");
+  const [blacklistError, setBlacklistError] = useState(null);
+  const [savingBlacklist, setSavingBlacklist] = useState(false);
+
+  function loadBlacklist() {
+    fetchBlacklistedSuppliers().then(setBlacklist).catch((e) => setBlacklistError(e.message));
+  }
 
   useEffect(() => {
     fetchFxRate()
       .then((rate) => setFxRateInput(String(rate)))
       .catch(() => {});
+    loadBlacklist();
   }, []);
+
+  async function handleAddToBlacklist(e) {
+    e.preventDefault();
+    if (!blacklistInput.trim()) return;
+    setSavingBlacklist(true);
+    setBlacklistError(null);
+    try {
+      await addSupplierToBlacklist(blacklistInput.trim());
+      setBlacklistInput("");
+      loadBlacklist();
+    } catch (err) {
+      setBlacklistError(err.message);
+    } finally {
+      setSavingBlacklist(false);
+    }
+  }
+
+  async function handleRemoveFromBlacklist(supplier) {
+    try {
+      await removeSupplierFromBlacklist(supplier.id);
+      loadBlacklist();
+    } catch (err) {
+      setBlacklistError(err.message);
+    }
+  }
 
   async function handleSaveFxRate(e) {
     e.preventDefault();
@@ -154,6 +189,48 @@ export default function Settings() {
             {status.message}
           </p>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+        <h2 className="text-sm font-semibold text-white mb-3">Supplier Blacklist</h2>
+        <p className="text-sm text-white/50 mb-4">
+          Blacklisted suppliers are blocked from outreach on the Sourcing Desk.
+        </p>
+
+        <ul className="space-y-1.5 mb-4">
+          {blacklist.map((s) => (
+            <li
+              key={s.id}
+              className="flex items-center justify-between bg-base-800 border border-white/10 rounded-lg px-3 py-2"
+            >
+              <span className="text-sm text-white/80">{s.name}</span>
+              <button
+                onClick={() => handleRemoveFromBlacklist(s)}
+                className="text-xs text-white/30 hover:text-red-300"
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+          {blacklist.length === 0 && <li className="text-sm text-white/30">No blacklisted suppliers.</li>}
+        </ul>
+
+        <form onSubmit={handleAddToBlacklist} className="flex gap-2">
+          <input
+            value={blacklistInput}
+            onChange={(e) => setBlacklistInput(e.target.value)}
+            placeholder="Supplier name…"
+            className="input flex-1"
+          />
+          <button
+            type="submit"
+            disabled={savingBlacklist}
+            className="px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 disabled:opacity-60 text-red-300 text-sm font-medium"
+          >
+            {savingBlacklist ? "Adding…" : "Add"}
+          </button>
+        </form>
+        {blacklistError && <p className="text-xs text-red-400 mt-2">{blacklistError}</p>}
       </section>
     </div>
   );

@@ -142,6 +142,11 @@ query → paste → Run):
    built on, so this extends rather than replaces it) pre-populated with
    the four seed OKRs, and the `brewing_items` table (replacing session
    1's localStorage-only Brewing panel).
+8. `0008_learning_contacts_seo_content.sql` — `contacts.company`/`tag`/
+   `last_contact_date` (a contact no longer needs a `client_id` link at
+   all), `learning_topics` (pre-populated: Legal fundamentals, B2B sales
+   frameworks, Philippine power sector), `seo_articles`, and
+   `content_items`.
 
 ### RFQ status lifecycle
 
@@ -423,6 +428,62 @@ localStorage-only version so it's shared across devices; the homepage
 panel shows the 6 most recent plus a quick-add box, linking to `/brewing`
 for full management.
 
+## Learning Hub (`/learning-hub`)
+
+Topics: title, category, description, progress %, current streak, last
+session date, status (active/paused/completed). **Log Session** applies a
+real streak rule — consecutive calendar day → streak+1, same day again →
+unchanged, any gap → resets to 1 — and lets you update progress % for
+that session (no formula for *how much* a session should move progress
+was specified, so this is direct input rather than a guessed
+auto-increment). Pre-populated: Legal fundamentals, B2B sales frameworks,
+Philippine power sector.
+
+The homepage Focus Engine card picks the active topic needing today's
+session most — there's no `priority` field on the table, so "highest
+priority" is implemented as: not yet logged today first, then the
+biggest streak to protect. **Continue** deep-links to
+`/learning-hub?topic=<id>&log=1`, which opens straight into Log Session
+for that topic. Once logged today, the card collapses to a single line
+(name, streak, green dot) — verified live in both states.
+
+## Contacts (`/contacts`)
+
+Full name, company, role, email, phone, tag (Client/Supplier), last
+contact date, notes — `contacts.client_id` (used by Quote Builder/
+send-invoice to find who to email) is now optional, exposed in the form
+as "Link to Client" for contacts that should be discoverable by those
+flows. Searchable (name/company/email), sortable by column header, and
+filterable by tag. **Send Email** opens a `mailto:` prefilled with the
+row's address.
+
+## SEO Tracker (`/seo`)
+
+Article title, target keyword, status (Draft/Scheduled/Published),
+publish date, word count, URL — sortable by status or publish date. The
+top counter ("X of 50 published") reads its target from the "SEO
+articles" OKR rather than hardcoding 50, and every create/update/delete
+here recomputes that OKR's `current_count` to the live published count —
+genuinely kept in sync, not just visually similar. (The OKR's
+pre-populated 41 was a rough historical figure entered in session 7,
+before this tracker existed — expect the two to diverge until real
+articles are logged here.)
+
+## Content Calendar (`/content`)
+
+Title, platform (Website/LinkedIn/Instagram/Email), status (Draft/
+Scheduled/Published), scheduled date. Month grid; click any date to
+create an item pre-filled with that date, or click an existing item to
+edit it.
+
+## Settings (`/settings`)
+
+Four sections: **Account** (signed-in owner email), **Pricing** (FX rate,
+`app_settings`, default 57.80), **Google Calendar** (connection status +
+Connect/Disconnect), **Supplier Blacklist** (add by name — resolves an
+existing supplier or creates one; remove clears the flag rather than
+deleting the supplier record).
+
 ## Project structure
 
 ```
@@ -430,18 +491,20 @@ src/
   lib/            Supabase client, auth/check-in context, ClickUp,
                   Google Calendar + OAuth, pipeline-events, parse-rfq
                   client, RFQ confirmation orchestration, sourcing data
-                  access, price history, outreach, quote builder
-                  computation, PDF rendering client, pipeline/realtime,
-                  app settings, ledger, purchase orders, delivery,
-                  send-invoice client, crosshairs (+ rotation), wins,
-                  okrs, brewing, other hooks
+                  access (incl. blacklist manager), price history,
+                  outreach, quote builder computation, PDF rendering
+                  client, pipeline/realtime, app settings, ledger,
+                  purchase orders, delivery, send-invoice client,
+                  crosshairs (+ rotation), wins, okrs, brewing, learning
+                  hub (+ streak logic), contacts, seo, content, other hooks
   components/     Sidebar, TopBar, Layout, CheckInGate, LoginScreen,
                   Modal, icons
   pages/
     Home.jsx      Composes the five homepage zones
-    home/         Weekly Plan, Focus Engine (incl. Backlog drop target),
-                  Business Pulse, Growth Layer (Crosshairs/Backlog/
-                  Brewing/Wins/OKRs panels), Month Calendar
+    home/         Weekly Plan, Focus Engine (incl. Backlog drop target,
+                  compact Learning Hub card), Business Pulse, Growth
+                  Layer (Crosshairs/Backlog/Brewing/Wins/OKRs panels),
+                  Month Calendar
     Intake.jsx    Paste/upload/webhook intake + review + confirm
     Sourcing.jsx  Sourcing Desk (comparison grid, outreach, price
                   history, manual quote entry) + sourcing/ sub-components
@@ -455,14 +518,23 @@ src/
     Wins.jsx      Wins log (fully automatic — no manual entry)
     Okrs.jsx      OKR tracker with inline count editing
     Brewing.jsx   Brewing item management
-    Settings.jsx  Pricing (FX rate), Google Calendar connect/disconnect
-    PlaceholderPage.jsx   Scaffolded routes for future sessions
+    LearningHub.jsx  Topic cards, log session (streak rule), deep-link
+                  from the homepage card + learningHub/ sub-components
+    Contacts.jsx  Searchable/sortable/filterable directory
+                  + contacts/ sub-components
+    Seo.jsx       Article tracker with OKR-synced progress counter
+                  + seo/ sub-components
+    Content.jsx   Month calendar, click-a-date-to-create
+                  + content/ sub-components
+    Settings.jsx  Account, Pricing (FX rate), Google Calendar,
+                  Supplier Blacklist
 supabase/
   migrations/     0001_init, 0002_update_owner_email,
                   0003_intake_and_matching, 0004_sourcing_desk,
                   0005_quote_builder_and_pipeline,
                   0006_delivery_and_po_receipt,
-                  0007_crosshairs_wins_okrs_brewing
+                  0007_crosshairs_wins_okrs_brewing,
+                  0008_learning_contacts_seo_content
   functions/
     parse-rfq/          Claude extraction, part-signature matching,
                   and supplier outreach drafting (three modes)
@@ -472,6 +544,11 @@ supabase/
 functions/
   api/intake.js   Cloudflare Pages Function — iOS Shortcut webhook
 ```
+
+Every Sidebar route is now a real page — session 8 was the last set of
+placeholders (`content`/`seo`/`contacts`/`learning-hub`), so
+`PlaceholderPage.jsx` was deleted along with the routing table that
+referenced it.
 
 **Library note (`render-quotation`):** built with **pdf-lib**, not
 pdfkit as literally named in the task. pdfkit loads its bundled standard
