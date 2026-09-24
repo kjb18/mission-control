@@ -104,3 +104,19 @@ export const ChevronLeftIcon = (p) => (
     <path d="m15 18-6-6 6-6" />
   </svg>
 );
+
+export const TrophyIcon = (p) => (
+  <svg viewBox="0 0 24 24" {...base} {...p}>
+    <path d="M7 4h10v5a5 5 0 0 1-10 0z" />
+    <path d="M7 5H4a1 1 0 0 0-1 1c0 2.5 1.8 4.5 4 4.9M17 5h3a1 1 0 0 1 1 1c0 2.5-1.8 4.5-4 4.9" />
+    <path d="M12 14v3M9 21h6M9.5 17.5h5l.5 3.5h-6z" />
+  </svg>
+);
+
+export const BrewingIcon = (p) => (
+  <svg viewBox="0 0 24 24" {...base} {...p}>
+    <path d="M6 9h11v6a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z" />
+    <path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17" />
+    <path d="M9 3.5c0 1-1 1-1 2s1 1 1 2M13 3.5c0 1-1 1-1 2s1 1 1 2" />
+  </svg>
+);

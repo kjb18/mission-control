@@ -131,6 +131,17 @@ query → paste → Run):
    two, unlike `quotations`, get real storage RLS policies (owner-only)
    since the owner uploads to them directly from the browser rather than
    through a service-role Edge Function.
+7. `0007_crosshairs_wins_okrs_brewing.sql` — `crosshairs_targets` +
+   `crosshairs_touchpoints` tables, `daily_logs.crosshairs_rotation`
+   (today's rotation cache), the `wins` table plus a Postgres trigger on
+   `rfqs` that inserts a win the moment `status` becomes `'awarded'` —
+   from any code path, including a manual Pipeline drag — pulling total
+   value/margin from that RFQ's latest `quotations` row, new flat-model
+   columns on `okrs` (`target_number`, `current_count`, `unit_label` —
+   session 1's `objective`/`key_results` shape was scaffolded but never
+   built on, so this extends rather than replaces it) pre-populated with
+   the four seed OKRs, and the `brewing_items` table (replacing session
+   1's localStorage-only Brewing panel).
 
 ### RFQ status lifecycle
 
@@ -141,9 +152,11 @@ column) → `delivered` (Confirm Delivery form, Awarded column — the only
 step in the lifecycle now automated end-to-end, including creating the
 invoice). Every transition can also still be done manually by dragging a
 card, which is the only way to move `awarded`/`delivered` if the PO or
-delivery forms aren't used. `sourcing` was introduced in session 5 so the
-Pipeline board has five columns that each mean something distinct. The
-Sourcing Desk and Business Pulse's "RFQs Unanswered" both account for it.
+delivery forms aren't used — and a manual drag into `awarded` still fires
+the wins trigger exactly the same as the PO receipt form does. `sourcing`
+was introduced in session 5 so the Pipeline board has five columns that
+each mean something distinct. The Sourcing Desk and Business Pulse's
+"RFQs Unanswered" both account for it.
 
 ### Deploying the Edge Functions
 
@@ -360,6 +373,56 @@ outstanding and overdue amounts and counts overdue invoices; overdue rows
 get a red highlight. **Mark as Paid** sets `status='paid'` and stamps
 `paid_date`.
 
+## Crosshairs (`/crosshairs`)
+
+Target accounts: name, industry, priority (Hot/Medium/Low/Nurturing),
+estimated value, primary contact, stage, last touchpoint, next suggested
+action, notes. Cards sort by priority tier, then by last touchpoint
+ascending — never-touched sorts as most urgent within its tier — so the
+most neglected Hot targets lead. **Log Touchpoint** writes to
+`crosshairs_touchpoints` (the full history) and bumps
+`crosshairs_targets.last_touchpoint_date` in the same call. Full
+create/edit/delete via a form modal.
+
+**Daily rotation** (`src/lib/crosshairs.js` → `fetchTodaysRotatedTarget`):
+computed once per day and cached on `daily_logs.crosshairs_rotation` so
+it holds steady for the rest of the day even if a touchpoint gets logged
+in the meantime. Priority order: any Hot target untouched for ≥2 days
+(most neglected first) wins outright; otherwise a Medium target, cycling
+to the next one every 2 calendar days; otherwise a Low/Nurturing target,
+cycling weekly. The homepage Crosshairs panel shows this pick pinned at
+the top, with the rest of the priority-sorted list underneath.
+
+## Wins (`/wins`)
+
+Fully automatic — no manual entry. A Postgres trigger on `rfqs`
+(`create_win_on_award`, migration 0007) fires the instant `status`
+becomes `'awarded'`, regardless of what set it (the PO receipt form or a
+manual Pipeline drag), and inserts a `wins` row pulling `total_value`/
+`margin_percent` from that RFQ's most recent `quotations` record. The
+page lists wins reverse-chronological with total count and this year's
+count/value; the homepage panel shows the 4 most recent plus the
+year summary.
+
+## OKRs (`/okrs`)
+
+Flat counter model — title, target number, current count, unit label,
+quarter — editable inline (current count) with a progress bar
+(`min(100, current/target × 100)`), plus a form to add new OKRs for
+future quarters. Pre-populated: Legacy clients outreach (5), New market
+outreach (3), SEO articles (50, currently 41), Customer outreach Q2 (20).
+The homepage panel mirrors the same live data or progress bars, capped
+to the first four.
+
+## Brewing (`/brewing`)
+
+Name, category (Internal/Growth/BD/Admin), status (Active/Planning/
+Draft/Scheduled/Idea — changeable inline via the card's own status
+select), notes. Now a real table (`brewing_items`), replacing session 1's
+localStorage-only version so it's shared across devices; the homepage
+panel shows the 6 most recent plus a quick-add box, linking to `/brewing`
+for full management.
+
 ## Project structure
 
 ```
@@ -370,13 +433,15 @@ src/
                   access, price history, outreach, quote builder
                   computation, PDF rendering client, pipeline/realtime,
                   app settings, ledger, purchase orders, delivery,
-                  send-invoice client, other hooks
-  components/     Sidebar, TopBar, Layout, CheckInGate, LoginScreen, icons
+                  send-invoice client, crosshairs (+ rotation), wins,
+                  okrs, brewing, other hooks
+  components/     Sidebar, TopBar, Layout, CheckInGate, LoginScreen,
+                  Modal, icons
   pages/
     Home.jsx      Composes the five homepage zones
     home/         Weekly Plan, Focus Engine (incl. Backlog drop target),
-                  Business Pulse, Growth Layer (incl. ClickUp Backlog),
-                  Month Calendar
+                  Business Pulse, Growth Layer (Crosshairs/Backlog/
+                  Brewing/Wins/OKRs panels), Month Calendar
     Intake.jsx    Paste/upload/webhook intake + review + confirm
     Sourcing.jsx  Sourcing Desk (comparison grid, outreach, price
                   history, manual quote entry) + sourcing/ sub-components
@@ -385,13 +450,19 @@ src/
     Pipeline.jsx  Five-column Kanban with realtime + drag-and-drop
                   + pipeline/ (PO receipt + delivery confirmation modals)
     Ledger.jsx    Receivables ageing table
+    Crosshairs.jsx  Target cards, create/edit, log touchpoint
+                  + crosshairs/ sub-components
+    Wins.jsx      Wins log (fully automatic — no manual entry)
+    Okrs.jsx      OKR tracker with inline count editing
+    Brewing.jsx   Brewing item management
     Settings.jsx  Pricing (FX rate), Google Calendar connect/disconnect
     PlaceholderPage.jsx   Scaffolded routes for future sessions
 supabase/
   migrations/     0001_init, 0002_update_owner_email,
                   0003_intake_and_matching, 0004_sourcing_desk,
                   0005_quote_builder_and_pipeline,
-                  0006_delivery_and_po_receipt
+                  0006_delivery_and_po_receipt,
+                  0007_crosshairs_wins_okrs_brewing
   functions/
     parse-rfq/          Claude extraction, part-signature matching,
                   and supplier outreach drafting (three modes)

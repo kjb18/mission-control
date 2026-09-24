@@ -9,12 +9,14 @@ import Sourcing from "./pages/Sourcing";
 import QuoteBuilder from "./pages/QuoteBuilder";
 import Pipeline from "./pages/Pipeline";
 import Ledger from "./pages/Ledger";
+import Crosshairs from "./pages/Crosshairs";
+import Wins from "./pages/Wins";
+import Okrs from "./pages/Okrs";
+import Brewing from "./pages/Brewing";
 import Settings from "./pages/Settings";
 import PlaceholderPage from "./pages/PlaceholderPage";
 
 const PLACEHOLDER_ROUTES = [
-  { path: "crosshairs", title: "Crosshairs", description: "The accounts and opportunities currently in your sights." },
-  { path: "okrs", title: "OKRs", description: "Quarterly objectives and key results." },
   { path: "content", title: "Content", description: "Plan and track content production." },
   { path: "seo", title: "SEO", description: "Search visibility and optimization tracking." },
   { path: "contacts", title: "Contacts", description: "Every client and contact in one directory." },
@@ -46,6 +48,10 @@ function AppRoutes() {
           <Route path="quote-builder" element={<QuoteBuilder />} />
           <Route path="pipeline" element={<Pipeline />} />
           <Route path="ledger" element={<Ledger />} />
+          <Route path="crosshairs" element={<Crosshairs />} />
+          <Route path="wins" element={<Wins />} />
+          <Route path="okrs" element={<Okrs />} />
+          <Route path="brewing" element={<Brewing />} />
           <Route path="settings" element={<Settings />} />
           {PLACEHOLDER_ROUTES.map(({ path, title, description }) => (
             <Route

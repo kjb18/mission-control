@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Modal from "./Modal";
+import Modal from "../../components/Modal";
 import { createPoReceipt } from "../../lib/purchaseOrders";
 
 export default function PoReceiptModal({ card, onClose, onSaved }) {

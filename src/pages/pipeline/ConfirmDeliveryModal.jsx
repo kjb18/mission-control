@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Modal from "./Modal";
+import Modal from "../../components/Modal";
 import { fetchPurchaseOrderForRfq, fetchRfqLinesForDelivery, confirmDelivery } from "../../lib/delivery";
 
 export default function ConfirmDeliveryModal({ card, onClose, onSaved }) {

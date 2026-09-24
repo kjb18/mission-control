@@ -1,6 +1,9 @@
 import SectionHeader from "./SectionHeader";
-import GrowthPanel from "./GrowthPanel";
+import CrosshairsPanel from "./CrosshairsPanel";
 import BacklogPanel from "./BacklogPanel";
+import BrewingPanel from "./BrewingPanel";
+import WinsPanel from "./WinsPanel";
+import OkrPanel from "./OkrPanel";
 
 export default function GrowthLayer() {
   return (
@@ -8,22 +11,14 @@ export default function GrowthLayer() {
       <SectionHeader
         eyebrow="Growth"
         title="Growth Layer"
-        subtitle="Targets in the crosshairs, what's queued in ClickUp, and what's brewing."
+        subtitle="Today's target, what's queued, what's brewing, wins, and OKR progress."
       />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <GrowthPanel
-          storageKey="mc:growth:crosshairs"
-          title="Crosshairs"
-          accent="bg-accent"
-          placeholder="A target account or goal…"
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+        <CrosshairsPanel />
         <BacklogPanel />
-        <GrowthPanel
-          storageKey="mc:growth:brewing"
-          title="Brewing"
-          accent="bg-emerald-400"
-          placeholder="An idea still forming…"
-        />
+        <BrewingPanel />
+        <WinsPanel />
+        <OkrPanel />
       </div>
     </section>
   );
