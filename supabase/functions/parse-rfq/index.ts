@@ -1,6 +1,6 @@
 // Supabase Edge Function: parse-rfq
 //
-// Two modes:
+// Modes:
 //   1. Extraction — { input_type: "text"|"pdf"|"image", text?, file_base64?, media_type? }
 //      Calls Claude to extract client name, RFQ reference, closing date, and
 //      line items from raw email text or an uploaded PDF/image, then runs
@@ -8,6 +8,11 @@
 //   2. Match-only — { mode: "match_only", parsed: { line_items: [...] } }
 //      Skips Claude entirely and just runs part-signature matching. Used for
 //      the iOS Shortcut webhook path, which already hands over parsed JSON.
+//   3. Draft outreach — { mode: "draft_outreach", description, quantity?, unit? }
+//      Drafts a supplier outreach email for one line item. Deliberately
+//      never receives client_name/rfq_reference/closing_date at all — the
+//      "must not mention" requirement is enforced by never handing Claude
+//      that data, not just by asking it not to.
 //
 // Requires these Edge Function secrets (see README):
 //   ANTHROPIC_API_KEY        — set via `supabase secrets set`
@@ -47,13 +52,7 @@ function normalizeDescription(description: string) {
 }
 
 async function extractWithClaude(body: any) {
-  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!apiKey) {
-    throw new Error(
-      "ANTHROPIC_API_KEY is not set. Run `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`."
-    );
-  }
-  const anthropic = new Anthropic({ apiKey });
+  const anthropic = anthropicClient();
 
   const content: any[] = [];
   if (body.input_type === "pdf" && body.file_base64) {
@@ -101,6 +100,53 @@ async function extractWithClaude(body: any) {
     return JSON.parse(jsonText);
   } catch {
     throw new Error(`Claude did not return valid JSON: ${jsonText.slice(0, 300)}`);
+  }
+}
+
+const OUTREACH_SYSTEM_PROMPT =
+  "You are a procurement coordinator for Ultra Power Industrial Resources drafting a first-contact sourcing email to a supplier. Request unit price and lead time for the item described. Keep it short, professional, and generic — you have not been given any client name, RFQ reference, or closing date, and must not invent or reference any. Return valid JSON only, no prose.";
+
+function anthropicClient() {
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  if (!apiKey) {
+    throw new Error(
+      "ANTHROPIC_API_KEY is not set. Run `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`."
+    );
+  }
+  return new Anthropic({ apiKey });
+}
+
+function extractJson(text: string) {
+  const cleaned = text
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```\s*$/i, "");
+  return JSON.parse(cleaned);
+}
+
+async function draftOutreachEmail(body: any) {
+  const anthropic = anthropicClient();
+  const quantityLine = body.quantity ? `Quantity: ${body.quantity} ${body.unit ?? ""}`.trim() : "";
+
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1024,
+    system: OUTREACH_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: "user",
+        content: `Item: ${body.description}\n${quantityLine}\n\nReturn JSON in exactly this shape, no markdown fences, no other text:\n{ "subject": string, "body": string }`,
+      },
+    ],
+  });
+
+  const textBlock = message.content.find((b: any) => b.type === "text");
+  if (!textBlock) throw new Error("Claude returned no text content.");
+
+  try {
+    return extractJson((textBlock as any).text);
+  } catch {
+    throw new Error(`Claude did not return valid JSON: ${(textBlock as any).text.slice(0, 300)}`);
   }
 }
 
@@ -173,6 +219,14 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
+
+    if (body.mode === "draft_outreach") {
+      const draft = await draftOutreachEmail(body);
+      return new Response(JSON.stringify(draft), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!

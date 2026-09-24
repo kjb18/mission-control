@@ -22,7 +22,9 @@ export function useBusinessPulse() {
         supabase
           .from("rfqs")
           .select("id", { count: "exact", head: true })
-          .eq("status", "open"),
+          // "Unanswered" = no quote sent to the client yet — covers every
+          // stage before quoting, not just the original "open" status.
+          .in("status", ["open", "intake_confirmed", "sourced"]),
         supabase
           .from("purchase_orders")
           .select("id", { count: "exact", head: true })

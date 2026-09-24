@@ -37,7 +37,7 @@ export async function confirmRfq({ rfq, lines }) {
       client_id: clientId,
       rfq_number: rfq.rfq_reference || null,
       title: rfq.rfq_reference ? `RFQ ${rfq.rfq_reference}` : rfq.client_name || "Untitled RFQ",
-      status: "open",
+      status: "intake_confirmed",
       closing_date: rfq.closing_date || null,
       received_date: new Date().toISOString().slice(0, 10),
     })

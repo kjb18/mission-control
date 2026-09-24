@@ -5,12 +5,12 @@ import LoginScreen from "./components/LoginScreen";
 import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import Intake from "./pages/Intake";
+import Sourcing from "./pages/Sourcing";
 import Settings from "./pages/Settings";
 import PlaceholderPage from "./pages/PlaceholderPage";
 
 const PLACEHOLDER_ROUTES = [
   { path: "pipeline", title: "Pipeline", description: "RFQ → quote → PO → delivery → invoice, tracked stage by stage." },
-  { path: "sourcing", title: "Sourcing", description: "Match RFQ lines to part signatures and collect supplier quotes." },
   { path: "quote-builder", title: "Quote Builder", description: "Assemble client-facing quotations from sourced pricing." },
   { path: "ledger", title: "Ledger", description: "Purchase orders, deliveries, and invoices in one financial view." },
   { path: "crosshairs", title: "Crosshairs", description: "The accounts and opportunities currently in your sights." },
@@ -42,6 +42,7 @@ function AppRoutes() {
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="intake" element={<Intake />} />
+          <Route path="sourcing" element={<Sourcing />} />
           <Route path="settings" element={<Settings />} />
           {PLACEHOLDER_ROUTES.map(({ path, title, description }) => (
             <Route

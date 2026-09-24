@@ -102,6 +102,11 @@ query → paste → Run):
    `source='webhook'` for the Cloudflare Function), `pg_trgm` extension +
    trigram index on `part_signatures.description`, and the
    `match_part_signatures()` fuzzy-matching RPC used by `parse-rfq`.
+4. `0004_sourcing_desk.sql` — `rfq_lines.winning_supplier_quote_id`,
+   `supplier_quotes.brand`/`certified`, `suppliers.is_blacklisted`
+   (pre-populated: KHM Megatools, Goldpeak Tools), and a one-time backfill
+   of any RFQ still at the old `open` status to `intake_confirmed` so
+   nothing already in the pipeline goes missing from the Sourcing Desk.
 
 ### Deploying the `parse-rfq` Edge Function
 
@@ -204,13 +209,54 @@ saved) creates a ClickUp task *"Source and quote [reference] — closes
 was specified, so this was the closest semantic fit among the Admin
 folder's lists) and an amber Google Calendar event on the closing date.
 
+## Sourcing Desk (`/sourcing`)
+
+Works one RFQ, one line item, at a time. Only RFQs at status
+`intake_confirmed` appear in the picker (Intake confirmation sets this
+status now; RFQs are handed off to Quote Builder once every line is
+sourced — see below).
+
+**Supplier comparison grid**, per line: supplier, brand, unit price (PHP),
+lead time (weeks), certified (yes/no), and landed cost —
+`unit price × 57.80 FX × 1.12 (12% freight & duties)`. **Select** sets that
+`rfq_line.status = 'sourced'` and records `winning_supplier_quote_id`.
+
+**Supplier outreach**: pick or type a supplier, **Draft Outreach Email**
+calls `parse-rfq` in a third mode (`draft_outreach`) that requests price
+and lead time for the line item. The "must not mention client name, RFQ
+reference, or closing date" requirement is enforced structurally, not just
+by prompting — the Edge Function call for this mode never receives those
+fields in the first place, so there's nothing for Claude to leak. Shown as
+an editable draft; **Open in Email (mailto)** hands it to your default
+mail app (Gmail OAuth send isn't connected yet).
+
+**Blacklist guard**: before drafting, the typed/selected supplier name is
+checked live against `suppliers.is_blacklisted` (case-insensitive, fresh
+query every time — never a cached flag). A match blocks the draft with a
+visible warning instead of calling Claude at all.
+
+**Price history**: for each line, resolves the matching `part_signature`
+(reusing its existing match if Intake already linked one, else the same
+trigram RPC as `parse-rfq`) and shows the last three `supplier_quotes`
+against it across any RFQ — supplier, price, lead time, and won/lost/
+pending relative to that historical line's `winning_supplier_quote_id`.
+
+**Log a Supplier Reply**: manual entry (supplier, brand, unit price, lead
+time in weeks, certified) for replies that come in outside the app —
+resolves or creates the supplier by name and writes straight to
+`supplier_quotes`, refreshing the grid immediately.
+
+**Auto-advance**: once every line on the open RFQ is `sourced`, its status
+flips to `sourced` and a **Proceed to Quote Builder** button appears.
+
 ## Project structure
 
 ```
 src/
   lib/            Supabase client, auth/check-in context, ClickUp,
                   Google Calendar + OAuth, pipeline-events, parse-rfq
-                  client, RFQ confirmation orchestration, other hooks
+                  client, RFQ confirmation orchestration, sourcing data
+                  access, price history, outreach, other hooks
   components/     Sidebar, TopBar, Layout, CheckInGate, LoginScreen, icons
   pages/
     Home.jsx      Composes the five homepage zones
@@ -218,12 +264,15 @@ src/
                   Business Pulse, Growth Layer (incl. ClickUp Backlog),
                   Month Calendar
     Intake.jsx    Paste/upload/webhook intake + review + confirm
+    Sourcing.jsx  Sourcing Desk (comparison grid, outreach, price
+                  history, manual quote entry) + sourcing/ sub-components
     Settings.jsx  Google Calendar connect/disconnect
     PlaceholderPage.jsx   Scaffolded routes for future sessions
 supabase/
   migrations/     0001_init, 0002_update_owner_email,
-                  0003_intake_and_matching
-  functions/parse-rfq/   Claude extraction + part-signature matching
+                  0003_intake_and_matching, 0004_sourcing_desk
+  functions/parse-rfq/   Claude extraction, part-signature matching,
+                  and supplier outreach drafting (three modes)
 functions/
   api/intake.js   Cloudflare Pages Function — iOS Shortcut webhook
 ```
