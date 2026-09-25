@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchAdminBacklogTasks, isClickUpConfigured } from "./clickup";
+import { fetchAdminBacklogTasks } from "./clickup";
 
 export function useClickUpTasks() {
   const [tasks, setTasks] = useState([]);
@@ -7,11 +7,6 @@ export function useClickUpTasks() {
   const [error, setError] = useState(null);
 
   const refresh = useCallback(async () => {
-    if (!isClickUpConfigured()) {
-      setError("VITE_CLICKUP_API_KEY is not set.");
-      setLoading(false);
-      return;
-    }
     setLoading(true);
     setError(null);
     try {

@@ -14,6 +14,7 @@
 //   SUPABASE_SERVICE_ROLE_KEY  — auto-provided by the Supabase runtime
 
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { requireOwner, unauthorized } from "../_shared/auth.ts";
 
 const SENDER = { name: "Ultra Power Industrial Resources Inc", email: "noreply@ultrapowerindustrialinc.com" };
 
@@ -64,6 +65,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const user = await requireOwner(req);
+  if (!user) return unauthorized();
 
   try {
     const { invoice_id } = await req.json();

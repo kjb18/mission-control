@@ -18,6 +18,7 @@
 
 import { PDFDocument, StandardFonts, rgb } from "npm:pdf-lib@1.17.1";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { requireOwner, unauthorized } from "../_shared/auth.ts";
 
 const PAGE_WIDTH = 595.28; // A4
 const PAGE_HEIGHT = 841.89;
@@ -283,6 +284,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const user = await requireOwner(req);
+  if (!user) return unauthorized();
 
   try {
     const body = await req.json();

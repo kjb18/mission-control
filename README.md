@@ -31,73 +31,103 @@ npm run dev
 | --- | --- |
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anon/public key |
-| `VITE_OWNER_EMAIL` | The single authorized login email (magic link) |
-| `VITE_CLICKUP_API_KEY` | ClickUp personal API token, used to read/write tasks in the Admin folder |
-| `VITE_GOOGLE_API_KEY` | Google API key — fallback read path when Calendar isn't connected via OAuth |
-| `VITE_GOOGLE_CALENDAR_ID` | Google Calendar ID to sync (e.g. a Gmail address) |
-| `VITE_GOOGLE_CLIENT_ID` | Google OAuth Client ID — powers the Settings → Connect Google Calendar flow |
+| `VITE_OWNER_EMAIL` | The single authorized login email (magic link) — not a secret, just used for an early friendly-reject in the login form; the real enforcement is server-side (`is_owner()` RLS + every Edge Function's `requireOwner()`) |
+| `VITE_GOOGLE_CALENDAR_ID` | Google Calendar ID to sync — an identifier, not a credential, and required client-side for the OAuth-authenticated calendar calls, which correctly run directly from the browser (see below) |
+| `VITE_GOOGLE_CLIENT_ID` | Google OAuth Client ID — public by design in OAuth flows, powers the Settings → Connect Google Calendar flow |
 
-**Deliberately not client variables** — see Security notes below:
+**Never client variables** — see Security notes below:
+- `VITE_CLICKUP_API_KEY` — **removed in the security hardening session**; now `CLICKUP_API_KEY`, a Supabase secret used only by `clickup-proxy`
+- `VITE_GOOGLE_API_KEY` — **removed in the security hardening session**; now `GOOGLE_API_KEY`, a Supabase secret used only by `google-calendar-proxy`
 - `VITE_GOOGLE_CLIENT_SECRET` / any Google client secret
 - `VITE_ANTHROPIC_API_KEY` / any Anthropic key
 - `VITE_BREVO_API_KEY` / any Brevo key
 
 ### ⚠️ Security notes
 
-**ClickUp/Google API keys (`VITE_CLICKUP_API_KEY`, `VITE_GOOGLE_API_KEY`):**
-this is a static PWA with no backend — every `VITE_*` variable is bundled
-into the public JS and shipped to the browser. That's the intended,
-industry-standard design for `VITE_SUPABASE_ANON_KEY` (meant to be public;
-Supabase's RLS is what actually protects data). It is **not** the standard
-model for the ClickUp/Google keys — anyone who knows the site's URL can
-extract them from DevTools, without signing in, since the magic-link gate
-only protects app *data*, not the static files Cloudflare serves. The
-ClickUp token in particular grants full read/write access to the whole
-workspace. Acceptable for a private, unlisted URL used by a single owner;
-a real exposure if the URL is ever shared. Closing this properly means
-proxying both APIs through a server component (a Cloudflare Pages
-Function, same pattern as `functions/api/intake.js`) that holds the real
-keys and the client calls instead.
+**Every Edge Function now requires a real authenticated session — this
+closed a genuine pre-existing gap, not a hypothetical one.** Supabase's
+platform-level "verify JWT" (on by default for every deployed function)
+only checks that the `Authorization` header carries a token *validly
+signed* by the project's JWT secret. The public anon key — meant to be
+public, already embedded in the client bundle — is itself such a token.
+That check alone does not mean the caller is logged in. Proof this was a
+real gap, not theoretical: every curl test used to verify `parse-rfq`,
+`render-quotation`, and `send-invoice` in sessions 3, 5, and 6 used *only*
+the anon key with no real login, and all three worked. `_shared/auth.ts`'s
+`requireOwner()` closes it — it calls `auth.getUser()` on the bearer
+token (which only succeeds for a genuine session) and checks the email
+matches the single owner, the same check `is_owner()` makes at the
+database layer — and every function (the three above, plus the two new
+proxies below) now calls it before doing anything else, returning a real
+`401 {"error":"Unauthorized"}` otherwise. Verified live this session: all
+five functions return 401 to an anon-key-only request.
 
-**Google OAuth Client Secret — intentionally never used, anywhere in this
-repo.** A client secret authenticates a *confidential* client (a server
-that can keep it secret) during the Authorization Code exchange. Mission
-Control has no server for the OAuth flow — putting the secret in a
-`VITE_` variable would ship it to every visitor's browser in plain text,
-which isn't "a bit exposed," it defeats the entire concept of a secret.
-Google's own guidance for browser apps is the token-client (implicit-style)
-flow used here (`src/lib/googleAuth.js`, via Google Identity Services) —
-it exchanges the Client ID and the page's origin for an access token
-directly, no secret involved. **Do not add `VITE_GOOGLE_CLIENT_SECRET` to
-Cloudflare or anywhere client-side.** If a background/offline sync (no
-user present) is wanted later, that requires the server-side Authorization
-Code flow — the secret would live in a real backend then, never in Vite.
+**ClickUp and Google API keys — moved to Edge Function proxies.**
+`VITE_CLICKUP_API_KEY` and `VITE_GOOGLE_API_KEY` used to ship in the
+public JS bundle — extractable from DevTools by anyone who knew the
+site's URL, without ever signing in, since the magic-link gate only
+protects app *data*, not the static files Cloudflare serves (the ClickUp
+token in particular granted full read/write access to the whole
+workspace). Both are gone from the client now. `clickup-proxy` holds
+`CLICKUP_API_KEY` and forwards `{method, path, body}` to
+`api.clickup.com` — `path` is restricted to `/folder/`, `/list/`, or
+`/task/` (the only endpoints this app uses) as defense in depth.
+`google-calendar-proxy` holds `GOOGLE_API_KEY` and replaces only the
+*fallback* read path used when Calendar isn't connected via OAuth — the
+OAuth read/write path (`src/lib/googleAuth.js`) correctly stays
+client-side, since the user's own short-lived access token, obtained live
+via Google Identity Services, is the right client-side credential there;
+unlike a static build-time key, it isn't a secret to protect.
 
-**Anthropic API key — belongs in Supabase Edge Function secrets, not
-Cloudflare.** The `parse-rfq` function is the only thing that calls Claude,
-and it runs server-side on Supabase, not in the browser. Setting
-`VITE_ANTHROPIC_API_KEY` would ship a billable, metered API key to every
-visitor's browser — worse than the ClickUp/Google case, since this one
-maps directly to your Anthropic invoice. Once you have the key:
+```bash
+supabase secrets set CLICKUP_API_KEY=pk_...
+supabase secrets set GOOGLE_API_KEY=AIza...
+```
+
+**Google OAuth Client Secret — was never in this repo, in any prior
+session; this session's premise that it needed "moving" didn't match
+reality, so nothing needed fixing here** — flagging that clearly rather
+than silently no-op'ing it. A client secret authenticates a
+*confidential* client (a server that can keep it secret) during the
+Authorization Code exchange; Mission Control has no server for the OAuth
+flow, so putting the secret in a `VITE_` variable would ship it to every
+visitor's browser in plain text — that isn't "a bit exposed," it defeats
+the entire concept of a secret. Google's own guidance for browser apps is
+the token-client (implicit-style) flow used here — it exchanges the
+Client ID and the page's origin for an access token directly, no secret
+involved. It's now stored as the Supabase secret `GOOGLE_CLIENT_SECRET`
+per this session's instructions, but nothing reads it — it's there only
+in case a future session adds a real server-side Authorization Code flow
+(background/offline sync with no user present), which is the only
+scenario where it would ever legitimately get used.
+
+```bash
+supabase secrets set GOOGLE_CLIENT_SECRET=GOCSPX-...
+```
+
+**Anthropic and Brevo API keys — already correctly server-side since the
+sessions that introduced them** (parse-rfq / send-invoice respectively);
+no change needed here, included for completeness of this session's audit:
 
 ```bash
 supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+supabase secrets set BREVO_API_KEY=xkeysib-...
 ```
+
+**`VITE_GOOGLE_CALENDAR_ID` — a minor, accepted privacy note, not a
+vulnerability:** it's a Gmail address, needed client-side because the
+OAuth-authenticated calendar calls run directly from the browser using
+the user's own token, so the calendar ID travels with them either way.
+Knowing this address doesn't grant access to anything — every credential
+that could act on it (the OAuth token, the proxy's API key) stays
+properly protected — so this was left as-is rather than "fixed" for its
+own sake.
 
 **Google Calendar OAuth requires one manual Console step:** in [Google
 Cloud Console](https://console.cloud.google.com) → APIs & Services →
 Credentials → this OAuth Client ID → **Authorized JavaScript origins**,
 add `http://localhost:5173` (dev) and your Cloudflare Pages URL (prod).
 Without this, `Connect Google Calendar` in Settings will fail.
-
-**Brevo API key — belongs in Supabase Edge Function secrets, same
-reasoning as Anthropic's.** Only `send-invoice` calls Brevo, and it runs
-server-side. The key was confirmed live and working (a read-only account
-check during this session, no email sent) before deploying:
-
-```bash
-supabase secrets set BREVO_API_KEY=xkeysib-...
-```
 
 ### Database migrations
 
@@ -166,14 +196,22 @@ each mean something distinct. The Sourcing Desk and Business Pulse's
 ### Deploying the Edge Functions
 
 Requires the [Supabase CLI](https://supabase.com/docs/guides/cli), logged
-in and linked to this project:
+in and linked to this project. `supabase/functions/_shared/auth.ts` (the
+`requireOwner()` check every function uses) is bundled automatically
+whenever any function importing it is deployed — nothing extra to run for
+it specifically.
 
 ```bash
 supabase functions deploy parse-rfq
 supabase functions deploy render-quotation
 supabase functions deploy send-invoice
+supabase functions deploy clickup-proxy
+supabase functions deploy google-calendar-proxy
 supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 supabase secrets set BREVO_API_KEY=xkeysib-...
+supabase secrets set CLICKUP_API_KEY=pk_...
+supabase secrets set GOOGLE_API_KEY=AIza...
+supabase secrets set GOOGLE_CLIENT_SECRET=GOCSPX-...
 ```
 
 ### Cloudflare Pages Function environment variables
@@ -207,7 +245,9 @@ The **Backlog** panel (Growth Layer) mirrors open tasks from the ClickUp
 last activity (ClickUp's `date_updated`), with a red counter at ≥14 days
 stale. Draggable onto **Today's Time Blocks**: on drop, Mission Control
 schedules the block at the next free half-hour, updates the ClickUp due
-date, and pushes a Google Calendar event (if connected).
+date, and pushes a Google Calendar event (if connected). All ClickUp
+calls go through `clickup-proxy` (`src/lib/clickup.js`) — the API key
+lives only in that function's secret, never in the browser.
 
 ## Google Calendar sync (OAuth)
 
@@ -217,9 +257,11 @@ connected:
 
 - **Read** uses your OAuth token, which works for **private** calendars
   (fixing the earlier API-key limitation, which only worked for calendars
-  shared publicly and is kept as a fallback when not connected). Events
-  populate the Weekly Plan (read-only blocks at their real time + a
-  per-day dot) and Month Calendar (dot per day).
+  shared publicly). When not connected, falls back to `google-calendar-proxy`
+  (the API key lives only in that function's secret now, never in the
+  browser) — still public-calendar-only, same limitation, just no longer
+  a client-side key to protect. Events populate the Weekly Plan (read-only
+  blocks at their real time + a per-day dot) and Month Calendar (dot per day).
 - **Write**: creating or editing a time block (Weekly Plan slot, the
   Focus Engine's manual Add form, or a ClickUp drag-drop) pushes a Google
   Calendar event with a 5-minute popup reminder. Editing an
@@ -536,11 +578,17 @@ supabase/
                   0007_crosshairs_wins_okrs_brewing,
                   0008_learning_contacts_seo_content
   functions/
+    _shared/auth.ts     requireOwner() — every function below calls this
+                  before doing anything else; see Security notes
     parse-rfq/          Claude extraction, part-signature matching,
                   and supplier outreach drafting (three modes)
     render-quotation/   Branded quotation PDF via pdf-lib (not
                   pdfkit — see note below), uploaded to Storage
     send-invoice/       Brevo transactional invoice email
+    clickup-proxy/      Forwards to the ClickUp API with CLICKUP_API_KEY
+                  injected server-side
+    google-calendar-proxy/  Fallback read path (API-key, not OAuth) with
+                  GOOGLE_API_KEY injected server-side
 functions/
   api/intake.js   Cloudflare Pages Function — iOS Shortcut webhook
 ```
@@ -576,10 +624,14 @@ layout matches the spec exactly (checked by rendering the actual output).
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 - `VITE_OWNER_EMAIL`
-- `VITE_CLICKUP_API_KEY`
-- `VITE_GOOGLE_API_KEY`
 - `VITE_GOOGLE_CALENDAR_ID`
 - `VITE_GOOGLE_CLIENT_ID`
+
+**Removed from this list in the security hardening session** —
+`VITE_CLICKUP_API_KEY` and `VITE_GOOGLE_API_KEY` no longer exist anywhere,
+client-side or in Cloudflare. Delete both from the Cloudflare Pages
+project's environment variables if they're still set there from an
+earlier session.
 
 ### Pages Function variables (server-side only, separate from the above)
 
@@ -587,11 +639,13 @@ layout matches the spec exactly (checked by rendering the actual output).
 - `SUPABASE_ANON_KEY`
 - `INTAKE_WEBHOOK_SECRET`
 
-### Never add to Cloudflare (see Security notes)
+### Never add to Cloudflare (see Security notes) — all Supabase secrets instead
 
-- `VITE_GOOGLE_CLIENT_SECRET` — unused by design
-- `VITE_ANTHROPIC_API_KEY` — goes to `supabase secrets set` instead
-- `VITE_BREVO_API_KEY` — same; `send-invoice` is server-side only
+- `VITE_CLICKUP_API_KEY` — now `CLICKUP_API_KEY`, a Supabase secret (`clickup-proxy`)
+- `VITE_GOOGLE_API_KEY` — now `GOOGLE_API_KEY`, a Supabase secret (`google-calendar-proxy`)
+- `VITE_GOOGLE_CLIENT_SECRET` — `GOOGLE_CLIENT_SECRET`, a Supabase secret; unused by any code today
+- `VITE_ANTHROPIC_API_KEY` — `ANTHROPIC_API_KEY`, a Supabase secret (`parse-rfq`)
+- `VITE_BREVO_API_KEY` — `BREVO_API_KEY`, a Supabase secret (`send-invoice`)
 
 In Supabase, add the deployed Cloudflare Pages URL to **Auth → URL
 Configuration → Redirect URLs**, and in Google Cloud Console add it to the

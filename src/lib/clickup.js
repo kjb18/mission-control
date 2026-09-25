@@ -1,5 +1,9 @@
-const API_KEY = import.meta.env.VITE_CLICKUP_API_KEY;
-const BASE_URL = "https://api.clickup.com/api/v2";
+import { supabase } from "./supabaseClient";
+
+// The ClickUp API key lives only in the clickup-proxy Edge Function's
+// CLICKUP_API_KEY secret now — see supabase/functions/clickup-proxy. It
+// never reaches the browser, and the proxy requires a real authenticated
+// owner session (a request bearing only the public anon key gets a 401).
 
 export const CLICKUP_WORKSPACE_ID = "90161542297";
 export const CLICKUP_ADMIN_FOLDER_ID = "90169022938";
@@ -9,27 +13,12 @@ export const STALE_DAYS_THRESHOLD = 14;
 // the Admin folder) — change this constant to redirect them elsewhere.
 export const CLICKUP_RFQ_TASK_LIST_ID = "901614335408";
 
-function assertConfigured() {
-  if (!API_KEY) {
-    throw new Error("VITE_CLICKUP_API_KEY is not set.");
-  }
-}
-
-async function clickupFetch(path, options = {}) {
-  assertConfigured();
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...options,
-    headers: {
-      Authorization: API_KEY,
-      "Content-Type": "application/json",
-      ...(options.headers ?? {}),
-    },
+async function clickupFetch(path, { method = "GET", body } = {}) {
+  const { data, error } = await supabase.functions.invoke("clickup-proxy", {
+    body: { method, path, body },
   });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`ClickUp API ${res.status}: ${body || res.statusText}`);
-  }
-  return res.json();
+  if (error) throw new Error(error.message ?? "ClickUp proxy request failed.");
+  return data;
 }
 
 function normalizeTask(task) {
@@ -86,24 +75,17 @@ export async function fetchAdminBacklogTasks() {
 export async function updateTaskDueDate(taskId, dueDate) {
   return clickupFetch(`/task/${taskId}`, {
     method: "PUT",
-    body: JSON.stringify({
-      due_date: dueDate.getTime(),
-      due_date_time: true,
-    }),
+    body: { due_date: dueDate.getTime(), due_date_time: true },
   });
 }
 
 export async function createTask(listId, { name, dueDate, description }) {
   return clickupFetch(`/list/${listId}/task`, {
     method: "POST",
-    body: JSON.stringify({
+    body: {
       name,
       description,
       ...(dueDate ? { due_date: dueDate.getTime(), due_date_time: true } : {}),
-    }),
+    },
   });
-}
-
-export function isClickUpConfigured() {
-  return Boolean(API_KEY);
 }

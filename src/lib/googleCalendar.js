@@ -1,6 +1,13 @@
 import { getOrRenewAccessToken } from "./googleAuth";
+import { supabase } from "./supabaseClient";
 
-const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY;
+// The Google API key lives only in the google-calendar-proxy Edge
+// Function's GOOGLE_API_KEY secret now — see
+// supabase/functions/google-calendar-proxy. It never reaches the browser.
+// The OAuth read/write path below stays entirely client-side by design:
+// the user's own short-lived access token, obtained live via Google
+// Identity Services, is the correct client-side credential — unlike a
+// static API key baked into a build, it isn't a secret to protect.
 const CALENDAR_ID = import.meta.env.VITE_GOOGLE_CALENDAR_ID;
 const BASE_URL = "https://www.googleapis.com/calendar/v3";
 
@@ -13,13 +20,13 @@ export const EVENT_COLOR_IDS = {
 };
 
 export function isGoogleCalendarConfigured() {
-  return Boolean(CALENDAR_ID && (API_KEY || import.meta.env.VITE_GOOGLE_CLIENT_ID));
+  return Boolean(CALENDAR_ID);
 }
 
 /**
  * Reads prefer the user's OAuth token when connected — that works for
- * private calendars, unlike the API-key path, which only works if the
- * calendar's sharing settings make it public.
+ * private calendars, unlike the API-key path (via the proxy), which only
+ * works if the calendar's sharing settings make it public.
  */
 export async function listEvents({ timeMin, timeMax }) {
   if (!CALENDAR_ID) {
@@ -27,35 +34,38 @@ export async function listEvents({ timeMin, timeMax }) {
   }
 
   const accessToken = await getOrRenewAccessToken();
-  const params = new URLSearchParams({
-    timeMin: timeMin.toISOString(),
-    timeMax: timeMax.toISOString(),
-    singleEvents: "true",
-    orderBy: "startTime",
-    maxResults: "250",
+
+  if (accessToken) {
+    const params = new URLSearchParams({
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: "250",
+    });
+    const res = await fetch(
+      `${BASE_URL}/calendars/${encodeURIComponent(CALENDAR_ID)}/events?${params}`,
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    if (!res.ok) return { events: [], error: `Google Calendar API ${res.status}` };
+    const data = await res.json();
+    return { events: (data.items ?? []).map(normalizeEvent), error: null };
+  }
+
+  const { data, error: invokeError } = await supabase.functions.invoke("google-calendar-proxy", {
+    body: { calendarId: CALENDAR_ID, timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString() },
   });
-  if (!accessToken) {
-    if (!API_KEY) return { events: [], error: "Google Calendar is not configured." };
-    params.set("key", API_KEY);
+
+  if (invokeError || !data?.ok) {
+    return {
+      events: [],
+      error:
+        data?.error ??
+        invokeError?.message ??
+        "Calendar not accessible. Either share it publicly (Access permissions → Make available to public), or connect Google Calendar in Settings for private access.",
+    };
   }
 
-  const res = await fetch(
-    `${BASE_URL}/calendars/${encodeURIComponent(CALENDAR_ID)}/events?${params}`,
-    accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : undefined
-  );
-
-  if (!res.ok) {
-    if (!accessToken && (res.status === 404 || res.status === 403)) {
-      return {
-        events: [],
-        error:
-          "Calendar not accessible via API key. Either share it publicly (Access permissions → Make available to public), or connect Google Calendar in Settings for private access.",
-      };
-    }
-    return { events: [], error: `Google Calendar API ${res.status}` };
-  }
-
-  const data = await res.json();
   return { events: (data.items ?? []).map(normalizeEvent), error: null };
 }
 

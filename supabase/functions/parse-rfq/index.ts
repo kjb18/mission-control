@@ -21,6 +21,7 @@
 
 import Anthropic from "npm:@anthropic-ai/sdk@0.32.1";
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { requireOwner, unauthorized } from "../_shared/auth.ts";
 
 const SYSTEM_PROMPT =
   "You are an RFQ parser for Ultra Power Industrial Resources. Extract client name, RFQ reference number, closing date, and each line item with description, quantity, and unit. Check each description against the part_signatures table for previous matches. Return valid JSON only, no prose.";
@@ -216,6 +217,9 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  const user = await requireOwner(req);
+  if (!user) return unauthorized();
 
   try {
     const body = await req.json();
