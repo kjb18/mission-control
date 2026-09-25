@@ -13,7 +13,7 @@ export default function GrowthLayer() {
         title="Growth Layer"
         subtitle="Today's target, what's queued, what's brewing, wins, and OKR progress."
       />
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-[6px]">
         <CrosshairsPanel />
         <BacklogPanel />
         <BrewingPanel />

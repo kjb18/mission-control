@@ -17,6 +17,63 @@ Supabase, ClickUp, Google Calendar, and Claude.
 - `vite-plugin-pwa` (installable, offline-capable PWA)
 - React Router
 
+## Design system
+
+Mission Control uses a dense, dark "ops center" visual language — every
+color, spacing, and type value below is a literal Tailwind token, not an
+approximation, so any surface can be built or reviewed against this table
+directly.
+
+**Color tokens** (`tailwind.config.js`):
+
+| Token | Hex | Usage |
+|---|---|---|
+| `bg-base-950` | `#0f1117` | App background |
+| `bg-base-900` | `#161b27` | Cards / panels |
+| `bg-base-800` | `#1c2333` | Elevated surfaces, inputs, secondary buttons |
+| `bg-sidebar` | `#0d1120` | Sidebar, topbar, mobile bottom nav |
+| `text-accent` / `bg-accent` | `#f59e0b` | Primary amber accent |
+| `hover:bg-accent-light` | `#d97706` | Accent hover state |
+| `text-blue-500` | `#3b82f6` | Blue highlight |
+| `#1e3a5f` | — | Blue-subtle (active time-block row bg) |
+| `text-success` | `#10b981` | Success (== `emerald-500`) |
+| `text-danger` | `#ef4444` | Danger (== `red-500`) |
+| `text-warning` | `#f97316` | Warning (== `orange-500`) |
+| `text-white` | `#f1f5f9` | Text primary (Tailwind's `white` is overridden app-wide) |
+| `text-ink-secondary` | `#94a3b8` | Text secondary |
+| `text-ink-muted` | `#475569` | Text muted |
+| `border-line` | `#1e2d3d` | Default hairline border |
+| `border-line-strong` | `#2d3f55` | Strong border |
+
+Every non-palette hue that used to appear in the app (sky, violet, rose,
+amber-as-status) has been collapsed onto this table — amber is reserved for
+brand accent, status/warning use `orange` (the `warning` token) instead.
+
+**Typography**: system font stack (SF Pro on macOS/iOS —
+`-apple-system, BlinkMacSystemFont, SF Pro Display, SF Pro Text, Helvetica
+Neue, sans-serif`), 13px/1.5 body, headings weight 500, section labels
+9–11px uppercase with wide letter-spacing, KPI/count numbers use
+`.tabular-nums`.
+
+**Reusable component classes** (`src/index.css`, `@layer components`):
+`.mc-section-label` (amber eyebrow + trailing rule), `.mc-card`,
+`.mc-panel-header`, `.mc-badge`, `.mc-btn-primary`, `.mc-btn-secondary`,
+`.input`. Most surfaces still compose the same look from raw Tailwind
+utilities (`rounded-lg border-[0.5px] border-line bg-base-900 px-3
+py-2.5`) rather than the class — both are the same design, applied
+directly for pages built before the `.mc-*` classes existed.
+
+**Layout**: sidebar fixed at 156px (`bg-sidebar`, 2px amber left-border on
+the active nav item), topbar fixed at 44px. Below 768px the sidebar
+collapses to a fixed icon-only bottom nav (`MobileBottomNav.jsx` — Home,
+Pipeline, Sourcing, Ledger, plus a "More" button that opens the full nav
+list as an overlay) and all grids stack to a single column.
+
+**Logo**: an amber crosshair mark (`LogoMark` in `src/components/icons.jsx`)
+appears in the sidebar header, the topbar (mobile), and the login screen;
+the same mark is baked into the PWA icon/splash-screen source SVGs
+(`public/icon-source.svg`, `public/icon-maskable-source.svg`).
+
 ## Setup
 
 ```bash

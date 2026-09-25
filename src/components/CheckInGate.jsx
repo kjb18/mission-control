@@ -69,17 +69,17 @@ export default function CheckInGate() {
           {isComplete && (
             <button
               onClick={closeGate}
-              className="text-white/40 hover:text-white/80 text-sm"
+              className="text-ink-secondary hover:text-white text-sm"
             >
               Close
             </button>
           )}
         </div>
 
-        <div className="bg-base-900 border border-white/10 rounded-2xl p-6 space-y-6">
+        <div className="bg-base-900 border border-line rounded-lg p-6 space-y-6">
           {/* Energy selector */}
           <div>
-            <label className="block text-sm font-medium text-white/80 mb-3">
+            <label className="block text-sm font-medium text-white mb-3">
               Energy level
             </label>
             <div className="grid grid-cols-5 gap-2">
@@ -88,10 +88,10 @@ export default function CheckInGate() {
                   key={level.value}
                   type="button"
                   onClick={() => setEnergyLevel(level.value)}
-                  className={`flex flex-col items-center gap-1 rounded-xl py-3 border transition-colors ${
+                  className={`flex flex-col items-center gap-1 rounded-lg py-3 border transition-colors ${
                     energyLevel === level.value
                       ? "bg-accent/20 border-accent text-white"
-                      : "bg-base-800 border-white/10 text-white/50 hover:border-white/20"
+                      : "bg-base-800 border-line text-ink-secondary hover:border-line-strong"
                   }`}
                 >
                   <span className="text-xl">{level.emoji}</span>
@@ -103,7 +103,7 @@ export default function CheckInGate() {
 
           {/* Feeling chips */}
           <div>
-            <label className="block text-sm font-medium text-white/80 mb-3">
+            <label className="block text-sm font-medium text-white mb-3">
               In one word, how do you feel?
             </label>
             <div className="flex flex-wrap gap-2">
@@ -115,7 +115,7 @@ export default function CheckInGate() {
                   className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                     feeling === chip
                       ? "bg-accent text-base-950 border-accent font-medium"
-                      : "bg-base-800 border-white/10 text-white/60 hover:border-white/20"
+                      : "bg-base-800 border-line text-ink-secondary hover:border-line-strong"
                   }`}
                 >
                   {chip}
@@ -127,7 +127,7 @@ export default function CheckInGate() {
                 className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
                   feeling === "__custom__"
                     ? "bg-accent text-base-950 border-accent font-medium"
-                    : "bg-base-800 border-white/10 text-white/60 hover:border-white/20"
+                    : "bg-base-800 border-line text-ink-secondary hover:border-line-strong"
                 }`}
               >
                 Other…
@@ -140,14 +140,14 @@ export default function CheckInGate() {
                 onChange={(e) => setCustomFeeling(e.target.value)}
                 placeholder="One word…"
                 maxLength={24}
-                className="mt-3 w-full rounded-lg bg-base-800 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-accent"
+                className="mt-3 w-full rounded-lg bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
               />
             )}
           </div>
 
           {/* Gratitude */}
           <div>
-            <label className="block text-sm font-medium text-white/80 mb-3">
+            <label className="block text-sm font-medium text-white mb-3">
               What are you grateful for today?
             </label>
             <textarea
@@ -155,7 +155,7 @@ export default function CheckInGate() {
               onChange={(e) => setGratitude(e.target.value)}
               rows={3}
               placeholder="Write a sentence or two…"
-              className="w-full rounded-lg bg-base-800 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+              className="w-full rounded-lg bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none"
             />
           </div>
 

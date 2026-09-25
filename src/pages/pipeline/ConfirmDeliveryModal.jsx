@@ -61,15 +61,15 @@ export default function ConfirmDeliveryModal({ card, onClose, onSaved }) {
   return (
     <Modal title={`Confirm Delivery — ${card.rfqNumber || card.title}`} onClose={onClose}>
       {loading ? (
-        <p className="text-sm text-white/40">Loading…</p>
+        <p className="text-sm text-ink-secondary">Loading…</p>
       ) : !purchaseOrder ? (
-        <p className="text-sm text-amber-300/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-orange-400/80 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2">
           No purchase order found for this RFQ. Receive the PO from the Quoted column first.
         </p>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Delivery Date</span>
+            <span className="block text-xs text-ink-secondary mb-1">Delivery Date</span>
             <input
               type="date"
               value={deliveryDate}
@@ -78,7 +78,7 @@ export default function ConfirmDeliveryModal({ card, onClose, onSaved }) {
             />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Delivery Note Number</span>
+            <span className="block text-xs text-ink-secondary mb-1">Delivery Note Number</span>
             <input
               value={deliveryNoteNumber}
               onChange={(e) => setDeliveryNoteNumber(e.target.value)}
@@ -87,34 +87,34 @@ export default function ConfirmDeliveryModal({ card, onClose, onSaved }) {
           </label>
 
           <div>
-            <span className="block text-xs text-white/40 mb-1">Items Delivered</span>
+            <span className="block text-xs text-ink-secondary mb-1">Items Delivered</span>
             <ul className="space-y-1.5">
               {items.map((it, i) => (
                 <li
                   key={i}
-                  className="flex items-center gap-2 bg-base-800 border border-white/10 rounded-lg px-3 py-2"
+                  className="flex items-center gap-2 bg-base-800 border border-line rounded-lg px-3 py-2"
                 >
-                  <span className="text-sm text-white/80 flex-1 truncate">{it.description}</span>
+                  <span className="text-sm text-white flex-1 truncate">{it.description}</span>
                   <input
                     type="number"
                     value={it.quantityDelivered}
                     onChange={(e) => updateQuantity(i, Number(e.target.value))}
-                    className="w-20 rounded-lg bg-base-900 border border-white/10 px-2 py-1 text-sm text-white"
+                    className="w-20 rounded-lg bg-base-900 border border-line px-2 py-1 text-sm text-white"
                   />
-                  <span className="text-xs text-white/40 w-10">{it.unit}</span>
+                  <span className="text-xs text-ink-secondary w-10">{it.unit}</span>
                 </li>
               ))}
-              {items.length === 0 && <li className="text-xs text-white/30">No line items found.</li>}
+              {items.length === 0 && <li className="text-xs text-ink-muted">No line items found.</li>}
             </ul>
           </div>
 
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Delivery Note Photo</span>
+            <span className="block text-xs text-ink-secondary mb-1">Delivery Note Photo</span>
             <input
               type="file"
               accept="image/*"
               onChange={(e) => setPhotoFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-white/60"
+              className="block w-full text-sm text-ink-secondary"
             />
           </label>
 
@@ -132,7 +132,7 @@ export default function ConfirmDeliveryModal({ card, onClose, onSaved }) {
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+              className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
             >
               Cancel
             </button>

@@ -12,10 +12,10 @@ const empty = { name: "", category: "Internal", status: "Idea", notes: "" };
 
 const STATUS_STYLES = {
   Active: "text-emerald-300 bg-emerald-400/15",
-  Planning: "text-sky-300 bg-sky-400/15",
-  Draft: "text-white/50 bg-white/5",
-  Scheduled: "text-violet-300 bg-violet-400/15",
-  Idea: "text-amber-300 bg-amber-400/15",
+  Planning: "text-blue-400 bg-blue-500/15",
+  Draft: "text-ink-secondary bg-base-800/60",
+  Scheduled: "text-blue-400 bg-blue-500/15",
+  Idea: "text-orange-400 bg-orange-500/15",
 };
 
 export default function Brewing() {
@@ -82,7 +82,7 @@ export default function Brewing() {
         <div>
           <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">Brewing</p>
           <h1 className="text-2xl font-semibold text-white">What's Brewing</h1>
-          <p className="text-sm text-white/40 mt-1">Ideas and initiatives still taking shape.</p>
+          <p className="text-sm text-ink-secondary mt-1">Ideas and initiatives still taking shape.</p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
@@ -99,14 +99,14 @@ export default function Brewing() {
       )}
 
       {showForm && (
-        <form onSubmit={handleCreate} className="rounded-2xl border border-white/10 bg-base-900 p-5 space-y-3">
+        <form onSubmit={handleCreate} className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 space-y-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Name</span>
+            <span className="block text-xs text-ink-secondary mb-1">Name</span>
             <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} className="input" />
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="block text-xs text-white/40 mb-1">Category</span>
+              <span className="block text-xs text-ink-secondary mb-1">Category</span>
               <select
                 value={form.category}
                 onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
@@ -120,7 +120,7 @@ export default function Brewing() {
               </select>
             </label>
             <label className="block">
-              <span className="block text-xs text-white/40 mb-1">Status</span>
+              <span className="block text-xs text-ink-secondary mb-1">Status</span>
               <select
                 value={form.status}
                 onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}
@@ -135,7 +135,7 @@ export default function Brewing() {
             </label>
           </div>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Notes</span>
+            <span className="block text-xs text-ink-secondary mb-1">Notes</span>
             <textarea
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
@@ -155,15 +155,15 @@ export default function Brewing() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {items.map((item) => (
-          <div key={item.id} className="rounded-2xl border border-white/10 bg-base-900 p-4 space-y-2">
+          <div key={item.id} className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 space-y-2">
             <div className="flex items-start justify-between gap-2">
               <p className="text-sm font-semibold text-white">{item.name}</p>
-              <button onClick={() => handleDelete(item)} className="text-white/20 hover:text-red-300 text-xs shrink-0">
+              <button onClick={() => handleDelete(item)} className="text-ink-muted hover:text-red-300 text-xs shrink-0">
                 ✕
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-white/40 bg-white/5 rounded-full px-2 py-0.5">{item.category}</span>
+              <span className="text-[11px] text-ink-secondary bg-base-800/60 rounded-full px-2 py-0.5">{item.category}</span>
               <select
                 value={item.status}
                 onChange={(e) => handleStatusChange(item, e.target.value)}
@@ -176,11 +176,11 @@ export default function Brewing() {
                 ))}
               </select>
             </div>
-            {item.notes && <p className="text-xs text-white/40">{item.notes}</p>}
+            {item.notes && <p className="text-xs text-ink-secondary">{item.notes}</p>}
           </div>
         ))}
         {!loading && items.length === 0 && (
-          <p className="text-sm text-white/30 col-span-full text-center py-10">Nothing brewing yet.</p>
+          <p className="text-sm text-ink-muted col-span-full text-center py-10">Nothing brewing yet.</p>
         )}
       </div>
     </div>

@@ -98,15 +98,15 @@ export default function Contacts() {
         </select>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-base-900 overflow-x-auto">
+      <div className="rounded-lg border border-line bg-base-900 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
+            <tr className="text-left text-[11px] uppercase tracking-wide text-ink-secondary border-b border-line">
               {COLUMNS.map((col) => (
                 <th
                   key={col.key}
                   onClick={() => toggleSort(col.key)}
-                  className="py-3 px-4 cursor-pointer select-none hover:text-white/70"
+                  className="py-3 px-4 cursor-pointer select-none hover:text-ink-secondary"
                 >
                   {col.label} {sortKey === col.key ? (sortDir === "asc" ? "↑" : "↓") : ""}
                 </th>
@@ -117,31 +117,31 @@ export default function Contacts() {
           </thead>
           <tbody>
             {filtered.map((c) => (
-              <tr key={c.id} className="border-b border-white/5">
-                <td className="py-3 px-4 text-white/85">{c.name}</td>
-                <td className="py-3 px-4 text-white/60">{c.company || "—"}</td>
-                <td className="py-3 px-4 text-white/60">{c.title || "—"}</td>
+              <tr key={c.id} className="border-b border-line">
+                <td className="py-3 px-4 text-white">{c.name}</td>
+                <td className="py-3 px-4 text-ink-secondary">{c.company || "—"}</td>
+                <td className="py-3 px-4 text-ink-secondary">{c.title || "—"}</td>
                 <td className="py-3 px-4">
                   <span
                     className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${
-                      c.tag === "Supplier" ? "text-violet-300 bg-violet-400/15" : "text-sky-300 bg-sky-400/15"
+                      c.tag === "Supplier" ? "text-blue-400 bg-blue-500/15" : "text-blue-400 bg-blue-500/15"
                     }`}
                   >
                     {c.tag}
                   </span>
                 </td>
-                <td className="py-3 px-4 text-white/50">{c.last_contact_date || "—"}</td>
+                <td className="py-3 px-4 text-ink-secondary">{c.last_contact_date || "—"}</td>
                 <td className="py-3 px-4">
                   {c.email ? (
-                    <a href={`mailto:${c.email}`} className="text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-white">
+                    <a href={`mailto:${c.email}`} className="text-xs px-3 py-1.5 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white">
                       Send Email
                     </a>
                   ) : (
-                    <span className="text-xs text-white/20">No email</span>
+                    <span className="text-xs text-ink-muted">No email</span>
                   )}
                 </td>
                 <td className="py-3 px-4">
-                  <button onClick={() => setFormContact(c)} className="text-xs text-white/40 hover:text-white">
+                  <button onClick={() => setFormContact(c)} className="text-xs text-ink-secondary hover:text-white">
                     Edit
                   </button>
                 </td>
@@ -149,7 +149,7 @@ export default function Contacts() {
             ))}
             {!loading && filtered.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-8 text-center text-sm text-white/30">
+                <td colSpan={7} className="py-8 text-center text-sm text-ink-muted">
                   No contacts found.
                 </td>
               </tr>

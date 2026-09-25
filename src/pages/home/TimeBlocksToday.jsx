@@ -94,9 +94,11 @@ export default function TimeBlocksToday() {
     }
   }
 
+  const nowStr = formatHHMM(new Date());
+
   return (
     <div>
-      <p className="text-xs font-medium text-white/50 mb-2">Today's Time Blocks</p>
+      <p className="text-xs font-medium text-ink-secondary mb-2">Today's Time Blocks</p>
       <ul
         onDragOver={(e) => {
           e.preventDefault();
@@ -108,25 +110,38 @@ export default function TimeBlocksToday() {
           isDragOver ? "ring-2 ring-accent bg-accent/5" : ""
         }`}
       >
-        {blocks.map((b) => (
+        {blocks.map((b, i) => {
+          const next = blocks[i + 1];
+          const isActive = b.time <= nowStr && (!next || nowStr < next.time);
+          return (
           <li
             key={b.id}
-            className="flex items-center gap-2 bg-base-800 border border-white/10 rounded-lg px-3 py-1.5"
+            className={`flex items-center gap-2 border rounded-lg px-3 py-1.5 ${
+              isActive
+                ? "border-blue-500/30"
+                : "bg-base-800 border-line"
+            }`}
+            style={isActive ? { backgroundColor: "#1e3a5f" } : undefined}
           >
-            <span className="text-xs font-mono text-accent w-14 shrink-0">{b.time}</span>
-            <span className="text-sm text-white/80 flex-1 truncate">{b.label}</span>
+            <span className={`text-xs font-mono w-14 shrink-0 ${isActive ? "text-blue-300" : "text-accent"}`}>
+              {b.time}
+            </span>
+            <span className={`text-sm flex-1 truncate ${isActive ? "text-blue-100" : "text-white"}`}>
+              {b.label}
+            </span>
             {b.source === "clickup" && (
-              <span className="text-[10px] uppercase tracking-wide text-white/30 bg-white/5 rounded px-1 py-0.5 shrink-0">
+              <span className="text-[10px] uppercase tracking-wide text-ink-muted bg-base-800/60 rounded px-1 py-0.5 shrink-0">
                 ClickUp
               </span>
             )}
-            <button onClick={() => removeBlock(b.id)} className="text-white/20 hover:text-white/60 text-xs">
+            <button onClick={() => removeBlock(b.id)} className="text-ink-muted hover:text-ink-secondary text-xs">
               ✕
             </button>
           </li>
-        ))}
+          );
+        })}
         {blocks.length === 0 && (
-          <li className="text-xs text-white/30 px-1 py-2">
+          <li className="text-xs text-ink-muted px-1 py-2">
             No blocks scheduled yet. Drag a Backlog task here to schedule it.
           </li>
         )}
@@ -136,19 +151,19 @@ export default function TimeBlocksToday() {
           type="time"
           value={time}
           onChange={(e) => setTime(e.target.value)}
-          className="w-28 rounded-lg bg-base-800 border border-white/10 px-2 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-accent"
+          className="w-28 rounded-lg bg-base-800 border border-line px-2 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-accent"
         />
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Block label…"
-          className="flex-1 rounded-lg bg-base-800 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-accent"
+          className="flex-1 rounded-lg bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
         />
-        <button type="submit" className="px-3 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm">
+        <button type="submit" className="px-3 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm">
           Add
         </button>
       </form>
-      {syncStatus && <p className="text-[11px] text-white/30 mt-2">{syncStatus}</p>}
+      {syncStatus && <p className="text-[11px] text-ink-muted mt-2">{syncStatus}</p>}
     </div>
   );
 }

@@ -143,7 +143,7 @@ export default function QuoteBuilder() {
           Quote Builder
         </p>
         <h1 className="text-2xl font-semibold text-white">Build a Quotation</h1>
-        <p className="text-sm text-white/40 mt-1">Sourced RFQs, ready to price and send.</p>
+        <p className="text-sm text-ink-secondary mt-1">Sourced RFQs, ready to price and send.</p>
       </div>
 
       {error && (
@@ -152,9 +152,9 @@ export default function QuoteBuilder() {
         </p>
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-base-900 p-4">
+      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">RFQ (status: sourced)</span>
+          <span className="block text-xs text-ink-secondary mb-1">RFQ (status: sourced)</span>
           <select value={rfqId ?? ""} onChange={(e) => setRfqId(e.target.value || null)} className="input">
             <option value="">Select an RFQ…</option>
             {rfqs.map((r) => (
@@ -166,7 +166,7 @@ export default function QuoteBuilder() {
           </select>
         </label>
         {rfqs.length === 0 && (
-          <p className="text-xs text-white/30 mt-2">
+          <p className="text-xs text-ink-muted mt-2">
             No RFQs are ready to quote. Finish sourcing one on the Sourcing Desk first.
           </p>
         )}
@@ -174,7 +174,7 @@ export default function QuoteBuilder() {
 
       {selectedRfq && lines.length > 0 && (
         <>
-          <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Line Items</h3>
             <QuoteLineTable
               lines={lines}
@@ -186,7 +186,7 @@ export default function QuoteBuilder() {
 
           <TotalsPanel totals={totals} />
 
-          <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">PDF Preview</h3>
             <QuotePdfPreview
               pdfUrl={pdfUrl}
@@ -198,7 +198,7 @@ export default function QuoteBuilder() {
             />
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Send Quotation</h3>
             <SendQuotePanel
               contact={contact}

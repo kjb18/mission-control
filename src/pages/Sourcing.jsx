@@ -109,7 +109,7 @@ export default function Sourcing() {
           Sourcing
         </p>
         <h1 className="text-2xl font-semibold text-white">Sourcing Desk</h1>
-        <p className="text-sm text-white/40 mt-1">
+        <p className="text-sm text-ink-secondary mt-1">
           Work one confirmed RFQ, one line item, at a time.
         </p>
       </div>
@@ -120,9 +120,9 @@ export default function Sourcing() {
         </p>
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-base-900 p-4">
+      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">RFQ (awaiting or in sourcing)</span>
+          <span className="block text-xs text-ink-secondary mb-1">RFQ (awaiting or in sourcing)</span>
           <select
             value={rfqId ?? ""}
             onChange={(e) => setRfqId(e.target.value || null)}
@@ -138,14 +138,14 @@ export default function Sourcing() {
           </select>
         </label>
         {rfqs.length === 0 && (
-          <p className="text-xs text-white/30 mt-2">
+          <p className="text-xs text-ink-muted mt-2">
             No RFQs are waiting on sourcing. Confirm one in Intake first.
           </p>
         )}
       </div>
 
       {selectedRfq && allSourced && (
-        <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-5 flex items-center justify-between">
+        <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-5 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-emerald-200">
               All lines sourced — RFQ marked as sourced.
@@ -169,41 +169,41 @@ export default function Sourcing() {
             <button
               onClick={() => setLineIndex((i) => Math.max(0, i - 1))}
               disabled={lineIndex === 0}
-              className="text-sm text-white/50 hover:text-white disabled:opacity-30"
+              className="text-sm text-ink-secondary hover:text-white disabled:opacity-30"
             >
               ← Prev
             </button>
-            <p className="text-sm text-white/50">
+            <p className="text-sm text-ink-secondary">
               Line {lineIndex + 1} of {lines.length}
             </p>
             <button
               onClick={() => setLineIndex((i) => Math.min(lines.length - 1, i + 1))}
               disabled={lineIndex === lines.length - 1}
-              className="text-sm text-white/50 hover:text-white disabled:opacity-30"
+              className="text-sm text-ink-secondary hover:text-white disabled:opacity-30"
             >
               Next →
             </button>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-base-900 p-5">
+          <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <div className="flex items-start justify-between gap-4 mb-1">
               <h2 className="text-lg font-semibold text-white">{currentLine.description}</h2>
               <span
                 className={`text-[11px] font-medium rounded-full px-2 py-0.5 shrink-0 ${
                   currentLine.status === "sourced"
                     ? "text-emerald-300 bg-emerald-400/15"
-                    : "text-white/40 bg-white/5"
+                    : "text-ink-secondary bg-base-800/60"
                 }`}
               >
                 {currentLine.status}
               </span>
             </div>
-            <p className="text-sm text-white/40">
+            <p className="text-sm text-ink-secondary">
               Qty {currentLine.quantity} {currentLine.unit}
             </p>
           </div>
 
-          <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Supplier Comparison</h3>
             <SupplierComparisonGrid
               quotes={quotes}
@@ -214,17 +214,17 @@ export default function Sourcing() {
             />
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Log a Supplier Reply</h3>
             <ManualQuoteForm suppliers={suppliers} onSave={handleManualQuote} busy={busy} />
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Supplier Outreach</h3>
             <OutreachPanel line={currentLine} suppliers={suppliers} />
           </section>
 
-          <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Price History</h3>
             <PriceHistoryPanel history={history} loading={historyLoading} />
           </section>

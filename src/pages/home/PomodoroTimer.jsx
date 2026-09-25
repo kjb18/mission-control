@@ -37,20 +37,20 @@ export default function PomodoroTimer() {
 
   return (
     <div>
-      <p className="text-xs font-medium text-white/50 mb-2">
+      <p className="text-xs font-medium text-ink-secondary mb-2">
         Pomodoro — {mode === "focus" ? "Focus" : "Break"}
       </p>
-      <div className="bg-base-800 border border-white/10 rounded-lg p-4 flex items-center gap-4">
+      <div className="bg-base-800 border border-line rounded-lg p-4 flex items-center gap-4">
         <div className="relative w-16 h-16 shrink-0">
           <svg viewBox="0 0 36 36" className="w-16 h-16 -rotate-90">
-            <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
+            <circle cx="18" cy="18" r="16" fill="none" stroke="#1e2d3d" strokeWidth="2" />
             <circle
               cx="18"
               cy="18"
               r="16"
               fill="none"
-              stroke={mode === "focus" ? "#f59e0b" : "#34d399"}
-              strokeWidth="3"
+              stroke={mode === "focus" ? "#3b82f6" : "#34d399"}
+              strokeWidth="2"
               strokeDasharray={2 * Math.PI * 16}
               strokeDashoffset={2 * Math.PI * 16 * (1 - progress)}
               strokeLinecap="round"
@@ -69,7 +69,7 @@ export default function PomodoroTimer() {
           </button>
           <button
             onClick={reset}
-            className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+            className="px-3 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Reset
           </button>

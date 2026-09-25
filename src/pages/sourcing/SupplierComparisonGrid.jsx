@@ -5,7 +5,7 @@ const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "
 export default function SupplierComparisonGrid({ quotes, line, onSelect, busy, fxRate = FX_RATE_PHP }) {
   if (quotes.length === 0) {
     return (
-      <p className="text-sm text-white/30 py-6 text-center">
+      <p className="text-sm text-ink-muted py-6 text-center">
         No supplier quotes yet for this line. Log a reply below or draft outreach.
       </p>
     );
@@ -17,7 +17,7 @@ export default function SupplierComparisonGrid({ quotes, line, onSelect, busy, f
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
+          <tr className="text-left text-[11px] uppercase tracking-wide text-ink-secondary border-b border-line">
             <th className="py-2 pr-3">Supplier</th>
             <th className="py-2 pr-3">Brand</th>
             <th className="py-2 pr-3">Unit Price (PHP)</th>
@@ -33,9 +33,9 @@ export default function SupplierComparisonGrid({ quotes, line, onSelect, busy, f
             return (
               <tr
                 key={q.id}
-                className={`border-b border-white/5 ${isWinner ? "bg-emerald-400/5" : ""}`}
+                className={`border-b border-line ${isWinner ? "bg-emerald-400/5" : ""}`}
               >
-                <td className="py-2.5 pr-3 text-white/85">
+                <td className="py-2.5 pr-3 text-white">
                   {q.supplierName}
                   {q.supplierBlacklisted && (
                     <span className="ml-2 text-[10px] text-red-300 bg-red-400/15 rounded-full px-1.5 py-0.5">
@@ -43,16 +43,16 @@ export default function SupplierComparisonGrid({ quotes, line, onSelect, busy, f
                     </span>
                   )}
                 </td>
-                <td className="py-2.5 pr-3 text-white/60">{q.brand || "—"}</td>
-                <td className="py-2.5 pr-3 text-white/85">{currency.format(unitPricePHP(q.unit_price, fxRate))}</td>
-                <td className="py-2.5 pr-3 text-white/60">
+                <td className="py-2.5 pr-3 text-ink-secondary">{q.brand || "—"}</td>
+                <td className="py-2.5 pr-3 text-white">{currency.format(unitPricePHP(q.unit_price, fxRate))}</td>
+                <td className="py-2.5 pr-3 text-ink-secondary">
                   {daysToWeeks(q.lead_time_days) ?? "—"} wk
                 </td>
                 <td className="py-2.5 pr-3">
                   {q.certified ? (
                     <span className="text-emerald-300 text-xs">Yes</span>
                   ) : (
-                    <span className="text-white/30 text-xs">No</span>
+                    <span className="text-ink-muted text-xs">No</span>
                   )}
                 </td>
                 <td className="py-2.5 pr-3 text-white font-medium">

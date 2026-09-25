@@ -22,7 +22,7 @@ export default function Wins() {
       <div>
         <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">Wins</p>
         <h1 className="text-2xl font-semibold text-white">Wins Log</h1>
-        <p className="text-sm text-white/40 mt-1">
+        <p className="text-sm text-ink-secondary mt-1">
           Automatically logged whenever an RFQ is awarded.
         </p>
       </div>
@@ -39,12 +39,12 @@ export default function Wins() {
         <Stat label="Value This Year" value={currency.format(summary.totalValueThisYear)} tone="text-accent" />
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-base-900 divide-y divide-white/5">
+      <div className="rounded-lg border border-line bg-base-900 divide-y divide-line">
         {wins.map((w) => (
           <div key={w.id} className="flex items-center justify-between px-5 py-4">
             <div>
               <p className="text-sm font-semibold text-white">{w.client_name}</p>
-              <p className="text-xs text-white/40">
+              <p className="text-xs text-ink-secondary">
                 {w.rfq_reference || "No reference"} · Awarded {w.awarded_date}
               </p>
             </div>
@@ -61,7 +61,7 @@ export default function Wins() {
           </div>
         ))}
         {!loading && wins.length === 0 && (
-          <p className="text-sm text-white/30 text-center py-10">
+          <p className="text-sm text-ink-muted text-center py-10">
             No wins yet — they'll appear automatically once an RFQ is awarded.
           </p>
         )}
@@ -72,8 +72,8 @@ export default function Wins() {
 
 function Stat({ label, value, tone = "text-white" }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-base-900 p-4">
-      <p className="text-[11px] uppercase tracking-wide text-white/40">{label}</p>
+    <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <p className="text-[11px] uppercase tracking-wide text-ink-secondary">{label}</p>
       <p className={`text-xl font-semibold mt-1 ${tone}`}>{value}</p>
     </div>
   );

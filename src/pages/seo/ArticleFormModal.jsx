@@ -65,16 +65,16 @@ export default function ArticleFormModal({ article, onClose, onSaved }) {
     <Modal title={isEdit ? "Edit Article" : "New Article"} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Article Title</span>
+          <span className="block text-xs text-ink-secondary mb-1">Article Title</span>
           <input value={form.title} onChange={(e) => update("title", e.target.value)} className="input" />
         </label>
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Target Keyword</span>
+          <span className="block text-xs text-ink-secondary mb-1">Target Keyword</span>
           <input value={form.target_keyword} onChange={(e) => update("target_keyword", e.target.value)} className="input" />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Status</span>
+            <span className="block text-xs text-ink-secondary mb-1">Status</span>
             <select value={form.status} onChange={(e) => update("status", e.target.value)} className="input">
               {SEO_STATUSES.map((s) => (
                 <option key={s} value={s}>
@@ -84,17 +84,17 @@ export default function ArticleFormModal({ article, onClose, onSaved }) {
             </select>
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Publish Date</span>
+            <span className="block text-xs text-ink-secondary mb-1">Publish Date</span>
             <input type="date" value={form.publish_date} onChange={(e) => update("publish_date", e.target.value)} className="input" />
           </label>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Word Count</span>
+            <span className="block text-xs text-ink-secondary mb-1">Word Count</span>
             <input type="number" value={form.word_count} onChange={(e) => update("word_count", e.target.value)} className="input" />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">URL</span>
+            <span className="block text-xs text-ink-secondary mb-1">URL</span>
             <input value={form.url} onChange={(e) => update("url", e.target.value)} className="input" />
           </label>
         </div>
@@ -113,7 +113,7 @@ export default function ArticleFormModal({ article, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Cancel
           </button>

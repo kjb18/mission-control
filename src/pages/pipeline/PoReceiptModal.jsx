@@ -39,15 +39,15 @@ export default function PoReceiptModal({ card, onClose, onSaved }) {
     <Modal title={`Receive PO — ${card.rfqNumber || card.title}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">PO Number</span>
+          <span className="block text-xs text-ink-secondary mb-1">PO Number</span>
           <input value={poNumber} onChange={(e) => setPoNumber(e.target.value)} className="input" />
         </label>
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">PO Date</span>
+          <span className="block text-xs text-ink-secondary mb-1">PO Date</span>
           <input type="date" value={poDate} onChange={(e) => setPoDate(e.target.value)} className="input" />
         </label>
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">PO Amount (PHP)</span>
+          <span className="block text-xs text-ink-secondary mb-1">PO Amount (PHP)</span>
           <input
             type="number"
             step="0.01"
@@ -57,12 +57,12 @@ export default function PoReceiptModal({ card, onClose, onSaved }) {
           />
         </label>
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">PO Document (PDF or image)</span>
+          <span className="block text-xs text-ink-secondary mb-1">PO Document (PDF or image)</span>
           <input
             type="file"
             accept="application/pdf,image/*"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-sm text-white/60"
+            className="block w-full text-sm text-ink-secondary"
           />
         </label>
 
@@ -80,7 +80,7 @@ export default function PoReceiptModal({ card, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Cancel
           </button>

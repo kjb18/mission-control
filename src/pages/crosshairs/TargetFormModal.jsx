@@ -72,16 +72,16 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
     <Modal title={isEdit ? "Edit Target" : "New Target"} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Target Name</span>
+          <span className="block text-xs text-ink-secondary mb-1">Target Name</span>
           <input value={form.target_name} onChange={(e) => update("target_name", e.target.value)} className="input" />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Industry</span>
+            <span className="block text-xs text-ink-secondary mb-1">Industry</span>
             <input value={form.industry} onChange={(e) => update("industry", e.target.value)} className="input" />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Priority</span>
+            <span className="block text-xs text-ink-secondary mb-1">Priority</span>
             <select value={form.priority} onChange={(e) => update("priority", e.target.value)} className="input">
               {PRIORITIES.map((p) => (
                 <option key={p} value={p}>
@@ -93,7 +93,7 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Estimated Value (PHP)</span>
+            <span className="block text-xs text-ink-secondary mb-1">Estimated Value (PHP)</span>
             <input
               type="number"
               step="0.01"
@@ -103,7 +103,7 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
             />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Primary Contact</span>
+            <span className="block text-xs text-ink-secondary mb-1">Primary Contact</span>
             <input
               value={form.primary_contact_name}
               onChange={(e) => update("primary_contact_name", e.target.value)}
@@ -112,11 +112,11 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
           </label>
         </div>
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Current Stage</span>
+          <span className="block text-xs text-ink-secondary mb-1">Current Stage</span>
           <input value={form.current_stage} onChange={(e) => update("current_stage", e.target.value)} className="input" />
         </label>
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Next Suggested Action</span>
+          <span className="block text-xs text-ink-secondary mb-1">Next Suggested Action</span>
           <input
             value={form.next_suggested_action}
             onChange={(e) => update("next_suggested_action", e.target.value)}
@@ -124,7 +124,7 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
           />
         </label>
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Notes</span>
+          <span className="block text-xs text-ink-secondary mb-1">Notes</span>
           <textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={3} className="input resize-none" />
         </label>
 
@@ -142,7 +142,7 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Cancel
           </button>

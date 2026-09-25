@@ -44,7 +44,7 @@ export default function OutreachPanel({ line, suppliers }) {
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2 items-end">
         <label className="block flex-1 min-w-[180px]">
-          <span className="block text-[11px] text-white/40 mb-1">Supplier to contact</span>
+          <span className="block text-[11px] text-ink-secondary mb-1">Supplier to contact</span>
           <input
             list="outreach-supplier-names"
             value={supplierName}
@@ -59,7 +59,7 @@ export default function OutreachPanel({ line, suppliers }) {
           </datalist>
         </label>
         <label className="block flex-1 min-w-[180px]">
-          <span className="block text-[11px] text-white/40 mb-1">Supplier email</span>
+          <span className="block text-[11px] text-ink-secondary mb-1">Supplier email</span>
           <input
             type="email"
             value={supplierEmail}
@@ -89,9 +89,9 @@ export default function OutreachPanel({ line, suppliers }) {
       )}
 
       {draft && (
-        <div className="rounded-lg border border-white/10 bg-base-800 p-3 space-y-2">
+        <div className="rounded-lg border border-line bg-base-800 p-3 space-y-2">
           <label className="block">
-            <span className="block text-[11px] text-white/40 mb-1">Subject</span>
+            <span className="block text-[11px] text-ink-secondary mb-1">Subject</span>
             <input
               value={draft.subject}
               onChange={(e) => setDraft({ ...draft, subject: e.target.value })}
@@ -99,7 +99,7 @@ export default function OutreachPanel({ line, suppliers }) {
             />
           </label>
           <label className="block">
-            <span className="block text-[11px] text-white/40 mb-1">Body (edit before sending)</span>
+            <span className="block text-[11px] text-ink-secondary mb-1">Body (edit before sending)</span>
             <textarea
               value={draft.body}
               onChange={(e) => setDraft({ ...draft, body: e.target.value })}
@@ -109,7 +109,7 @@ export default function OutreachPanel({ line, suppliers }) {
           </label>
           <a
             href={buildMailto({ to: supplierEmail, subject: draft.subject, body: draft.body })}
-            className="inline-block px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+            className="inline-block px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Open in Email (mailto)
           </a>

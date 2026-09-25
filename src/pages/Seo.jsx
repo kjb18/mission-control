@@ -5,8 +5,8 @@ import ArticleFormModal from "./seo/ArticleFormModal";
 const STATUS_ORDER = { Published: 0, Scheduled: 1, Draft: 2 };
 const STATUS_STYLES = {
   Published: "text-emerald-300 bg-emerald-400/15",
-  Scheduled: "text-sky-300 bg-sky-400/15",
-  Draft: "text-white/40 bg-white/5",
+  Scheduled: "text-blue-400 bg-blue-500/15",
+  Draft: "text-ink-secondary bg-base-800/60",
 };
 
 export default function Seo() {
@@ -63,9 +63,9 @@ export default function Seo() {
         </button>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-base-900 p-5">
+      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-sm text-white/60">
+          <p className="text-sm text-ink-secondary">
             <span className="text-2xl font-semibold text-white">{publishedCount}</span> of {target} articles
             published
           </p>
@@ -73,7 +73,7 @@ export default function Seo() {
             {Math.round((publishedCount / target) * 100)}%
           </span>
         </div>
-        <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden">
+        <div className="w-full h-2 rounded-full bg-base-800/60 overflow-hidden">
           <div
             className="h-full bg-accent"
             style={{ width: `${Math.min(100, (publishedCount / target) * 100)}%` }}
@@ -87,16 +87,16 @@ export default function Seo() {
         </p>
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-base-900 overflow-x-auto">
+      <div className="rounded-lg border border-line bg-base-900 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-white/40 border-b border-white/10">
+            <tr className="text-left text-[11px] uppercase tracking-wide text-ink-secondary border-b border-line">
               <th className="py-3 px-4">Title</th>
               <th className="py-3 px-4">Keyword</th>
-              <th className="py-3 px-4 cursor-pointer hover:text-white/70" onClick={() => setSortKey("status")}>
+              <th className="py-3 px-4 cursor-pointer hover:text-ink-secondary" onClick={() => setSortKey("status")}>
                 Status {sortKey === "status" ? "↓" : ""}
               </th>
-              <th className="py-3 px-4 cursor-pointer hover:text-white/70" onClick={() => setSortKey("publish_date")}>
+              <th className="py-3 px-4 cursor-pointer hover:text-ink-secondary" onClick={() => setSortKey("publish_date")}>
                 Publish Date {sortKey === "publish_date" ? "↓" : ""}
               </th>
               <th className="py-3 px-4">Words</th>
@@ -106,16 +106,16 @@ export default function Seo() {
           </thead>
           <tbody>
             {sorted.map((a) => (
-              <tr key={a.id} className="border-b border-white/5">
-                <td className="py-3 px-4 text-white/85">{a.title}</td>
-                <td className="py-3 px-4 text-white/50">{a.target_keyword || "—"}</td>
+              <tr key={a.id} className="border-b border-line">
+                <td className="py-3 px-4 text-white">{a.title}</td>
+                <td className="py-3 px-4 text-ink-secondary">{a.target_keyword || "—"}</td>
                 <td className="py-3 px-4">
                   <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${STATUS_STYLES[a.status]}`}>
                     {a.status}
                   </span>
                 </td>
-                <td className="py-3 px-4 text-white/50">{a.publish_date || "—"}</td>
-                <td className="py-3 px-4 text-white/50">{a.word_count ?? "—"}</td>
+                <td className="py-3 px-4 text-ink-secondary">{a.publish_date || "—"}</td>
+                <td className="py-3 px-4 text-ink-secondary">{a.word_count ?? "—"}</td>
                 <td className="py-3 px-4">
                   {a.url ? (
                     <a href={a.url} target="_blank" rel="noreferrer" className="text-accent hover:text-accent-light text-xs">
@@ -126,7 +126,7 @@ export default function Seo() {
                   )}
                 </td>
                 <td className="py-3 px-4">
-                  <button onClick={() => setFormArticle(a)} className="text-xs text-white/40 hover:text-white">
+                  <button onClick={() => setFormArticle(a)} className="text-xs text-ink-secondary hover:text-white">
                     Edit
                   </button>
                 </td>
@@ -134,7 +134,7 @@ export default function Seo() {
             ))}
             {!loading && sorted.length === 0 && (
               <tr>
-                <td colSpan={7} className="py-8 text-center text-sm text-white/30">
+                <td colSpan={7} className="py-8 text-center text-sm text-ink-muted">
                   No articles yet.
                 </td>
               </tr>

@@ -27,16 +27,16 @@ export default function LogSessionModal({ topic, onClose, onSaved }) {
   return (
     <Modal title={`Log Session — ${topic.title}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="rounded-lg bg-base-800 border border-white/10 px-3 py-2 text-sm text-white/70">
+        <div className="rounded-lg bg-base-800 border border-line px-3 py-2 text-sm text-ink-secondary">
           Streak: {topic.current_streak} → <span className="text-accent font-medium">{nextStreak}</span> day
           {nextStreak === 1 ? "" : "s"}
           {gapResetWarning && (
-            <span className="block text-xs text-amber-300/80 mt-1">A day was skipped — streak resets to 1.</span>
+            <span className="block text-xs text-orange-400/80 mt-1">A day was skipped — streak resets to 1.</span>
           )}
         </div>
 
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Progress (%)</span>
+          <span className="block text-xs text-ink-secondary mb-1">Progress (%)</span>
           <input
             type="number"
             min="0"
@@ -61,7 +61,7 @@ export default function LogSessionModal({ topic, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Cancel
           </button>

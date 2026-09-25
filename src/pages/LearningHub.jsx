@@ -45,7 +45,7 @@ export default function LearningHub() {
         <div>
           <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">Learning Hub</p>
           <h1 className="text-2xl font-semibold text-white">Learning Topics</h1>
-          <p className="text-sm text-white/40 mt-1">Log a session to build your streak.</p>
+          <p className="text-sm text-ink-secondary mt-1">Log a session to build your streak.</p>
         </div>
         <button
           onClick={() => setFormTopic({})}
@@ -72,7 +72,7 @@ export default function LearningHub() {
           />
         ))}
         {!loading && topics.length === 0 && (
-          <p className="text-sm text-white/30 col-span-full text-center py-10">No topics yet.</p>
+          <p className="text-sm text-ink-muted col-span-full text-center py-10">No topics yet.</p>
         )}
       </div>
 

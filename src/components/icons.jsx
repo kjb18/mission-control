@@ -113,6 +113,24 @@ export const TrophyIcon = (p) => (
   </svg>
 );
 
+export const MoreIcon = (p) => (
+  <svg viewBox="0 0 24 24" {...base} {...p}>
+    <circle cx="5" cy="12" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="12" cy="12" r="1.3" fill="currentColor" stroke="none" />
+    <circle cx="19" cy="12" r="1.3" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+// Amber crosshair reticle — the app's mark, used in the topbar, login
+// screen, and PWA splash icons.
+export const LogoMark = (p) => (
+  <svg viewBox="0 0 24 24" fill="none" {...p}>
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8" />
+    <circle cx="12" cy="12" r="2.4" fill="currentColor" />
+    <path d="M12 1.5v4.5M12 18v4.5M1.5 12h4.5M18 12h4.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+  </svg>
+);
+
 export const BrewingIcon = (p) => (
   <svg viewBox="0 0 24 24" {...base} {...p}>
     <path d="M6 9h11v6a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z" />

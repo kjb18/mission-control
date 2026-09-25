@@ -6,7 +6,7 @@ import MonthCalendar from "./home/MonthCalendar";
 
 export default function Home() {
   return (
-    <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 space-y-10">
+    <div className="max-w-[1400px] mx-auto px-4 md:px-6 py-6 space-y-2">
       <WeeklyPlan />
       <FocusEngine />
       <BusinessPulse />

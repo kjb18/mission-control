@@ -17,8 +17,8 @@ export default defineConfig({
         short_name: "Mission Control",
         description:
           "Mission Control — operations command center for Ultra Power Industrial Resources, Inc.",
-        theme_color: "#0f172a",
-        background_color: "#0f172a",
+        theme_color: "#0d1120",
+        background_color: "#0f1117",
         display: "standalone",
         start_url: "/",
         scope: "/",

@@ -106,19 +106,19 @@ export default function Settings() {
         <h1 className="text-2xl font-semibold text-white">Account & Integrations</h1>
       </div>
 
-      <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+      <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <h2 className="text-sm font-semibold text-white mb-3">Account</h2>
-        <p className="text-sm text-white/60">Signed in as {user?.email}</p>
+        <p className="text-sm text-ink-secondary">Signed in as {user?.email}</p>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+      <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <h2 className="text-sm font-semibold text-white mb-3">Pricing</h2>
-        <p className="text-sm text-white/50 mb-4">
+        <p className="text-sm text-ink-secondary mb-4">
           USD→PHP FX rate used for landed cost on the Sourcing Desk and Quote Builder.
         </p>
         <form onSubmit={handleSaveFxRate} className="flex items-end gap-2">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">FX Rate (PHP per USD)</span>
+            <span className="block text-xs text-ink-secondary mb-1">FX Rate (PHP per USD)</span>
             <input
               type="number"
               step="0.01"
@@ -142,31 +142,31 @@ export default function Settings() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+      <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-white">Google Calendar</h2>
           <span
             className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${
-              connected ? "text-emerald-300 bg-emerald-400/15" : "text-white/40 bg-white/5"
+              connected ? "text-emerald-300 bg-emerald-400/15" : "text-ink-secondary bg-base-800/60"
             }`}
           >
             {connected ? "Connected" : "Not connected"}
           </span>
         </div>
-        <p className="text-sm text-white/50 mb-4">
+        <p className="text-sm text-ink-secondary mb-4">
           Connect your Google account so time blocks you create in Mission Control push to
           Google Calendar with a 5-minute reminder, and so private calendar events can be read
           into the Weekly Plan and Month Calendar.
         </p>
 
         {!isGoogleAuthConfigured() ? (
-          <p className="text-xs text-amber-300/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2">
+          <p className="text-xs text-orange-400/80 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2">
             VITE_GOOGLE_CLIENT_ID is not set.
           </p>
         ) : connected ? (
           <button
             onClick={handleDisconnect}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm font-medium"
+            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm font-medium"
           >
             Disconnect Google Calendar
           </button>
@@ -191,9 +191,9 @@ export default function Settings() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-base-900 p-5">
+      <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <h2 className="text-sm font-semibold text-white mb-3">Supplier Blacklist</h2>
-        <p className="text-sm text-white/50 mb-4">
+        <p className="text-sm text-ink-secondary mb-4">
           Blacklisted suppliers are blocked from outreach on the Sourcing Desk.
         </p>
 
@@ -201,18 +201,18 @@ export default function Settings() {
           {blacklist.map((s) => (
             <li
               key={s.id}
-              className="flex items-center justify-between bg-base-800 border border-white/10 rounded-lg px-3 py-2"
+              className="flex items-center justify-between bg-base-800 border border-line rounded-lg px-3 py-2"
             >
-              <span className="text-sm text-white/80">{s.name}</span>
+              <span className="text-sm text-white">{s.name}</span>
               <button
                 onClick={() => handleRemoveFromBlacklist(s)}
-                className="text-xs text-white/30 hover:text-red-300"
+                className="text-xs text-ink-muted hover:text-red-300"
               >
                 Remove
               </button>
             </li>
           ))}
-          {blacklist.length === 0 && <li className="text-sm text-white/30">No blacklisted suppliers.</li>}
+          {blacklist.length === 0 && <li className="text-sm text-ink-muted">No blacklisted suppliers.</li>}
         </ul>
 
         <form onSubmit={handleAddToBlacklist} className="flex gap-2">

@@ -58,16 +58,16 @@ export default function TopicFormModal({ topic, onClose, onSaved }) {
     <Modal title={isEdit ? "Edit Topic" : "New Topic"} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Title</span>
+          <span className="block text-xs text-ink-secondary mb-1">Title</span>
           <input value={form.title} onChange={(e) => update("title", e.target.value)} className="input" />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Category</span>
+            <span className="block text-xs text-ink-secondary mb-1">Category</span>
             <input value={form.category} onChange={(e) => update("category", e.target.value)} className="input" />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Status</span>
+            <span className="block text-xs text-ink-secondary mb-1">Status</span>
             <select value={form.status} onChange={(e) => update("status", e.target.value)} className="input">
               <option value="active">Active</option>
               <option value="paused">Paused</option>
@@ -76,7 +76,7 @@ export default function TopicFormModal({ topic, onClose, onSaved }) {
           </label>
         </div>
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Description</span>
+          <span className="block text-xs text-ink-secondary mb-1">Description</span>
           <textarea
             value={form.description}
             onChange={(e) => update("description", e.target.value)}
@@ -99,7 +99,7 @@ export default function TopicFormModal({ topic, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Cancel
           </button>

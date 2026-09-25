@@ -33,7 +33,7 @@ export default function Crosshairs() {
         <div>
           <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">Crosshairs</p>
           <h1 className="text-2xl font-semibold text-white">Target Accounts</h1>
-          <p className="text-sm text-white/40 mt-1">
+          <p className="text-sm text-ink-secondary mt-1">
             Sorted by priority, then by the most neglected last touchpoint first.
           </p>
         </div>
@@ -61,7 +61,7 @@ export default function Crosshairs() {
           />
         ))}
         {!loading && targets.length === 0 && (
-          <p className="text-sm text-white/30 col-span-full text-center py-10">
+          <p className="text-sm text-ink-muted col-span-full text-center py-10">
             No targets yet — add your first one.
           </p>
         )}

@@ -36,31 +36,34 @@ export default function MitsList() {
 
   return (
     <div>
-      <p className="text-xs font-medium text-white/50 mb-2">
+      <p className="text-xs font-medium text-ink-secondary mb-2">
         Most Important Tasks ({mits.length}/3)
       </p>
       <ul className="space-y-1.5 mb-2">
         {mits.map((m, i) => (
           <li
             key={i}
-            className="flex items-center gap-2 bg-base-800 border border-white/10 rounded-lg px-3 py-2"
+            className="flex items-center gap-2 bg-base-800 border border-line rounded-lg px-3 py-2"
           >
             <button
               onClick={() => toggleMit(i)}
-              className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
-                m.done ? "bg-accent border-accent" : "border-white/30"
+              className={`rounded-full flex items-center justify-center shrink-0 font-medium text-base-950 transition-opacity ${
+                m.done ? "opacity-50" : ""
               }`}
+              style={{ width: 16, height: 16, fontSize: 9, backgroundColor: "#f59e0b" }}
             >
-              {m.done && (
-                <svg viewBox="0 0 24 24" className="w-3 h-3 text-base-950" fill="none" stroke="currentColor" strokeWidth="3">
+              {m.done ? (
+                <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="3">
                   <path d="M5 13l4 4L19 7" />
                 </svg>
+              ) : (
+                i + 1
               )}
             </button>
-            <span className={`text-sm flex-1 ${m.done ? "line-through text-white/30" : "text-white/85"}`}>
+            <span className={`text-sm flex-1 ${m.done ? "line-through text-ink-muted" : "text-white"}`}>
               {m.text}
             </span>
-            <button onClick={() => removeMit(i)} className="text-white/20 hover:text-white/60 text-xs">
+            <button onClick={() => removeMit(i)} className="text-ink-muted hover:text-ink-secondary text-xs">
               ✕
             </button>
           </li>
@@ -72,11 +75,11 @@ export default function MitsList() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Add a most important task…"
-            className="flex-1 rounded-lg bg-base-800 border border-white/10 px-3 py-2 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-accent"
+            className="flex-1 rounded-lg bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
           />
           <button
             type="submit"
-            className="px-3 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+            className="px-3 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Add
           </button>

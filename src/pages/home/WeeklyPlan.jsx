@@ -92,20 +92,20 @@ export default function WeeklyPlan() {
       />
 
       {!hasConnectedBefore() && (
-        <p className="text-xs text-white/30 mb-3">
+        <p className="text-xs text-ink-muted mb-3">
           Google Calendar isn't connected — connect it in Settings to push new blocks and see
           private events.
         </p>
       )}
       {calendarError && (
-        <p className="text-xs text-amber-300/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2 mb-3">
+        <p className="text-xs text-orange-400/80 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 mb-3">
           {calendarError}
         </p>
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-base-900 overflow-x-auto">
+      <div className="rounded-lg border border-line bg-base-900 overflow-x-auto">
         <div className="min-w-[720px] grid grid-cols-[64px_repeat(5,1fr)]">
-          <div className="border-b border-white/10" />
+          <div className="border-b border-line" />
           {days.map((d) => {
             const iso = toISODate(d);
             const isToday = iso === todayISO;
@@ -114,14 +114,14 @@ export default function WeeklyPlan() {
             return (
               <div
                 key={iso}
-                className={`border-b border-l border-white/10 px-3 py-2 text-center ${
+                className={`border-b border-l border-line px-3 py-2 text-center ${
                   isToday ? "bg-accent/10" : ""
                 }`}
               >
-                <p className="text-[11px] uppercase tracking-wide text-white/40">
+                <p className="text-[11px] uppercase tracking-wide text-ink-secondary">
                   {formatWeekday(d)}
                 </p>
-                <p className={`text-sm font-semibold ${isToday ? "text-accent" : "text-white/80"}`}>
+                <p className={`text-sm font-semibold ${isToday ? "text-accent" : "text-white"}`}>
                   {formatDayNumber(d)}
                 </p>
                 <div className="flex justify-center gap-0.5 mt-1 h-1.5">
@@ -129,7 +129,7 @@ export default function WeeklyPlan() {
                     <span key={`p-${i}`} title={ev.label} className={`w-1.5 h-1.5 rounded-full ${ev.color}`} />
                   ))}
                   {dayMeetings.slice(0, 2).map((ev, i) => (
-                    <span key={`m-${i}`} title={ev.title} className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                    <span key={`m-${i}`} title={ev.title} className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                   ))}
                 </div>
               </div>
@@ -138,7 +138,7 @@ export default function WeeklyPlan() {
 
           {HOURS.map((hour) => (
             <div key={hour} className="contents">
-              <div className="border-b border-white/5 px-2 py-2 text-right text-[11px] text-white/30">
+              <div className="border-b border-line px-2 py-2 text-right text-[11px] text-ink-muted">
                 {hour % 12 === 0 ? 12 : hour % 12}
                 {hour < 12 ? "a" : "p"}
               </div>
@@ -151,13 +151,13 @@ export default function WeeklyPlan() {
                 return (
                   <div
                     key={key}
-                    className="border-b border-l border-white/5 min-h-[38px] px-1 py-1 flex flex-col gap-0.5"
+                    className="border-b border-l border-line min-h-[38px] px-1 py-1 flex flex-col gap-0.5"
                   >
                     {meetings.map((m) => (
                       <div
                         key={m.id}
                         title={`${m.title} (from Google Calendar)`}
-                        className="rounded px-1.5 py-0.5 text-[10px] truncate bg-violet-400/20 text-violet-200 border border-violet-400/30"
+                        className="rounded px-1.5 py-0.5 text-[10px] truncate bg-blue-500/20 text-blue-300 border border-blue-500/30"
                       >
                         {m.title}
                       </div>
@@ -180,7 +180,7 @@ export default function WeeklyPlan() {
                         className={`w-full h-full rounded px-1.5 py-1 text-left text-xs truncate transition-colors ${
                           value
                             ? "bg-accent/20 text-white/90 hover:bg-accent/25"
-                            : "hover:bg-white/5 text-transparent"
+                            : "hover:bg-base-800/60 text-transparent"
                         }`}
                       >
                         {value || "·"}
@@ -194,7 +194,7 @@ export default function WeeklyPlan() {
         </div>
       </div>
 
-      {syncNotice && <p className="text-xs text-white/30 mt-2">{syncNotice}</p>}
+      {syncNotice && <p className="text-xs text-ink-muted mt-2">{syncNotice}</p>}
     </section>
   );
 }

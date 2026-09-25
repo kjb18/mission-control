@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import TopBar from "./TopBar";
+import MobileBottomNav from "./MobileBottomNav";
 import CheckInGate from "./CheckInGate";
 
 export default function Layout() {
@@ -19,11 +20,13 @@ export default function Layout() {
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <TopBar onMenuClick={() => setSidebarOpen((v) => !v)} />
-        <main className="flex-1 overflow-y-auto">
+        <TopBar />
+        <main className="flex-1 overflow-y-auto pb-[52px] md:pb-0">
           <Outlet />
         </main>
       </div>
+
+      <MobileBottomNav onMore={() => setSidebarOpen((v) => !v)} />
 
       <CheckInGate />
     </div>

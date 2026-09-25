@@ -7,10 +7,10 @@ import { ChevronLeftIcon } from "../../components/icons";
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const LEGEND = [
-  { label: "RFQ", color: "bg-amber-400" },
-  { label: "Delivery", color: "bg-emerald-400" },
-  { label: "Invoice", color: "bg-blue-400" },
-  { label: "Meeting", color: "bg-violet-400" },
+  { label: "RFQ", color: "bg-accent" },
+  { label: "Delivery", color: "bg-success" },
+  { label: "Invoice", color: "bg-blue-500" },
+  { label: "Meeting", color: "bg-warning" },
 ];
 
 export default function MonthCalendar() {
@@ -49,16 +49,16 @@ export default function MonthCalendar() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => shiftMonth(-1)}
-              className="p-1.5 rounded-lg hover:bg-white/5 text-white/50"
+              className="p-1.5 rounded-lg hover:bg-base-800/60 text-ink-secondary"
             >
               <ChevronLeftIcon className="w-4 h-4" />
             </button>
-            <span className="text-sm text-white/70 font-medium w-32 text-center">
+            <span className="text-sm text-ink-secondary font-medium w-32 text-center">
               {monthLabel}
             </span>
             <button
               onClick={() => shiftMonth(1)}
-              className="p-1.5 rounded-lg hover:bg-white/5 text-white/50 rotate-180"
+              className="p-1.5 rounded-lg hover:bg-base-800/60 text-ink-secondary rotate-180"
             >
               <ChevronLeftIcon className="w-4 h-4" />
             </button>
@@ -67,15 +67,15 @@ export default function MonthCalendar() {
       />
 
       {calendarError && (
-        <p className="text-xs text-amber-300/80 bg-amber-400/10 border border-amber-400/20 rounded-lg px-3 py-2 mb-3">
+        <p className="text-xs text-orange-400/80 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 mb-3">
           {calendarError}
         </p>
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-base-900 p-3">
-        <div className="flex flex-wrap gap-3 px-1 pb-2 mb-1 border-b border-white/5">
+      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+        <div className="flex flex-wrap gap-3 px-1 pb-2 mb-1 border-b border-line">
           {LEGEND.map(({ label, color }) => (
-            <span key={label} className="flex items-center gap-1.5 text-[11px] text-white/40">
+            <span key={label} className="flex items-center gap-1.5 text-[11px] text-ink-secondary">
               <span className={`w-1.5 h-1.5 rounded-full ${color}`} />
               {label}
             </span>
@@ -83,7 +83,7 @@ export default function MonthCalendar() {
         </div>
         <div className="grid grid-cols-7 mb-1">
           {WEEKDAY_LABELS.map((w) => (
-            <div key={w} className="text-center text-[11px] text-white/30 py-1">
+            <div key={w} className="text-center text-[11px] text-ink-muted py-1">
               {w}
             </div>
           ))}
@@ -98,10 +98,10 @@ export default function MonthCalendar() {
               <div
                 key={iso}
                 className={`min-h-[64px] rounded-lg border px-1.5 py-1 ${
-                  isToday ? "border-accent bg-accent/10" : "border-white/5"
+                  isToday ? "border-accent bg-accent/10" : "border-line"
                 }`}
               >
-                <p className={`text-xs ${isToday ? "text-accent font-semibold" : "text-white/50"}`}>
+                <p className={`text-xs ${isToday ? "text-accent font-semibold" : "text-ink-secondary"}`}>
                   {day}
                 </p>
                 <div className="flex flex-wrap gap-0.5 mt-1">

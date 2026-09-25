@@ -21,10 +21,10 @@ export default function ShutdownRitual() {
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <p className="text-xs font-medium text-white/50">Shutdown Ritual</p>
+        <p className="text-xs font-medium text-ink-secondary">Shutdown Ritual</p>
         <span
           className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-            allDone ? "bg-emerald-400/15 text-emerald-300" : "bg-white/5 text-white/40"
+            allDone ? "bg-emerald-400/15 text-emerald-300" : "bg-base-800/60 text-ink-secondary"
           }`}
         >
           {doneCount}/{DEFAULT_ITEMS.length}
@@ -35,7 +35,7 @@ export default function ShutdownRitual() {
           <li key={item}>
             <button
               onClick={() => toggle(item)}
-              className="w-full flex items-center gap-2 bg-base-800 border border-white/10 rounded-lg px-3 py-2 text-left hover:border-white/20"
+              className="w-full flex items-center gap-2 bg-base-800 border border-line rounded-lg px-3 py-2 text-left hover:border-line-strong"
             >
               <span
                 className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${
@@ -48,7 +48,7 @@ export default function ShutdownRitual() {
                   </svg>
                 )}
               </span>
-              <span className={`text-sm ${checked[item] ? "line-through text-white/30" : "text-white/85"}`}>
+              <span className={`text-sm ${checked[item] ? "line-through text-ink-muted" : "text-white"}`}>
                 {item}
               </span>
             </button>

@@ -74,7 +74,7 @@ export default function Okrs() {
         <div>
           <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">OKRs</p>
           <h1 className="text-2xl font-semibold text-white">Objectives & Key Results</h1>
-          <p className="text-sm text-white/40 mt-1">Update current counts as progress happens.</p>
+          <p className="text-sm text-ink-secondary mt-1">Update current counts as progress happens.</p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
@@ -91,9 +91,9 @@ export default function Okrs() {
       )}
 
       {showForm && (
-        <form onSubmit={handleCreate} className="rounded-2xl border border-white/10 bg-base-900 p-5 grid grid-cols-2 gap-3">
+        <form onSubmit={handleCreate} className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 grid grid-cols-2 gap-3">
           <label className="block col-span-2">
-            <span className="block text-xs text-white/40 mb-1">Title</span>
+            <span className="block text-xs text-ink-secondary mb-1">Title</span>
             <input
               value={form.objective}
               onChange={(e) => setForm((f) => ({ ...f, objective: e.target.value }))}
@@ -101,7 +101,7 @@ export default function Okrs() {
             />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Target Number</span>
+            <span className="block text-xs text-ink-secondary mb-1">Target Number</span>
             <input
               type="number"
               value={form.target_number}
@@ -110,7 +110,7 @@ export default function Okrs() {
             />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Current Count</span>
+            <span className="block text-xs text-ink-secondary mb-1">Current Count</span>
             <input
               type="number"
               value={form.current_count}
@@ -119,7 +119,7 @@ export default function Okrs() {
             />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Unit Label</span>
+            <span className="block text-xs text-ink-secondary mb-1">Unit Label</span>
             <input
               value={form.unit_label}
               onChange={(e) => setForm((f) => ({ ...f, unit_label: e.target.value }))}
@@ -128,7 +128,7 @@ export default function Okrs() {
             />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Quarter</span>
+            <span className="block text-xs text-ink-secondary mb-1">Quarter</span>
             <input
               value={form.quarter}
               onChange={(e) => setForm((f) => ({ ...f, quarter: e.target.value }))}
@@ -150,21 +150,21 @@ export default function Okrs() {
         {okrs.map((okr) => {
           const pct = progressPercent(okr);
           return (
-            <div key={okr.id} className="rounded-2xl border border-white/10 bg-base-900 p-5">
+            <div key={okr.id} className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div>
                   <p className="text-sm font-semibold text-white">{okr.objective}</p>
-                  {okr.quarter && <p className="text-xs text-white/40">{okr.quarter}</p>}
+                  {okr.quarter && <p className="text-xs text-ink-secondary">{okr.quarter}</p>}
                 </div>
                 <button
                   onClick={() => handleDelete(okr)}
-                  className="text-xs text-white/20 hover:text-red-300 shrink-0"
+                  className="text-xs text-ink-muted hover:text-red-300 shrink-0"
                 >
                   Delete
                 </button>
               </div>
 
-              <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden mb-2">
+              <div className="w-full h-2 rounded-full bg-base-800/60 overflow-hidden mb-2">
                 <div
                   className="h-full bg-accent transition-all"
                   style={{ width: `${pct}%` }}
@@ -177,9 +177,9 @@ export default function Okrs() {
                     type="number"
                     value={okr.current_count ?? 0}
                     onChange={(e) => handleCountChange(okr, e.target.value)}
-                    className="w-20 rounded-lg bg-base-800 border border-white/10 px-2 py-1 text-sm text-white"
+                    className="w-20 rounded-lg bg-base-800 border border-line px-2 py-1 text-sm text-white"
                   />
-                  <span className="text-white/40">
+                  <span className="text-ink-secondary">
                     / {okr.target_number} {okr.unit_label}
                   </span>
                 </div>
@@ -189,7 +189,7 @@ export default function Okrs() {
           );
         })}
         {!loading && okrs.length === 0 && (
-          <p className="text-sm text-white/30 text-center py-10">No OKRs yet.</p>
+          <p className="text-sm text-ink-muted text-center py-10">No OKRs yet.</p>
         )}
       </div>
     </div>

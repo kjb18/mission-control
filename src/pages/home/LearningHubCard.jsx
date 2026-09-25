@@ -32,17 +32,17 @@ export default function LearningHubCard() {
 
   if (loading) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-base-900 p-4">
-        <p className="text-xs text-white/30">Loading…</p>
+      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+        <p className="text-xs text-ink-muted">Loading…</p>
       </div>
     );
   }
 
   if (!topic) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-base-900 p-4">
+      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <p className="text-sm font-semibold text-white mb-1">Learning Hub</p>
-        <p className="text-xs text-white/30">No active topics.</p>
+        <p className="text-xs text-ink-muted">No active topics.</p>
       </div>
     );
   }
@@ -51,25 +51,25 @@ export default function LearningHubCard() {
 
   if (doneToday) {
     return (
-      <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 px-4 py-3 flex items-center justify-between">
+      <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/5 px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-          <span className="text-sm text-white/85 truncate">{topic.title}</span>
+          <span className="text-sm text-white truncate">{topic.title}</span>
         </div>
-        <span className="text-xs text-amber-300 shrink-0 ml-2">🔥 {topic.current_streak}</span>
+        <span className="text-xs text-orange-400 shrink-0 ml-2">🔥 {topic.current_streak}</span>
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-base-900 p-4">
-      <p className="text-xs font-medium text-white/50 mb-2">Learning Hub</p>
+    <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <p className="text-xs font-medium text-ink-secondary mb-2">Learning Hub</p>
       <p className="text-sm font-semibold text-white mb-2">{topic.title}</p>
-      <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden mb-2">
+      <div className="w-full h-1.5 rounded-full bg-base-800/60 overflow-hidden mb-2">
         <div className="h-full bg-accent" style={{ width: `${topic.progress_percent}%` }} />
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-xs text-amber-300">
+        <span className="text-xs text-orange-400">
           🔥 {topic.current_streak} day{topic.current_streak === 1 ? "" : "s"}
         </span>
         <button

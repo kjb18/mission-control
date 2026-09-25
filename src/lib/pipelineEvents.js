@@ -1,13 +1,16 @@
 import { supabase } from "./supabaseClient";
 
 // Shared event-source config for the weekly plan and month calendar dots.
+// These four need to stay visually distinct from each other (they're a
+// legend, not decoration), so they're the one deliberate exception to the
+// rest of the app collapsing onto the constrained ops-center palette.
 export const PIPELINE_SOURCES = [
-  { table: "rfqs", dateColumn: "closing_date", label: "RFQ", color: "bg-amber-400" },
-  { table: "deliveries", dateColumn: "delivery_date", label: "Delivery", color: "bg-emerald-400" },
-  { table: "invoices", dateColumn: "closing_date", label: "Invoice", color: "bg-blue-400" },
+  { table: "rfqs", dateColumn: "closing_date", label: "RFQ", color: "bg-accent" },
+  { table: "deliveries", dateColumn: "delivery_date", label: "Delivery", color: "bg-success" },
+  { table: "invoices", dateColumn: "closing_date", label: "Invoice", color: "bg-blue-500" },
 ];
 
-export const MEETING_SOURCE = { label: "Meeting", color: "bg-violet-400" };
+export const MEETING_SOURCE = { label: "Meeting", color: "bg-warning" };
 
 export async function fetchPipelineEventsByDate(startISO, endISO) {
   const results = await Promise.all(

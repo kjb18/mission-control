@@ -4,10 +4,10 @@ import PoReceiptModal from "./pipeline/PoReceiptModal";
 import ConfirmDeliveryModal from "./pipeline/ConfirmDeliveryModal";
 
 const URGENCY_STYLES = {
-  red: "border-l-red-400",
-  amber: "border-l-amber-400",
-  green: "border-l-emerald-400",
-  none: "border-l-white/10",
+  red: "border-l-red-500",
+  amber: "border-l-orange-500",
+  green: "border-l-emerald-500",
+  none: "border-l-line",
 };
 
 export default function Pipeline() {
@@ -63,7 +63,7 @@ export default function Pipeline() {
       <div>
         <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">Pipeline</p>
         <h1 className="text-2xl font-semibold text-white">Pipeline Board</h1>
-        <p className="text-sm text-white/40 mt-1">
+        <p className="text-sm text-ink-secondary mt-1">
           Drag a card to move it manually — it also moves itself as RFQs progress elsewhere.
         </p>
       </div>
@@ -91,13 +91,18 @@ export default function Pipeline() {
               }}
               onDragLeave={() => setDragOverStage((s) => (s === stage.key ? null : s))}
               onDrop={(e) => handleDrop(e, stage.key)}
-              className={`rounded-2xl border bg-base-900 p-3 min-h-[200px] transition-colors ${
-                dragOverStage === stage.key ? "border-accent bg-accent/5" : "border-white/10"
+              className={`rounded-lg border-[0.5px] bg-base-900 p-3 min-h-[200px] transition-colors ${
+                dragOverStage === stage.key ? "border-accent bg-accent/5" : "border-line"
               }`}
             >
               <div className="flex items-center justify-between mb-3 px-1">
-                <p className="text-sm font-semibold text-white">{stage.label}</p>
-                <span className="text-xs text-white/30">{stageCards.length}</span>
+                <p
+                  className="uppercase text-white font-medium"
+                  style={{ fontSize: 11, letterSpacing: "0.06em" }}
+                >
+                  {stage.label}
+                </p>
+                <span className="text-xs text-ink-muted tabular-nums">{stageCards.length}</span>
               </div>
               <div className="space-y-2">
                 {stageCards.map((card) => (
@@ -109,7 +114,7 @@ export default function Pipeline() {
                   />
                 ))}
                 {stageCards.length === 0 && (
-                  <p className="text-xs text-white/20 px-1 py-2">Nothing here.</p>
+                  <p className="text-xs text-ink-muted px-1 py-2">Nothing here.</p>
                 )}
               </div>
             </div>
@@ -141,13 +146,19 @@ function PipelineCard({ card, onReceivePo, onConfirmDelivery }) {
     <div
       draggable
       onDragStart={(e) => e.dataTransfer.setData("text/plain", card.id)}
-      className={`border-l-4 ${URGENCY_STYLES[urgency]} bg-base-800 border border-white/10 rounded-lg px-3 py-2.5 cursor-grab active:cursor-grabbing hover:border-white/20`}
+      className={`border-l-2 ${URGENCY_STYLES[urgency]} bg-base-800 border-[0.5px] border-line rounded-lg px-3 py-2.5 cursor-grab active:cursor-grabbing hover:border-line-strong`}
     >
-      <p className="text-sm text-white/85 font-medium truncate">{card.clientName}</p>
-      <p className="text-xs text-white/50 truncate">{card.rfqNumber || card.title}</p>
-      <div className="flex items-center justify-between mt-1.5 text-[11px] text-white/40">
-        <span>{card.closingDate ? `Closes ${card.closingDate}` : "No closing date"}</span>
-        <span>{card.lineCount} line{card.lineCount === 1 ? "" : "s"}</span>
+      <p className="text-white font-medium truncate" style={{ fontSize: 11 }}>
+        {card.clientName}
+      </p>
+      <p className="text-ink-muted truncate mt-0.5" style={{ fontSize: 10 }}>
+        {card.rfqNumber || card.title}
+        {card.closingDate ? ` · Closes ${card.closingDate}` : ""}
+      </p>
+      <div className="flex items-center justify-end mt-1.5">
+        <span className="mc-badge bg-base-900 text-ink-secondary tabular-nums">
+          {card.lineCount} line{card.lineCount === 1 ? "" : "s"}
+        </span>
       </div>
       {onReceivePo && (
         <button

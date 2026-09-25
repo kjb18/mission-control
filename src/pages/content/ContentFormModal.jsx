@@ -57,12 +57,12 @@ export default function ContentFormModal({ item, defaultDate, onClose, onSaved }
     <Modal title={isEdit ? "Edit Content Item" : "New Content Item"} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Title</span>
+          <span className="block text-xs text-ink-secondary mb-1">Title</span>
           <input value={form.title} onChange={(e) => update("title", e.target.value)} className="input" />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Platform</span>
+            <span className="block text-xs text-ink-secondary mb-1">Platform</span>
             <select value={form.platform} onChange={(e) => update("platform", e.target.value)} className="input">
               {CONTENT_PLATFORMS.map((p) => (
                 <option key={p} value={p}>
@@ -72,7 +72,7 @@ export default function ContentFormModal({ item, defaultDate, onClose, onSaved }
             </select>
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Status</span>
+            <span className="block text-xs text-ink-secondary mb-1">Status</span>
             <select value={form.status} onChange={(e) => update("status", e.target.value)} className="input">
               {CONTENT_STATUSES.map((s) => (
                 <option key={s} value={s}>
@@ -83,7 +83,7 @@ export default function ContentFormModal({ item, defaultDate, onClose, onSaved }
           </label>
         </div>
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Scheduled Date</span>
+          <span className="block text-xs text-ink-secondary mb-1">Scheduled Date</span>
           <input
             type="date"
             value={form.scheduled_date}
@@ -106,7 +106,7 @@ export default function ContentFormModal({ item, defaultDate, onClose, onSaved }
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Cancel
           </button>

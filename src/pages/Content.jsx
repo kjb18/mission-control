@@ -8,8 +8,8 @@ const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const PLATFORM_STYLES = {
   Website: "bg-accent/20 text-accent",
-  LinkedIn: "bg-sky-400/20 text-sky-300",
-  Instagram: "bg-violet-400/20 text-violet-300",
+  LinkedIn: "bg-blue-500/20 text-blue-400",
+  Instagram: "bg-blue-500/20 text-blue-400",
   Email: "bg-emerald-400/20 text-emerald-300",
 };
 
@@ -60,14 +60,14 @@ export default function Content() {
         <div>
           <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">Content</p>
           <h1 className="text-2xl font-semibold text-white">Content Calendar</h1>
-          <p className="text-sm text-white/40 mt-1">Click any date to schedule something.</p>
+          <p className="text-sm text-ink-secondary mt-1">Click any date to schedule something.</p>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => shiftMonth(-1)} className="p-1.5 rounded-lg hover:bg-white/5 text-white/50">
+          <button onClick={() => shiftMonth(-1)} className="p-1.5 rounded-lg hover:bg-base-800/60 text-ink-secondary">
             <ChevronLeftIcon className="w-4 h-4" />
           </button>
-          <span className="text-sm text-white/70 font-medium w-32 text-center">{monthLabel}</span>
-          <button onClick={() => shiftMonth(1)} className="p-1.5 rounded-lg hover:bg-white/5 text-white/50 rotate-180">
+          <span className="text-sm text-ink-secondary font-medium w-32 text-center">{monthLabel}</span>
+          <button onClick={() => shiftMonth(1)} className="p-1.5 rounded-lg hover:bg-base-800/60 text-ink-secondary rotate-180">
             <ChevronLeftIcon className="w-4 h-4" />
           </button>
         </div>
@@ -79,10 +79,10 @@ export default function Content() {
         </p>
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-base-900 p-3">
+      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <div className="grid grid-cols-7 mb-1">
           {WEEKDAY_LABELS.map((w) => (
-            <div key={w} className="text-center text-[11px] text-white/30 py-1">
+            <div key={w} className="text-center text-[11px] text-ink-muted py-1">
               {w}
             </div>
           ))}
@@ -97,11 +97,11 @@ export default function Content() {
               <button
                 key={iso}
                 onClick={() => setFormState({ defaultDate: iso })}
-                className={`min-h-[90px] rounded-lg border px-1.5 py-1 text-left align-top hover:border-white/20 transition-colors ${
-                  isToday ? "border-accent bg-accent/10" : "border-white/5"
+                className={`min-h-[90px] rounded-lg border px-1.5 py-1 text-left align-top hover:border-line-strong transition-colors ${
+                  isToday ? "border-accent bg-accent/10" : "border-line"
                 }`}
               >
-                <p className={`text-xs ${isToday ? "text-accent font-semibold" : "text-white/50"}`}>{day}</p>
+                <p className={`text-xs ${isToday ? "text-accent font-semibold" : "text-ink-secondary"}`}>{day}</p>
                 <div className="space-y-0.5 mt-1">
                   {dayItems.slice(0, 3).map((item) => (
                     <div
@@ -117,7 +117,7 @@ export default function Content() {
                     </div>
                   ))}
                   {dayItems.length > 3 && (
-                    <p className="text-[10px] text-white/30">+{dayItems.length - 3} more</p>
+                    <p className="text-[10px] text-ink-muted">+{dayItems.length - 3} more</p>
                   )}
                 </div>
               </button>
@@ -127,7 +127,7 @@ export default function Content() {
       </div>
 
       {!loading && items.length === 0 && (
-        <p className="text-sm text-white/30 text-center py-4">Nothing scheduled yet — click a date to add something.</p>
+        <p className="text-sm text-ink-muted text-center py-4">Nothing scheduled yet — click a date to add something.</p>
       )}
 
       {formState && (

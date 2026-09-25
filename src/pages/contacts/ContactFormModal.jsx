@@ -80,21 +80,21 @@ export default function ContactFormModal({ contact, onClose, onSaved }) {
       <form onSubmit={handleSubmit} className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Full Name</span>
+            <span className="block text-xs text-ink-secondary mb-1">Full Name</span>
             <input value={form.name} onChange={(e) => update("name", e.target.value)} className="input" />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Company</span>
+            <span className="block text-xs text-ink-secondary mb-1">Company</span>
             <input value={form.company} onChange={(e) => update("company", e.target.value)} className="input" />
           </label>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Role</span>
+            <span className="block text-xs text-ink-secondary mb-1">Role</span>
             <input value={form.title} onChange={(e) => update("title", e.target.value)} className="input" />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Tag</span>
+            <span className="block text-xs text-ink-secondary mb-1">Tag</span>
             <select value={form.tag} onChange={(e) => update("tag", e.target.value)} className="input">
               {CONTACT_TAGS.map((t) => (
                 <option key={t} value={t}>
@@ -106,17 +106,17 @@ export default function ContactFormModal({ contact, onClose, onSaved }) {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Email</span>
+            <span className="block text-xs text-ink-secondary mb-1">Email</span>
             <input type="email" value={form.email} onChange={(e) => update("email", e.target.value)} className="input" />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Phone</span>
+            <span className="block text-xs text-ink-secondary mb-1">Phone</span>
             <input value={form.phone} onChange={(e) => update("phone", e.target.value)} className="input" />
           </label>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Last Contact Date</span>
+            <span className="block text-xs text-ink-secondary mb-1">Last Contact Date</span>
             <input
               type="date"
               value={form.last_contact_date}
@@ -125,7 +125,7 @@ export default function ContactFormModal({ contact, onClose, onSaved }) {
             />
           </label>
           <label className="block">
-            <span className="block text-xs text-white/40 mb-1">Link to Client (optional)</span>
+            <span className="block text-xs text-ink-secondary mb-1">Link to Client (optional)</span>
             <select value={form.client_id} onChange={(e) => update("client_id", e.target.value)} className="input">
               <option value="">None</option>
               {clients.map((c) => (
@@ -137,7 +137,7 @@ export default function ContactFormModal({ contact, onClose, onSaved }) {
           </label>
         </div>
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Notes</span>
+          <span className="block text-xs text-ink-secondary mb-1">Notes</span>
           <textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={3} className="input resize-none" />
         </label>
 
@@ -155,7 +155,7 @@ export default function ContactFormModal({ contact, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Cancel
           </button>

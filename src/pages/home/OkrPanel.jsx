@@ -14,11 +14,11 @@ export default function OkrPanel() {
   }, []);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-base-900 p-4 flex flex-col">
+    <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
-        <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
         <p className="text-sm font-semibold text-white">OKRs</p>
-        <Link to="/okrs" className="ml-auto text-xs text-white/30 hover:text-white/60">
+        <Link to="/okrs" className="ml-auto text-xs text-ink-muted hover:text-ink-secondary">
           View all →
         </Link>
       </div>
@@ -29,16 +29,16 @@ export default function OkrPanel() {
           return (
             <li key={okr.id}>
               <div className="flex items-center justify-between text-xs mb-1">
-                <span className="text-white/70 truncate">{okr.objective}</span>
-                <span className="text-white/40 shrink-0 ml-2">{pct}%</span>
+                <span className="text-ink-secondary truncate">{okr.objective}</span>
+                <span className="text-ink-secondary shrink-0 ml-2">{pct}%</span>
               </div>
-              <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
-                <div className="h-full bg-sky-400" style={{ width: `${pct}%` }} />
+              <div className="w-full h-1.5 rounded-full bg-base-800/60 overflow-hidden">
+                <div className="h-full bg-blue-500" style={{ width: `${pct}%` }} />
               </div>
             </li>
           );
         })}
-        {!loading && okrs.length === 0 && <li className="text-xs text-white/30 px-1 py-1">No OKRs yet.</li>}
+        {!loading && okrs.length === 0 && <li className="text-xs text-ink-muted px-1 py-1">No OKRs yet.</li>}
       </ul>
     </div>
   );

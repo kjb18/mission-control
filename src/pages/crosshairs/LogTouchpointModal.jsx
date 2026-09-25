@@ -27,11 +27,11 @@ export default function LogTouchpointModal({ target, onClose, onSaved }) {
     <Modal title={`Log Touchpoint — ${target.target_name}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Date</span>
+          <span className="block text-xs text-ink-secondary mb-1">Date</span>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="input" />
         </label>
         <label className="block">
-          <span className="block text-xs text-white/40 mb-1">Note</span>
+          <span className="block text-xs text-ink-secondary mb-1">Note</span>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -55,7 +55,7 @@ export default function LogTouchpointModal({ target, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Cancel
           </button>

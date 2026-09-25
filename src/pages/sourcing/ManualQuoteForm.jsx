@@ -32,7 +32,7 @@ export default function ManualQuoteForm({ suppliers, onSave, busy }) {
   return (
     <form onSubmit={handleSubmit} className="grid grid-cols-2 sm:grid-cols-5 gap-2 items-end">
       <label className="block col-span-2 sm:col-span-1">
-        <span className="block text-[11px] text-white/40 mb-1">Supplier</span>
+        <span className="block text-[11px] text-ink-secondary mb-1">Supplier</span>
         <input
           list="supplier-names"
           value={form.supplierName}
@@ -47,11 +47,11 @@ export default function ManualQuoteForm({ suppliers, onSave, busy }) {
         </datalist>
       </label>
       <label className="block">
-        <span className="block text-[11px] text-white/40 mb-1">Brand</span>
+        <span className="block text-[11px] text-ink-secondary mb-1">Brand</span>
         <input value={form.brand} onChange={(e) => update("brand", e.target.value)} className="input" />
       </label>
       <label className="block">
-        <span className="block text-[11px] text-white/40 mb-1">Unit price</span>
+        <span className="block text-[11px] text-ink-secondary mb-1">Unit price</span>
         <input
           type="number"
           step="0.01"
@@ -61,7 +61,7 @@ export default function ManualQuoteForm({ suppliers, onSave, busy }) {
         />
       </label>
       <label className="block">
-        <span className="block text-[11px] text-white/40 mb-1">Lead time (wk)</span>
+        <span className="block text-[11px] text-ink-secondary mb-1">Lead time (wk)</span>
         <input
           type="number"
           step="0.5"
@@ -71,7 +71,7 @@ export default function ManualQuoteForm({ suppliers, onSave, busy }) {
         />
       </label>
       <div className="flex items-center gap-3">
-        <label className="flex items-center gap-1.5 text-xs text-white/60">
+        <label className="flex items-center gap-1.5 text-xs text-ink-secondary">
           <input
             type="checkbox"
             checked={form.certified}
@@ -82,7 +82,7 @@ export default function ManualQuoteForm({ suppliers, onSave, busy }) {
         <button
           type="submit"
           disabled={busy}
-          className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 text-white text-sm shrink-0"
+          className="px-3 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong disabled:opacity-50 text-white text-sm shrink-0"
         >
           Log Reply
         </button>

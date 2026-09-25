@@ -121,14 +121,14 @@ export default function Intake() {
           Intake
         </p>
         <h1 className="text-2xl font-semibold text-white">New RFQ</h1>
-        <p className="text-sm text-white/40 mt-1">
+        <p className="text-sm text-ink-secondary mt-1">
           Paste an email, upload a PDF or image, or receive one from the iOS Shortcut webhook.
         </p>
       </div>
 
       {!review && (
         <>
-          <div className="flex gap-1 border-b border-white/10">
+          <div className="flex gap-1 border-b border-line">
             {TABS.map((t) => (
               <button
                 key={t.key}
@@ -136,7 +136,7 @@ export default function Intake() {
                 className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                   tab === t.key
                     ? "border-accent text-white"
-                    : "border-transparent text-white/40 hover:text-white/70"
+                    : "border-transparent text-ink-secondary hover:text-ink-secondary"
                 }`}
               >
                 {t.label}
@@ -157,7 +157,7 @@ export default function Intake() {
                 onChange={(e) => setPasteText(e.target.value)}
                 rows={12}
                 placeholder="Paste the RFQ email text here…"
-                className="w-full rounded-xl bg-base-900 border border-white/10 px-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+                className="w-full rounded-lg bg-base-900 border border-line px-4 py-3 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none"
               />
               <button
                 type="submit"
@@ -170,15 +170,15 @@ export default function Intake() {
           )}
 
           {tab === "upload" && (
-            <div className="rounded-xl border border-dashed border-white/15 bg-base-900 p-10 text-center">
+            <div className="rounded-lg border border-dashed border-line-strong bg-base-900 p-10 text-center">
               <input
                 type="file"
                 accept="application/pdf,image/png,image/jpeg,image/webp"
                 onChange={handleFile}
                 disabled={busy}
-                className="block mx-auto text-sm text-white/60"
+                className="block mx-auto text-sm text-ink-secondary"
               />
-              <p className="text-xs text-white/30 mt-3">
+              <p className="text-xs text-ink-muted mt-3">
                 {busy ? "Parsing…" : "PDF or image of an RFQ — Claude reads it directly."}
               </p>
             </div>
@@ -186,32 +186,32 @@ export default function Intake() {
 
           {tab === "webhook" && (
             <div className="space-y-4">
-              <div className="rounded-xl border border-white/10 bg-base-900 p-4 text-sm text-white/60 space-y-2">
-                <p className="text-white/80 font-medium">iOS Shortcut setup</p>
+              <div className="rounded-lg border border-line bg-base-900 p-4 text-sm text-ink-secondary space-y-2">
+                <p className="text-white font-medium">iOS Shortcut setup</p>
                 <p>
                   POST JSON to <code className="text-accent">{webhookUrl}</code> with header{" "}
                   <code className="text-accent">x-intake-secret</code> set to the value in{" "}
-                  <code className="text-white/40">INTAKE_WEBHOOK_SECRET</code> (Cloudflare Pages
+                  <code className="text-ink-secondary">INTAKE_WEBHOOK_SECRET</code> (Cloudflare Pages
                   Function env var — see README).
                 </p>
                 <p>
                   Body shape:{" "}
-                  <code className="text-white/40">
+                  <code className="text-ink-secondary">
                     {`{ "client_name", "rfq_reference", "closing_date", "line_items": [...] }`}
                   </code>
                 </p>
               </div>
               <div>
-                <p className="text-sm font-medium text-white/70 mb-2">
+                <p className="text-sm font-medium text-ink-secondary mb-2">
                   Pending ({pendingQueue.length})
                 </p>
                 <ul className="space-y-2">
                   {pendingQueue.map((row) => (
                     <li
                       key={row.id}
-                      className="flex items-center justify-between bg-base-900 border border-white/10 rounded-lg px-4 py-3"
+                      className="flex items-center justify-between bg-base-900 border border-line rounded-lg px-4 py-3"
                     >
-                      <div className="text-sm text-white/70">
+                      <div className="text-sm text-ink-secondary">
                         {row.parsed?.client_name || "Unknown client"} —{" "}
                         {row.parsed?.rfq_reference || "no reference"}
                       </div>
@@ -225,7 +225,7 @@ export default function Intake() {
                     </li>
                   ))}
                   {pendingQueue.length === 0 && (
-                    <li className="text-sm text-white/30">No pending webhook submissions.</li>
+                    <li className="text-sm text-ink-muted">No pending webhook submissions.</li>
                   )}
                 </ul>
               </div>
@@ -270,7 +270,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-white/10 bg-base-900 p-5 space-y-4">
+      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 space-y-4">
         <p className="text-sm font-semibold text-white">Review before confirming</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Client name">
@@ -301,7 +301,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
       <div className="space-y-3">
         <p className="text-sm font-semibold text-white">Line items ({lines.length})</p>
         {lines.map((line, i) => (
-          <div key={i} className="rounded-xl border border-white/10 bg-base-900 p-4 space-y-3">
+          <div key={i} className="rounded-lg border border-line bg-base-900 p-4 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_100px_100px] gap-2">
               <input
                 value={line.description}
@@ -326,7 +326,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
 
             {line.matches?.length > 0 && (
               <div className="space-y-1.5">
-                <p className="text-[11px] uppercase tracking-wide text-white/30">
+                <p className="text-[11px] uppercase tracking-wide text-ink-muted">
                   Previous matches
                 </p>
                 {line.matches.map((m) => (
@@ -336,11 +336,11 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
                     className={`w-full text-left rounded-lg px-3 py-2 text-xs border transition-colors ${
                       line.acceptedMatchId === m.id
                         ? "border-emerald-400/50 bg-emerald-400/10"
-                        : "border-white/10 bg-base-800 hover:border-white/20"
+                        : "border-line bg-base-800 hover:border-line-strong"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-white/80">
+                      <span className="text-white">
                         {m.part_number || m.description} ({Math.round(m.similarity * 100)}% match)
                       </span>
                       {line.acceptedMatchId === m.id && (
@@ -348,7 +348,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
                       )}
                     </div>
                     {m.recent_quotes?.length > 0 && (
-                      <div className="mt-1 text-white/40">
+                      <div className="mt-1 text-ink-secondary">
                         {m.recent_quotes
                           .map((q) => `${q.supplierName}: $${q.unitPrice ?? "?"}`)
                           .join(" · ")}
@@ -379,7 +379,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
         <button
           onClick={onCancel}
           disabled={busy}
-          className="px-4 py-2.5 rounded-lg bg-white/10 hover:bg-white/15 text-white text-sm"
+          className="px-4 py-2.5 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
         >
           Cancel
         </button>
@@ -391,7 +391,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
 function Field({ label, children }) {
   return (
     <label className="block">
-      <span className="block text-xs text-white/40 mb-1">{label}</span>
+      <span className="block text-xs text-ink-secondary mb-1">{label}</span>
       {children}
     </label>
   );

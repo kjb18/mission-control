@@ -35,19 +35,19 @@ export default function CrosshairsPanel() {
   }
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-base-900 p-4 flex flex-col">
+    <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <span className="w-1.5 h-1.5 rounded-full bg-accent" />
         <p className="text-sm font-semibold text-white">Crosshairs</p>
-        <Link to="/crosshairs" className="ml-auto text-xs text-white/30 hover:text-white/60">
+        <Link to="/crosshairs" className="ml-auto text-xs text-ink-muted hover:text-ink-secondary">
           View all →
         </Link>
       </div>
 
       {loading ? (
-        <p className="text-xs text-white/30">Loading…</p>
+        <p className="text-xs text-ink-muted">Loading…</p>
       ) : !rotated ? (
-        <p className="text-xs text-white/30">No targets yet.</p>
+        <p className="text-xs text-ink-muted">No targets yet.</p>
       ) : (
         <div className="space-y-2">
           <div className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2">
@@ -55,7 +55,7 @@ export default function CrosshairsPanel() {
               <p className="text-sm text-white font-medium truncate">{rotated.target_name}</p>
               <span className="text-[10px] uppercase tracking-wide text-accent shrink-0">{rotated.priority}</span>
             </div>
-            <p className="text-[11px] text-white/40 mt-0.5">
+            <p className="text-[11px] text-ink-secondary mt-0.5">
               {rotated.next_suggested_action || "No suggested action set."}
             </p>
             <button
@@ -70,8 +70,8 @@ export default function CrosshairsPanel() {
           <ul className="space-y-1 max-h-28 overflow-y-auto">
             {rest.slice(0, 4).map((t) => (
               <li key={t.id} className="flex items-center justify-between text-xs px-1 py-1">
-                <span className="text-white/60 truncate">{t.target_name}</span>
-                <span className="text-white/30 shrink-0 ml-2">{t.priority}</span>
+                <span className="text-ink-secondary truncate">{t.target_name}</span>
+                <span className="text-ink-muted shrink-0 ml-2">{t.priority}</span>
               </li>
             ))}
           </ul>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../lib/AuthContext";
 import { OWNER_EMAIL } from "../lib/supabaseClient";
+import { LogoMark } from "./icons";
 
 export default function LoginScreen() {
   const { sendMagicLink } = useAuth();
@@ -25,21 +26,23 @@ export default function LoginScreen() {
     <div className="min-h-screen w-full flex items-center justify-center bg-base-950 px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <img src="/pwa-192x192.png" alt="" className="w-16 h-16 rounded-2xl mb-4" />
-          <h1 className="text-xl font-semibold text-white tracking-tight">
+          <div className="w-16 h-16 rounded-full border-2 border-accent flex items-center justify-center mb-4">
+            <LogoMark className="w-9 h-9 text-accent" />
+          </div>
+          <h1 className="text-xl font-medium text-white tracking-tight">
             Mission Control
           </h1>
-          <p className="text-sm text-white/50 mt-1">
+          <p className="text-sm text-ink-secondary mt-1">
             Ultra Power Industrial Resources, Inc.
           </p>
         </div>
 
-        <div className="bg-base-900 border border-white/10 rounded-2xl p-6">
+        <div className="bg-base-900 border-[0.5px] border-line rounded-lg p-6">
           {status === "sent" ? (
             <div className="text-center py-2">
               <p className="text-white font-medium mb-1">Check your inbox</p>
-              <p className="text-sm text-white/50">
-                A sign-in link was sent to <span className="text-white/80">{email}</span>.
+              <p className="text-sm text-ink-secondary">
+                A sign-in link was sent to <span className="text-white">{email}</span>.
               </p>
               <button
                 onClick={() => setStatus("idle")}
@@ -50,7 +53,7 @@ export default function LoginScreen() {
             </div>
           ) : (
             <form onSubmit={handleSubmit}>
-              <label className="block text-xs font-medium text-white/60 mb-2">
+              <label className="block text-xs font-medium text-ink-secondary mb-2">
                 Email address
               </label>
               <input
@@ -58,7 +61,7 @@ export default function LoginScreen() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg bg-base-800 border border-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-accent"
+                className="input"
                 placeholder="you@company.com"
               />
               {status === "error" && (
