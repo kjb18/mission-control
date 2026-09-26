@@ -19,60 +19,80 @@ Supabase, ClickUp, Google Calendar, and Claude.
 
 ## Design system
 
-Mission Control uses a dense, dark "ops center" visual language — every
-color, spacing, and type value below is a literal Tailwind token, not an
-approximation, so any surface can be built or reviewed against this table
-directly.
+Mission Control uses a light, dense "command console" visual language —
+every color, spacing, and type value below is a literal Tailwind token, not
+an approximation, so any surface can be built or reviewed against this
+table directly. Almost every hex in the spec is an exact stock Tailwind
+shade (`blue`, `violet`, `amber`, `emerald`, `red`, `orange`, `slate`), so
+most of the system is just those palettes used directly in JSX — only the
+handful of tokens below exist as custom Tailwind config.
 
 **Color tokens** (`tailwind.config.js`):
 
 | Token | Hex | Usage |
 |---|---|---|
-| `bg-base-950` | `#0f1117` | App background |
-| `bg-base-900` | `#161b27` | Cards / panels |
-| `bg-base-800` | `#1c2333` | Elevated surfaces, inputs, secondary buttons |
-| `bg-sidebar` | `#0d1120` | Sidebar, topbar, mobile bottom nav |
-| `text-accent` / `bg-accent` | `#f59e0b` | Primary amber accent |
-| `hover:bg-accent-light` | `#d97706` | Accent hover state |
-| `text-blue-500` | `#3b82f6` | Blue highlight |
-| `#1e3a5f` | — | Blue-subtle (active time-block row bg) |
+| `bg-base-950` | `#f0f2f5` | App background |
+| `bg-base-900` | `#ffffff` | Card / panel surface |
+| `bg-base-800` | `#f8fafc` | Elevated surfaces, inputs, secondary buttons |
+| `bg-sidebar` | `#ffffff` | Sidebar, topbar, mobile bottom nav |
+| `text-accent` / `bg-accent` | `#3b82f6` | Primary blue — operations, focus, active states, primary buttons |
+| `hover:bg-accent-light` | `#2563eb` | Accent hover state |
+| `text-white` | `#0f172a` | Text primary (Tailwind's `white` is overridden app-wide) |
+| `text-ink-secondary` | `#64748b` | Text secondary |
+| `text-ink-muted` | `#94a3b8` | Text muted |
+| `border-line` | `#e2e8f0` | Default border |
+| `border-line-strong` | `#cbd5e1` | Strong border |
 | `text-success` | `#10b981` | Success (== `emerald-500`) |
 | `text-danger` | `#ef4444` | Danger (== `red-500`) |
-| `text-warning` | `#f97316` | Warning (== `orange-500`) |
-| `text-white` | `#f1f5f9` | Text primary (Tailwind's `white` is overridden app-wide) |
-| `text-ink-secondary` | `#94a3b8` | Text secondary |
-| `text-ink-muted` | `#475569` | Text muted |
-| `border-line` | `#1e2d3d` | Default hairline border |
-| `border-line-strong` | `#2d3f55` | Strong border |
+| `text-warning` | `#f97316` | Medium warning (== `orange-500`) |
 
-Every non-palette hue that used to appear in the app (sky, violet, rose,
-amber-as-status) has been collapsed onto this table — amber is reserved for
-brand accent, status/warning use `orange` (the `warning` token) instead.
+Plus, used directly as stock Tailwind shades (no custom token needed —
+their hex already matches the spec exactly): `amber-500`/`amber-800` (urgency
+only — RFQ deadlines, stale items, pending-payment borders; never used as a
+brand/accent color) and `violet-600`/`violet-100`/`violet-800` (the
+"Growth" domain — Crosshairs, OKRs, Content, SEO, Brewing, meetings, the
+Claude sparkle icon).
+
+Everything that isn't RFQ-urgency-amber or growth-domain-purple runs on
+blue as the operations/primary color — most of the app inherits this for
+free because `accent` (previously the app's amber brand color in an
+earlier dark-mode revision) now points at blue; growth-domain pages and
+components are hand-overridden from `accent`/blue to `violet-*` classes.
 
 **Typography**: system font stack (SF Pro on macOS/iOS —
 `-apple-system, BlinkMacSystemFont, SF Pro Display, SF Pro Text, Helvetica
-Neue, sans-serif`), 13px/1.5 body, headings weight 500, section labels
-9–11px uppercase with wide letter-spacing, KPI/count numbers use
-`.tabular-nums`.
+Neue, sans-serif`), 13px/1.5 body, headings weight 500 (never 700),
+section labels 9–11px uppercase with wide letter-spacing, KPI/count
+numbers use `.tabular-nums`.
 
 **Reusable component classes** (`src/index.css`, `@layer components`):
-`.mc-section-label` (amber eyebrow + trailing rule), `.mc-card`,
-`.mc-panel-header`, `.mc-badge`, `.mc-btn-primary`, `.mc-btn-secondary`,
-`.input`. Most surfaces still compose the same look from raw Tailwind
-utilities (`rounded-lg border-[0.5px] border-line bg-base-900 px-3
-py-2.5`) rather than the class — both are the same design, applied
-directly for pages built before the `.mc-*` classes existed.
+`.mc-section-label` (blue eyebrow + trailing rule; `.mc-section-label-purple`
+variant for the Growth zone), `.mc-card` (white, 0.5px border, 10px
+radius), `.mc-panel-header`, `.mc-badge`, `.mc-btn-primary`,
+`.mc-btn-secondary`, `.input`. Most surfaces compose the same look from raw
+Tailwind utilities (`rounded-[10px] border-[0.5px] border-line bg-base-900
+px-3 py-2.5`) rather than the class — both are the same design.
 
-**Layout**: sidebar fixed at 156px (`bg-sidebar`, 2px amber left-border on
-the active nav item), topbar fixed at 44px. Below 768px the sidebar
-collapses to a fixed icon-only bottom nav (`MobileBottomNav.jsx` — Home,
-Pipeline, Sourcing, Ledger, plus a "More" button that opens the full nav
-list as an overlay) and all grids stack to a single column.
+**Layout**: sidebar fixed at 200px (`bg-sidebar`, grouped nav — Operations /
+Growth / Workspace — with a 2px active-item left border, blue by default
+and purple for the four Growth-section items: Crosshairs, OKRs, Content,
+SEO), topbar fixed at 48px. Below 768px the sidebar collapses to a fixed
+5-icon bottom nav (`MobileBottomNav.jsx` — Home, Pipeline, Sourcing,
+Ledger, plus a "More" button that opens the full nav list as an overlay)
+and all grids stack to a single column.
 
-**Logo**: an amber crosshair mark (`LogoMark` in `src/components/icons.jsx`)
-appears in the sidebar header, the topbar (mobile), and the login screen;
-the same mark is baked into the PWA icon/splash-screen source SVGs
-(`public/icon-source.svg`, `public/icon-maskable-source.svg`).
+**Logo**: a crosshair mark (`LogoMark` in `src/components/icons.jsx`) on a
+blue-to-purple gradient roundel appears in the sidebar header and the
+login screen.
+
+**Calendar event colors**: RFQ closings — amber; deliveries — green;
+invoice due dates — blue; meetings — purple. Defined once in
+`src/lib/pipelineEvents.js` (used by the Weekly Plan and Month Calendar)
+and mirrored in `MonthCalendar.jsx`'s own legend. The Weekly Plan also
+accepts a Backlog task dropped onto an hour slot — it creates a Google
+Calendar event (10-minute popup reminder) via the existing
+`createEvent()` OAuth path in `src/lib/googleCalendar.js` and shows the
+block immediately, the same pattern `TimeBlocksToday.jsx` already used.
 
 ## Setup
 

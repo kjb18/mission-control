@@ -71,25 +71,25 @@ export default function OutreachPanel({ line, suppliers }) {
         <button
           onClick={handleDraft}
           disabled={drafting || !supplierName.trim()}
-          className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-medium"
+          className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-medium"
         >
           {drafting ? "Drafting…" : "Draft Outreach Email"}
         </button>
       </div>
 
       {blocked && (
-        <p className="text-sm text-red-300 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           🚫 Blocked: {blocked}
         </p>
       )}
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
 
       {draft && (
-        <div className="rounded-lg border border-line bg-base-800 p-3 space-y-2">
+        <div className="rounded-[10px] border border-line bg-base-800 p-3 space-y-2">
           <label className="block">
             <span className="block text-[11px] text-ink-secondary mb-1">Subject</span>
             <input
@@ -109,7 +109,7 @@ export default function OutreachPanel({ line, suppliers }) {
           </label>
           <a
             href={buildMailto({ to: supplierEmail, subject: draft.subject, body: draft.body })}
-            className="inline-block px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
+            className="inline-block px-4 py-2 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Open in Email (mailto)
           </a>

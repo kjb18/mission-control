@@ -4,9 +4,9 @@ import { fetchInvoices, computeLedgerSummary, markInvoicePaid } from "../lib/led
 const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
 const STATUS_STYLES = {
-  overdue: "text-red-300 bg-red-400/15",
-  current: "text-orange-400 bg-orange-500/15",
-  paid: "text-emerald-300 bg-emerald-400/15",
+  overdue: "text-red-600 bg-red-400/15",
+  current: "text-orange-600 bg-orange-500/15",
+  paid: "text-emerald-700 bg-emerald-400/15",
 };
 
 export default function Ledger() {
@@ -49,18 +49,18 @@ export default function Ledger() {
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
 
       <div className="grid grid-cols-3 gap-4">
         <SummaryStat label="Total Outstanding" value={currency.format(summary.totalOutstanding)} />
-        <SummaryStat label="Total Overdue" value={currency.format(summary.totalOverdue)} tone="text-red-300" />
-        <SummaryStat label="Overdue Invoices" value={summary.overdueCount} tone="text-red-300" />
+        <SummaryStat label="Total Overdue" value={currency.format(summary.totalOverdue)} tone="text-red-600" />
+        <SummaryStat label="Overdue Invoices" value={summary.overdueCount} tone="text-red-600" />
       </div>
 
-      <div className="rounded-lg border border-line bg-base-900 overflow-x-auto">
+      <div className="rounded-[10px] border border-line bg-base-900 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-ink-secondary border-b border-line">
@@ -102,7 +102,7 @@ export default function Ledger() {
                     <button
                       onClick={() => handleMarkPaid(inv.id)}
                       disabled={busyId === inv.id}
-                      className="text-xs px-3 py-1.5 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong disabled:opacity-50 text-white font-medium"
+                      className="text-xs px-3 py-1.5 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong disabled:opacity-50 text-white font-medium"
                     >
                       {busyId === inv.id ? "Saving…" : "Mark as Paid"}
                     </button>
@@ -126,7 +126,7 @@ export default function Ledger() {
 
 function SummaryStat({ label, value, tone = "text-white" }) {
   return (
-    <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
       <p className="text-[11px] uppercase tracking-wide text-ink-secondary">{label}</p>
       <p className={`text-xl font-semibold mt-1 ${tone}`}>{value}</p>
     </div>

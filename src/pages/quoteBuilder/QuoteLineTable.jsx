@@ -37,11 +37,11 @@ export default function QuoteLineTable({ lines, markups, onMarkupChange, compute
                     step="1"
                     value={markups[line.id] ?? ""}
                     onChange={(e) => onMarkupChange(line.id, e.target.value)}
-                    className="w-20 rounded-lg bg-base-800 border border-line px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                    className="w-20 rounded-[10px] bg-base-800 border border-line px-2 py-1 text-sm text-white focus:outline-none focus:ring-2 focus:ring-accent"
                   />
                 </td>
                 <td className="py-2.5 pr-3 text-white font-medium">{currency.format(c?.sellPrice ?? 0)}</td>
-                <td className="py-2.5 pr-3 text-emerald-300">{(c?.marginPercent ?? 0).toFixed(1)}%</td>
+                <td className="py-2.5 pr-3 text-emerald-700">{(c?.marginPercent ?? 0).toFixed(1)}%</td>
                 <td className="py-2.5 pr-3 text-white font-semibold">{currency.format(c?.lineTotal ?? 0)}</td>
               </tr>
             );

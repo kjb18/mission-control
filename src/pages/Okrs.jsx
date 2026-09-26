@@ -72,26 +72,26 @@ export default function Okrs() {
     <div className="max-w-4xl mx-auto px-4 md:px-6 py-10 space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">OKRs</p>
+          <p className="text-[11px] uppercase tracking-widest text-violet-600 font-medium mb-1">OKRs</p>
           <h1 className="text-2xl font-semibold text-white">Objectives & Key Results</h1>
           <p className="text-sm text-ink-secondary mt-1">Update current counts as progress happens.</p>
         </div>
         <button
           onClick={() => setShowForm((v) => !v)}
-          className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light text-base-950 text-sm font-semibold shrink-0"
+          className="px-4 py-2 rounded-[10px] bg-violet-600 hover:bg-violet-700 text-base-950 text-sm font-semibold shrink-0"
         >
           {showForm ? "Cancel" : "+ New OKR"}
         </button>
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
 
       {showForm && (
-        <form onSubmit={handleCreate} className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 grid grid-cols-2 gap-3">
+        <form onSubmit={handleCreate} className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 grid grid-cols-2 gap-3">
           <label className="block col-span-2">
             <span className="block text-xs text-ink-secondary mb-1">Title</span>
             <input
@@ -139,7 +139,7 @@ export default function Okrs() {
           <button
             type="submit"
             disabled={saving}
-            className="col-span-2 px-4 py-2 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-semibold"
+            className="col-span-2 px-4 py-2 rounded-[10px] bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-base-950 text-sm font-semibold"
           >
             {saving ? "Creating…" : "Create OKR"}
           </button>
@@ -150,7 +150,7 @@ export default function Okrs() {
         {okrs.map((okr) => {
           const pct = progressPercent(okr);
           return (
-            <div key={okr.id} className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+            <div key={okr.id} className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div>
                   <p className="text-sm font-semibold text-white">{okr.objective}</p>
@@ -158,7 +158,7 @@ export default function Okrs() {
                 </div>
                 <button
                   onClick={() => handleDelete(okr)}
-                  className="text-xs text-ink-muted hover:text-red-300 shrink-0"
+                  className="text-xs text-ink-muted hover:text-red-600 shrink-0"
                 >
                   Delete
                 </button>
@@ -166,7 +166,7 @@ export default function Okrs() {
 
               <div className="w-full h-2 rounded-full bg-base-800/60 overflow-hidden mb-2">
                 <div
-                  className="h-full bg-accent transition-all"
+                  className="h-full bg-violet-600 transition-all"
                   style={{ width: `${pct}%` }}
                 />
               </div>
@@ -177,13 +177,13 @@ export default function Okrs() {
                     type="number"
                     value={okr.current_count ?? 0}
                     onChange={(e) => handleCountChange(okr, e.target.value)}
-                    className="w-20 rounded-lg bg-base-800 border border-line px-2 py-1 text-sm text-white"
+                    className="w-20 rounded-[10px] bg-base-800 border border-line px-2 py-1 text-sm text-white"
                   />
                   <span className="text-ink-secondary">
                     / {okr.target_number} {okr.unit_label}
                   </span>
                 </div>
-                <span className="text-accent font-medium">{pct}%</span>
+                <span className="text-violet-600 font-medium">{pct}%</span>
               </div>
             </div>
           );

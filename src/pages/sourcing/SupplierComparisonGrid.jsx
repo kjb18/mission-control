@@ -38,7 +38,7 @@ export default function SupplierComparisonGrid({ quotes, line, onSelect, busy, f
                 <td className="py-2.5 pr-3 text-white">
                   {q.supplierName}
                   {q.supplierBlacklisted && (
-                    <span className="ml-2 text-[10px] text-red-300 bg-red-400/15 rounded-full px-1.5 py-0.5">
+                    <span className="ml-2 text-[10px] text-red-600 bg-red-400/15 rounded-full px-1.5 py-0.5">
                       blacklisted
                     </span>
                   )}
@@ -50,7 +50,7 @@ export default function SupplierComparisonGrid({ quotes, line, onSelect, busy, f
                 </td>
                 <td className="py-2.5 pr-3">
                   {q.certified ? (
-                    <span className="text-emerald-300 text-xs">Yes</span>
+                    <span className="text-emerald-700 text-xs">Yes</span>
                   ) : (
                     <span className="text-ink-muted text-xs">No</span>
                   )}
@@ -60,12 +60,12 @@ export default function SupplierComparisonGrid({ quotes, line, onSelect, busy, f
                 </td>
                 <td className="py-2.5">
                   {isWinner ? (
-                    <span className="text-xs text-emerald-300 font-medium">Selected</span>
+                    <span className="text-xs text-emerald-700 font-medium">Selected</span>
                   ) : (
                     <button
                       onClick={() => onSelect(q.id)}
                       disabled={busy}
-                      className="text-xs px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 font-medium"
+                      className="text-xs px-3 py-1.5 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 font-medium"
                     >
                       Select
                     </button>

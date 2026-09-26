@@ -29,7 +29,7 @@ export default function BrewingPanel() {
   }
 
   return (
-    <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
+    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
         <p className="text-sm font-semibold text-white">Brewing</p>
@@ -42,7 +42,7 @@ export default function BrewingPanel() {
         {items.map((item) => (
           <li
             key={item.id}
-            className="flex items-center justify-between text-xs bg-base-800 border border-line rounded-lg px-3 py-2"
+            className="flex items-center justify-between text-xs bg-base-800 border border-line rounded-[10px] px-3 py-2"
           >
             <span className="text-ink-secondary truncate">{item.name}</span>
             <span className="text-ink-muted shrink-0 ml-2">{item.status}</span>
@@ -55,9 +55,9 @@ export default function BrewingPanel() {
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="An idea still forming…"
-          className="flex-1 rounded-lg bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
+          className="flex-1 rounded-[10px] bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-violet-600"
         />
-        <button type="submit" className="px-3 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm">
+        <button type="submit" className="px-3 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm">
           Add
         </button>
       </form>

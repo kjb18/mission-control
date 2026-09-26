@@ -18,7 +18,7 @@ export default function WinsPanel() {
   const summary = computeWinsSummary(wins);
 
   return (
-    <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
+    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
         <p className="text-sm font-semibold text-white">Wins</p>
@@ -32,7 +32,7 @@ export default function WinsPanel() {
 
       <ul className="space-y-1.5">
         {wins.map((w) => (
-          <li key={w.id} className="flex items-center justify-between text-xs bg-base-800 border border-line rounded-lg px-3 py-2">
+          <li key={w.id} className="flex items-center justify-between text-xs bg-base-800 border border-line rounded-[10px] px-3 py-2">
             <span className="text-ink-secondary truncate">{w.client_name}</span>
             <span className="text-ink-secondary shrink-0 ml-2">
               {w.total_value ? currency.format(w.total_value) : "—"}

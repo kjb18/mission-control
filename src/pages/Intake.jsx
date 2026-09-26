@@ -145,7 +145,7 @@ export default function Intake() {
           </div>
 
           {error && (
-            <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+            <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
               {error}
             </p>
           )}
@@ -157,12 +157,12 @@ export default function Intake() {
                 onChange={(e) => setPasteText(e.target.value)}
                 rows={12}
                 placeholder="Paste the RFQ email text here…"
-                className="w-full rounded-lg bg-base-900 border border-line px-4 py-3 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+                className="w-full rounded-[10px] bg-base-900 border border-line px-4 py-3 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none"
               />
               <button
                 type="submit"
                 disabled={busy || !pasteText.trim()}
-                className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-medium"
+                className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-medium"
               >
                 {busy ? "Parsing…" : "Parse with Claude"}
               </button>
@@ -170,7 +170,7 @@ export default function Intake() {
           )}
 
           {tab === "upload" && (
-            <div className="rounded-lg border border-dashed border-line-strong bg-base-900 p-10 text-center">
+            <div className="rounded-[10px] border border-dashed border-line-strong bg-base-900 p-10 text-center">
               <input
                 type="file"
                 accept="application/pdf,image/png,image/jpeg,image/webp"
@@ -186,7 +186,7 @@ export default function Intake() {
 
           {tab === "webhook" && (
             <div className="space-y-4">
-              <div className="rounded-lg border border-line bg-base-900 p-4 text-sm text-ink-secondary space-y-2">
+              <div className="rounded-[10px] border border-line bg-base-900 p-4 text-sm text-ink-secondary space-y-2">
                 <p className="text-white font-medium">iOS Shortcut setup</p>
                 <p>
                   POST JSON to <code className="text-accent">{webhookUrl}</code> with header{" "}
@@ -209,7 +209,7 @@ export default function Intake() {
                   {pendingQueue.map((row) => (
                     <li
                       key={row.id}
-                      className="flex items-center justify-between bg-base-900 border border-line rounded-lg px-4 py-3"
+                      className="flex items-center justify-between bg-base-900 border border-line rounded-[10px] px-4 py-3"
                     >
                       <div className="text-sm text-ink-secondary">
                         {row.parsed?.client_name || "Unknown client"} —{" "}
@@ -218,7 +218,7 @@ export default function Intake() {
                       <button
                         onClick={() => handleReviewQueueItem(row)}
                         disabled={busy}
-                        className="text-xs px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-light text-base-950 font-medium"
+                        className="text-xs px-3 py-1.5 rounded-[10px] bg-accent hover:bg-accent-light text-base-950 font-medium"
                       >
                         Review
                       </button>
@@ -270,7 +270,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
 
   return (
     <div className="space-y-6">
-      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 space-y-4">
+      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 space-y-4">
         <p className="text-sm font-semibold text-white">Review before confirming</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Client name">
@@ -301,7 +301,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
       <div className="space-y-3">
         <p className="text-sm font-semibold text-white">Line items ({lines.length})</p>
         {lines.map((line, i) => (
-          <div key={i} className="rounded-lg border border-line bg-base-900 p-4 space-y-3">
+          <div key={i} className="rounded-[10px] border border-line bg-base-900 p-4 space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_100px_100px] gap-2">
               <input
                 value={line.description}
@@ -333,7 +333,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
                   <button
                     key={m.id}
                     onClick={() => toggleMatch(i, m.id)}
-                    className={`w-full text-left rounded-lg px-3 py-2 text-xs border transition-colors ${
+                    className={`w-full text-left rounded-[10px] px-3 py-2 text-xs border transition-colors ${
                       line.acceptedMatchId === m.id
                         ? "border-emerald-400/50 bg-emerald-400/10"
                         : "border-line bg-base-800 hover:border-line-strong"
@@ -344,7 +344,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
                         {m.part_number || m.description} ({Math.round(m.similarity * 100)}% match)
                       </span>
                       {line.acceptedMatchId === m.id && (
-                        <span className="text-emerald-300">Using this match</span>
+                        <span className="text-emerald-700">Using this match</span>
                       )}
                     </div>
                     {m.recent_quotes?.length > 0 && (
@@ -363,7 +363,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
@@ -372,14 +372,14 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
         <button
           onClick={onConfirm}
           disabled={busy}
-          className="px-5 py-2.5 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-semibold"
+          className="px-5 py-2.5 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-semibold"
         >
           {busy ? "Confirming…" : "Confirm & Create RFQ"}
         </button>
         <button
           onClick={onCancel}
           disabled={busy}
-          className="px-4 py-2.5 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
+          className="px-4 py-2.5 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
         >
           Cancel
         </button>

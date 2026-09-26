@@ -12,6 +12,7 @@ export default function GrowthLayer() {
         eyebrow="Growth"
         title="Growth Layer"
         subtitle="Today's target, what's queued, what's brewing, wins, and OKR progress."
+        tone="purple"
       />
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-[6px]">
         <CrosshairsPanel />

@@ -35,9 +35,9 @@ export default function CrosshairsPanel() {
   }
 
   return (
-    <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
+    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
-        <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+        <span className="w-1.5 h-1.5 rounded-full bg-violet-600" />
         <p className="text-sm font-semibold text-white">Crosshairs</p>
         <Link to="/crosshairs" className="ml-auto text-xs text-ink-muted hover:text-ink-secondary">
           View all →
@@ -50,10 +50,10 @@ export default function CrosshairsPanel() {
         <p className="text-xs text-ink-muted">No targets yet.</p>
       ) : (
         <div className="space-y-2">
-          <div className="rounded-lg border border-accent/30 bg-accent/10 px-3 py-2">
+          <div className="rounded-[10px] border border-violet-600/30 bg-violet-600/10 px-3 py-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm text-white font-medium truncate">{rotated.target_name}</p>
-              <span className="text-[10px] uppercase tracking-wide text-accent shrink-0">{rotated.priority}</span>
+              <span className="text-[10px] uppercase tracking-wide text-violet-600 shrink-0">{rotated.priority}</span>
             </div>
             <p className="text-[11px] text-ink-secondary mt-0.5">
               {rotated.next_suggested_action || "No suggested action set."}
@@ -61,7 +61,7 @@ export default function CrosshairsPanel() {
             <button
               onClick={() => quickLog(rotated)}
               disabled={logging}
-              className="mt-1.5 text-[11px] px-2 py-1 rounded-md bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 font-medium"
+              className="mt-1.5 text-[11px] px-2 py-1 rounded-md bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-base-950 font-medium"
             >
               Log Touchpoint
             </button>

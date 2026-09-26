@@ -14,7 +14,7 @@ export default function OkrPanel() {
   }, []);
 
   return (
-    <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
+    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
         <p className="text-sm font-semibold text-white">OKRs</p>

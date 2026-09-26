@@ -72,14 +72,14 @@ export default function Contacts() {
         </div>
         <button
           onClick={() => setFormContact({})}
-          className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light text-base-950 text-sm font-semibold shrink-0"
+          className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light text-base-950 text-sm font-semibold shrink-0"
         >
           + New Contact
         </button>
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
@@ -98,7 +98,7 @@ export default function Contacts() {
         </select>
       </div>
 
-      <div className="rounded-lg border border-line bg-base-900 overflow-x-auto">
+      <div className="rounded-[10px] border border-line bg-base-900 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-ink-secondary border-b border-line">
@@ -124,7 +124,7 @@ export default function Contacts() {
                 <td className="py-3 px-4">
                   <span
                     className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${
-                      c.tag === "Supplier" ? "text-blue-400 bg-blue-500/15" : "text-blue-400 bg-blue-500/15"
+                      c.tag === "Supplier" ? "text-blue-600 bg-blue-500/15" : "text-blue-600 bg-blue-500/15"
                     }`}
                   >
                     {c.tag}
@@ -133,7 +133,7 @@ export default function Contacts() {
                 <td className="py-3 px-4 text-ink-secondary">{c.last_contact_date || "—"}</td>
                 <td className="py-3 px-4">
                   {c.email ? (
-                    <a href={`mailto:${c.email}`} className="text-xs px-3 py-1.5 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white">
+                    <a href={`mailto:${c.email}`} className="text-xs px-3 py-1.5 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white">
                       Send Email
                     </a>
                   ) : (

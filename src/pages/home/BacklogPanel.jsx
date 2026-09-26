@@ -23,7 +23,7 @@ export default function BacklogPanel() {
   }
 
   return (
-    <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
+    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
         <p className="text-sm font-semibold text-white">Backlog</p>
@@ -31,7 +31,7 @@ export default function BacklogPanel() {
           ClickUp
         </span>
         {staleCount > 0 && (
-          <span className="text-[10px] font-medium text-red-300 bg-red-400/15 rounded-full px-1.5 py-0.5">
+          <span className="text-[10px] font-medium text-red-600 bg-red-400/15 rounded-full px-1.5 py-0.5">
             {staleCount} stale
           </span>
         )}
@@ -46,7 +46,7 @@ export default function BacklogPanel() {
       </div>
 
       {error && (
-        <p className="text-xs text-orange-400/80 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 mb-2">
+        <p className="text-xs text-orange-600/80 bg-orange-500/10 border border-orange-500/20 rounded-[10px] px-3 py-2 mb-2">
           {error}
         </p>
       )}
@@ -64,7 +64,7 @@ export default function BacklogPanel() {
             draggable
             onDragStart={(e) => handleDragStart(e, task)}
             title="Drag onto Today's Time Blocks to schedule"
-            className="flex flex-col gap-1 bg-base-800 border border-line rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing hover:border-line-strong"
+            className="flex flex-col gap-1 bg-base-800 border border-line rounded-[10px] px-3 py-2 cursor-grab active:cursor-grabbing hover:border-line-strong"
           >
             <a
               href={task.url}
@@ -80,7 +80,7 @@ export default function BacklogPanel() {
               <span
                 className={`ml-auto font-medium rounded-full px-1.5 py-0.5 ${
                   task.isStale
-                    ? "text-red-300 bg-red-400/15"
+                    ? "text-red-600 bg-red-400/15"
                     : "text-ink-secondary bg-base-800/60"
                 }`}
               >

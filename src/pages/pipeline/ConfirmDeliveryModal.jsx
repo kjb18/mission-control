@@ -63,7 +63,7 @@ export default function ConfirmDeliveryModal({ card, onClose, onSaved }) {
       {loading ? (
         <p className="text-sm text-ink-secondary">Loading…</p>
       ) : !purchaseOrder ? (
-        <p className="text-sm text-orange-400/80 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-orange-600/80 bg-orange-500/10 border border-orange-500/20 rounded-[10px] px-3 py-2">
           No purchase order found for this RFQ. Receive the PO from the Quoted column first.
         </p>
       ) : (
@@ -92,14 +92,14 @@ export default function ConfirmDeliveryModal({ card, onClose, onSaved }) {
               {items.map((it, i) => (
                 <li
                   key={i}
-                  className="flex items-center gap-2 bg-base-800 border border-line rounded-lg px-3 py-2"
+                  className="flex items-center gap-2 bg-base-800 border border-line rounded-[10px] px-3 py-2"
                 >
                   <span className="text-sm text-white flex-1 truncate">{it.description}</span>
                   <input
                     type="number"
                     value={it.quantityDelivered}
                     onChange={(e) => updateQuantity(i, Number(e.target.value))}
-                    className="w-20 rounded-lg bg-base-900 border border-line px-2 py-1 text-sm text-white"
+                    className="w-20 rounded-[10px] bg-base-900 border border-line px-2 py-1 text-sm text-white"
                   />
                   <span className="text-xs text-ink-secondary w-10">{it.unit}</span>
                 </li>
@@ -118,13 +118,13 @@ export default function ConfirmDeliveryModal({ card, onClose, onSaved }) {
             />
           </label>
 
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          {error && <p className="text-xs text-red-600">{error}</p>}
 
           <div className="flex gap-2 pt-2">
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-semibold"
+              className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-semibold"
             >
               {saving ? "Confirming…" : "Confirm Delivery & Invoice"}
             </button>
@@ -132,7 +132,7 @@ export default function ConfirmDeliveryModal({ card, onClose, onSaved }) {
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
+              className="px-4 py-2 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
             >
               Cancel
             </button>

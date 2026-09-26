@@ -113,6 +113,12 @@ export const TrophyIcon = (p) => (
   </svg>
 );
 
+export const SparkleIcon = (p) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" {...p}>
+    <path d="M12 2.5c.4 3.3 1.1 5.6 2.2 6.9 1.2 1.3 3.4 2.1 6.6 2.6-3.2.5-5.4 1.3-6.6 2.6-1.1 1.3-1.8 3.6-2.2 6.9-.4-3.3-1.1-5.6-2.2-6.9-1.2-1.3-3.4-2.1-6.6-2.6 3.2-.5 5.4-1.3 6.6-2.6 1.1-1.3 1.8-3.6 2.2-6.9Z" />
+  </svg>
+);
+
 export const MoreIcon = (p) => (
   <svg viewBox="0 0 24 24" {...base} {...p}>
     <circle cx="5" cy="12" r="1.3" fill="currentColor" stroke="none" />

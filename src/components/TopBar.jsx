@@ -1,6 +1,6 @@
 import { useAuth } from "../lib/AuthContext";
 import { useCheckIn } from "../lib/CheckInContext";
-import { LogoMark } from "./icons";
+import { LogoMark, SparkleIcon } from "./icons";
 
 const TODAY_LABEL = new Date().toLocaleDateString("en-US", {
   weekday: "long",
@@ -15,7 +15,7 @@ export default function TopBar() {
   return (
     <header
       className="shrink-0 border-b border-line bg-sidebar flex items-center gap-3 px-3 md:px-4"
-      style={{ height: 44 }}
+      style={{ height: 48 }}
     >
       <div className="flex items-center gap-2 md:hidden">
         <LogoMark className="w-4 h-4 text-accent shrink-0" />
@@ -25,9 +25,12 @@ export default function TopBar() {
         Mission Control
       </p>
 
-      <p className="hidden sm:block text-blue-400 truncate" style={{ fontSize: 10 }}>
-        {TODAY_LABEL}
-      </p>
+      <div className="hidden sm:flex items-center gap-1 min-w-0">
+        <SparkleIcon className="w-3 h-3 text-violet-600 shrink-0" />
+        <p className="text-blue-600 truncate" style={{ fontSize: 10 }}>
+          {TODAY_LABEL}
+        </p>
+      </div>
 
       <div className="flex-1" />
 
@@ -36,7 +39,7 @@ export default function TopBar() {
         title={isComplete ? "Daily check-in complete — tap to redo" : "Daily check-in pending"}
         className={`mc-badge rounded-full transition-colors ${
           isComplete
-            ? "bg-accent text-base-950"
+            ? "bg-blue-100 text-blue-800"
             : "bg-base-800 text-ink-secondary hover:text-white"
         }`}
       >

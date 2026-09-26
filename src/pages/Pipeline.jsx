@@ -5,9 +5,9 @@ import ConfirmDeliveryModal from "./pipeline/ConfirmDeliveryModal";
 
 const URGENCY_STYLES = {
   red: "border-l-red-500",
-  amber: "border-l-orange-500",
-  green: "border-l-emerald-500",
-  none: "border-l-line",
+  amber: "border-l-amber-500",
+  green: "border-l-blue-500",
+  none: "border-l-blue-500",
 };
 
 export default function Pipeline() {
@@ -69,12 +69,12 @@ export default function Pipeline() {
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
       {notice && (
-        <p className="text-sm text-emerald-300 bg-emerald-400/10 border border-emerald-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-emerald-700 bg-emerald-400/10 border border-emerald-400/20 rounded-[10px] px-3 py-2">
           {notice}
         </p>
       )}
@@ -91,13 +91,13 @@ export default function Pipeline() {
               }}
               onDragLeave={() => setDragOverStage((s) => (s === stage.key ? null : s))}
               onDrop={(e) => handleDrop(e, stage.key)}
-              className={`rounded-lg border-[0.5px] bg-base-900 p-3 min-h-[200px] transition-colors ${
+              className={`rounded-[10px] border-[0.5px] bg-base-900 p-3 min-h-[200px] transition-colors ${
                 dragOverStage === stage.key ? "border-accent bg-accent/5" : "border-line"
               }`}
             >
               <div className="flex items-center justify-between mb-3 px-1">
                 <p
-                  className="uppercase text-white font-medium"
+                  className="uppercase text-accent font-medium"
                   style={{ fontSize: 11, letterSpacing: "0.06em" }}
                 >
                   {stage.label}
@@ -146,7 +146,7 @@ function PipelineCard({ card, onReceivePo, onConfirmDelivery }) {
     <div
       draggable
       onDragStart={(e) => e.dataTransfer.setData("text/plain", card.id)}
-      className={`border-l-2 ${URGENCY_STYLES[urgency]} bg-base-800 border-[0.5px] border-line rounded-lg px-3 py-2.5 cursor-grab active:cursor-grabbing hover:border-line-strong`}
+      className={`border-l-2 ${URGENCY_STYLES[urgency]} bg-base-800 border-[0.5px] border-line rounded-[10px] px-3 py-2.5 cursor-grab active:cursor-grabbing hover:border-line-strong`}
     >
       <p className="text-white font-medium truncate" style={{ fontSize: 11 }}>
         {card.clientName}
@@ -163,7 +163,7 @@ function PipelineCard({ card, onReceivePo, onConfirmDelivery }) {
       {onReceivePo && (
         <button
           onClick={onReceivePo}
-          className="mt-2 w-full text-xs px-2 py-1.5 rounded-lg bg-accent/15 hover:bg-accent/25 text-accent font-medium"
+          className="mt-2 w-full text-xs px-2 py-1.5 rounded-[10px] bg-accent/15 hover:bg-accent/25 text-accent font-medium"
         >
           Receive PO
         </button>
@@ -171,7 +171,7 @@ function PipelineCard({ card, onReceivePo, onConfirmDelivery }) {
       {onConfirmDelivery && (
         <button
           onClick={onConfirmDelivery}
-          className="mt-2 w-full text-xs px-2 py-1.5 rounded-lg bg-emerald-400/15 hover:bg-emerald-400/25 text-emerald-300 font-medium"
+          className="mt-2 w-full text-xs px-2 py-1.5 rounded-[10px] bg-emerald-400/15 hover:bg-emerald-400/25 text-emerald-700 font-medium"
         >
           Confirm Delivery
         </button>

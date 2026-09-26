@@ -115,12 +115,12 @@ export default function Sourcing() {
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
 
-      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <label className="block">
           <span className="block text-xs text-ink-secondary mb-1">RFQ (awaiting or in sourcing)</span>
           <select
@@ -145,18 +145,18 @@ export default function Sourcing() {
       </div>
 
       {selectedRfq && allSourced && (
-        <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-5 flex items-center justify-between">
+        <div className="rounded-[10px] border border-emerald-400/30 bg-emerald-400/10 p-5 flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-emerald-200">
+            <p className="text-sm font-semibold text-emerald-700">
               All lines sourced — RFQ marked as sourced.
             </p>
-            <p className="text-xs text-emerald-200/60 mt-0.5">
+            <p className="text-xs text-emerald-700/60 mt-0.5">
               Ready to build a client-facing quotation.
             </p>
           </div>
           <button
             onClick={() => navigate("/quote-builder")}
-            className="px-4 py-2 rounded-lg bg-emerald-400 hover:bg-emerald-300 text-base-950 text-sm font-semibold shrink-0"
+            className="px-4 py-2 rounded-[10px] bg-emerald-400 hover:bg-emerald-300 text-base-950 text-sm font-semibold shrink-0"
           >
             Proceed to Quote Builder
           </button>
@@ -185,13 +185,13 @@ export default function Sourcing() {
             </button>
           </div>
 
-          <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+          <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <div className="flex items-start justify-between gap-4 mb-1">
               <h2 className="text-lg font-semibold text-white">{currentLine.description}</h2>
               <span
                 className={`text-[11px] font-medium rounded-full px-2 py-0.5 shrink-0 ${
                   currentLine.status === "sourced"
-                    ? "text-emerald-300 bg-emerald-400/15"
+                    ? "text-emerald-700 bg-emerald-400/15"
                     : "text-ink-secondary bg-base-800/60"
                 }`}
               >
@@ -203,7 +203,7 @@ export default function Sourcing() {
             </p>
           </div>
 
-          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Supplier Comparison</h3>
             <SupplierComparisonGrid
               quotes={quotes}
@@ -214,17 +214,17 @@ export default function Sourcing() {
             />
           </section>
 
-          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Log a Supplier Reply</h3>
             <ManualQuoteForm suppliers={suppliers} onSave={handleManualQuote} busy={busy} />
           </section>
 
-          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Supplier Outreach</h3>
             <OutreachPanel line={currentLine} suppliers={suppliers} />
           </section>
 
-          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Price History</h3>
             <PriceHistoryPanel history={history} loading={historyLoading} />
           </section>

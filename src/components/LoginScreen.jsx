@@ -26,8 +26,11 @@ export default function LoginScreen() {
     <div className="min-h-screen w-full flex items-center justify-center bg-base-950 px-4">
       <div className="w-full max-w-sm">
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-full border-2 border-accent flex items-center justify-center mb-4">
-            <LogoMark className="w-9 h-9 text-accent" />
+          <div
+            className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+            style={{ background: "linear-gradient(135deg, #3b82f6, #7c3aed)" }}
+          >
+            <LogoMark className="w-9 h-9 text-white" />
           </div>
           <h1 className="text-xl font-medium text-white tracking-tight">
             Mission Control
@@ -37,7 +40,7 @@ export default function LoginScreen() {
           </p>
         </div>
 
-        <div className="bg-base-900 border-[0.5px] border-line rounded-lg p-6">
+        <div className="bg-base-900 border-[0.5px] border-line rounded-[10px] p-6">
           {status === "sent" ? (
             <div className="text-center py-2">
               <p className="text-white font-medium mb-1">Check your inbox</p>
@@ -65,12 +68,12 @@ export default function LoginScreen() {
                 placeholder="you@company.com"
               />
               {status === "error" && (
-                <p className="mt-2 text-sm text-red-400">{errorMessage}</p>
+                <p className="mt-2 text-sm text-red-600">{errorMessage}</p>
               )}
               <button
                 type="submit"
                 disabled={status === "sending"}
-                className="mt-4 w-full rounded-lg bg-accent hover:bg-accent-light disabled:opacity-60 text-base-950 font-medium text-sm py-2.5 transition-colors"
+                className="mt-4 w-full rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-60 text-base-950 font-medium text-sm py-2.5 transition-colors"
               >
                 {status === "sending" ? "Sending link…" : "Send magic link"}
               </button>

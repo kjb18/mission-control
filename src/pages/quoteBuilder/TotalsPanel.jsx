@@ -2,7 +2,7 @@ const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "
 
 export default function TotalsPanel({ totals }) {
   return (
-    <div className="rounded-lg border-2 border-line-strong bg-base-900 p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
+    <div className="rounded-[10px] border-2 border-line-strong bg-base-900 p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
       <Stat label="Subtotal" value={currency.format(totals.subtotal)} />
       <Stat label="VAT (12%)" value={currency.format(totals.vat)} />
       <Stat label="Grand Total" value={currency.format(totals.grandTotal)} highlight />

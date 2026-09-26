@@ -7,10 +7,10 @@ import ContentFormModal from "./content/ContentFormModal";
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 const PLATFORM_STYLES = {
-  Website: "bg-accent/20 text-accent",
-  LinkedIn: "bg-blue-500/20 text-blue-400",
-  Instagram: "bg-blue-500/20 text-blue-400",
-  Email: "bg-emerald-400/20 text-emerald-300",
+  Website: "bg-violet-600/20 text-violet-600",
+  LinkedIn: "bg-blue-500/20 text-blue-600",
+  Instagram: "bg-blue-500/20 text-blue-600",
+  Email: "bg-emerald-400/20 text-emerald-700",
 };
 
 export default function Content() {
@@ -58,28 +58,28 @@ export default function Content() {
     <div className="max-w-6xl mx-auto px-4 md:px-6 py-10 space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">Content</p>
+          <p className="text-[11px] uppercase tracking-widest text-violet-600 font-medium mb-1">Content</p>
           <h1 className="text-2xl font-semibold text-white">Content Calendar</h1>
           <p className="text-sm text-ink-secondary mt-1">Click any date to schedule something.</p>
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={() => shiftMonth(-1)} className="p-1.5 rounded-lg hover:bg-base-800/60 text-ink-secondary">
+          <button onClick={() => shiftMonth(-1)} className="p-1.5 rounded-[10px] hover:bg-base-800/60 text-ink-secondary">
             <ChevronLeftIcon className="w-4 h-4" />
           </button>
           <span className="text-sm text-ink-secondary font-medium w-32 text-center">{monthLabel}</span>
-          <button onClick={() => shiftMonth(1)} className="p-1.5 rounded-lg hover:bg-base-800/60 text-ink-secondary rotate-180">
+          <button onClick={() => shiftMonth(1)} className="p-1.5 rounded-[10px] hover:bg-base-800/60 text-ink-secondary rotate-180">
             <ChevronLeftIcon className="w-4 h-4" />
           </button>
         </div>
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
 
-      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <div className="grid grid-cols-7 mb-1">
           {WEEKDAY_LABELS.map((w) => (
             <div key={w} className="text-center text-[11px] text-ink-muted py-1">
@@ -97,11 +97,11 @@ export default function Content() {
               <button
                 key={iso}
                 onClick={() => setFormState({ defaultDate: iso })}
-                className={`min-h-[90px] rounded-lg border px-1.5 py-1 text-left align-top hover:border-line-strong transition-colors ${
-                  isToday ? "border-accent bg-accent/10" : "border-line"
+                className={`min-h-[90px] rounded-[10px] border px-1.5 py-1 text-left align-top hover:border-line-strong transition-colors ${
+                  isToday ? "border-violet-600 bg-violet-600/10" : "border-line"
                 }`}
               >
-                <p className={`text-xs ${isToday ? "text-accent font-semibold" : "text-ink-secondary"}`}>{day}</p>
+                <p className={`text-xs ${isToday ? "text-violet-600 font-semibold" : "text-ink-secondary"}`}>{day}</p>
                 <div className="space-y-0.5 mt-1">
                   {dayItems.slice(0, 3).map((item) => (
                     <div

@@ -128,13 +128,13 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
           <textarea value={form.notes} onChange={(e) => update("notes", e.target.value)} rows={3} className="input resize-none" />
         </label>
 
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs text-red-600">{error}</p>}
 
         <div className="flex gap-2 pt-2">
           <button
             type="submit"
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-semibold"
+            className="px-4 py-2 rounded-[10px] bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-base-950 text-sm font-semibold"
           >
             {saving ? "Saving…" : isEdit ? "Save Changes" : "Create Target"}
           </button>
@@ -142,7 +142,7 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
+            className="px-4 py-2 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Cancel
           </button>
@@ -151,7 +151,7 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
               type="button"
               onClick={handleDelete}
               disabled={saving}
-              className="ml-auto px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-300 text-sm"
+              className="ml-auto px-3 py-2 rounded-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-600 text-sm"
             >
               Delete
             </button>

@@ -43,14 +43,14 @@ export default function MitsList() {
         {mits.map((m, i) => (
           <li
             key={i}
-            className="flex items-center gap-2 bg-base-800 border border-line rounded-lg px-3 py-2"
+            className="flex items-center gap-2 bg-base-800 border border-line rounded-[10px] px-3 py-2"
           >
             <button
               onClick={() => toggleMit(i)}
               className={`rounded-full flex items-center justify-center shrink-0 font-medium text-base-950 transition-opacity ${
                 m.done ? "opacity-50" : ""
               }`}
-              style={{ width: 16, height: 16, fontSize: 9, backgroundColor: "#f59e0b" }}
+              style={{ width: 16, height: 16, fontSize: 9, backgroundColor: "#3b82f6" }}
             >
               {m.done ? (
                 <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth="3">
@@ -75,11 +75,11 @@ export default function MitsList() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Add a most important task…"
-            className="flex-1 rounded-lg bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
+            className="flex-1 rounded-[10px] bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
           />
           <button
             type="submit"
-            className="px-3 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
+            className="px-3 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Add
           </button>

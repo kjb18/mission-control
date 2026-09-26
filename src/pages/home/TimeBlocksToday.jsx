@@ -106,7 +106,7 @@ export default function TimeBlocksToday() {
         }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
-        className={`space-y-1.5 mb-2 max-h-40 overflow-y-auto rounded-lg transition-colors ${
+        className={`space-y-1.5 mb-2 max-h-40 overflow-y-auto rounded-[10px] transition-colors ${
           isDragOver ? "ring-2 ring-accent bg-accent/5" : ""
         }`}
       >
@@ -116,17 +116,16 @@ export default function TimeBlocksToday() {
           return (
           <li
             key={b.id}
-            className={`flex items-center gap-2 border rounded-lg px-3 py-1.5 ${
+            className={`flex items-center gap-2 border rounded-[10px] px-3 py-1.5 ${
               isActive
-                ? "border-blue-500/30"
+                ? "bg-blue-50 border-blue-200"
                 : "bg-base-800 border-line"
             }`}
-            style={isActive ? { backgroundColor: "#1e3a5f" } : undefined}
           >
-            <span className={`text-xs font-mono w-14 shrink-0 ${isActive ? "text-blue-300" : "text-accent"}`}>
+            <span className={`text-xs font-mono w-14 shrink-0 ${isActive ? "text-blue-800" : "text-accent"}`}>
               {b.time}
             </span>
-            <span className={`text-sm flex-1 truncate ${isActive ? "text-blue-100" : "text-white"}`}>
+            <span className={`text-sm flex-1 truncate ${isActive ? "text-blue-800" : "text-white"}`}>
               {b.label}
             </span>
             {b.source === "clickup" && (
@@ -151,15 +150,15 @@ export default function TimeBlocksToday() {
           type="time"
           value={time}
           onChange={(e) => setTime(e.target.value)}
-          className="w-28 rounded-lg bg-base-800 border border-line px-2 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-accent"
+          className="w-28 rounded-[10px] bg-base-800 border border-line px-2 py-2 text-xs text-white focus:outline-none focus:ring-2 focus:ring-accent"
         />
         <input
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Block label…"
-          className="flex-1 rounded-lg bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
+          className="flex-1 rounded-[10px] bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
         />
-        <button type="submit" className="px-3 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm">
+        <button type="submit" className="px-3 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm">
           Add
         </button>
       </form>

@@ -66,13 +66,13 @@ export default function PoReceiptModal({ card, onClose, onSaved }) {
           />
         </label>
 
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs text-red-600">{error}</p>}
 
         <div className="flex gap-2 pt-2">
           <button
             type="submit"
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-semibold"
+            className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-semibold"
           >
             {saving ? "Saving…" : "Save PO & Mark Awarded"}
           </button>
@@ -80,7 +80,7 @@ export default function PoReceiptModal({ card, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
+            className="px-4 py-2 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Cancel
           </button>

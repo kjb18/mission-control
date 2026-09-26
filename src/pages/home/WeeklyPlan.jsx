@@ -29,6 +29,7 @@ export default function WeeklyPlan() {
   const [editingSlot, setEditingSlot] = useState(null);
   const [draft, setDraft] = useState("");
   const [syncNotice, setSyncNotice] = useState(null);
+  const [dragOverKey, setDragOverKey] = useState(null);
   const todayISO = toISODate(new Date());
 
   const { pipelineByDate, meetingEvents, calendarError } = useWeekEvents(weekStart, weekEnd);
@@ -83,6 +84,35 @@ export default function WeeklyPlan() {
     );
   }
 
+  async function handleSlotDrop(e, dateISO, hour) {
+    e.preventDefault();
+    setDragOverKey(null);
+    const raw = e.dataTransfer.getData("application/json");
+    if (!raw) return;
+    let task;
+    try {
+      task = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    if (task.source !== "clickup") return;
+
+    const key = slotKey(dateISO, hour);
+    const start = new Date(`${dateISO}T${String(hour).padStart(2, "0")}:00:00`);
+    const end = new Date(start.getTime() + 60 * 60 * 1000);
+
+    // Show it immediately — the calendar sync result only updates the
+    // Google event id once it resolves.
+    setBlocks((prev) => ({ ...prev, [key]: { label: task.name, googleEventId: null } }));
+
+    const result = await createEvent({ title: task.name, start, end, reminderMinutes: 10 });
+    const googleEventId = result?.skipped ? null : result?.id ?? null;
+    setBlocks((prev) => ({ ...prev, [key]: { label: task.name, googleEventId } }));
+    setSyncNotice(
+      result?.skipped ? result.reason : "Scheduled from Backlog and synced to Google Calendar."
+    );
+  }
+
   return (
     <section>
       <SectionHeader
@@ -98,12 +128,12 @@ export default function WeeklyPlan() {
         </p>
       )}
       {calendarError && (
-        <p className="text-xs text-orange-400/80 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2 mb-3">
+        <p className="text-xs text-orange-600/80 bg-orange-500/10 border border-orange-500/20 rounded-[10px] px-3 py-2 mb-3">
           {calendarError}
         </p>
       )}
 
-      <div className="rounded-lg border border-line bg-base-900 overflow-x-auto">
+      <div className="rounded-[10px] border border-line bg-base-900 overflow-x-auto">
         <div className="min-w-[720px] grid grid-cols-[64px_repeat(5,1fr)]">
           <div className="border-b border-line" />
           {days.map((d) => {
@@ -124,12 +154,26 @@ export default function WeeklyPlan() {
                 <p className={`text-sm font-semibold ${isToday ? "text-accent" : "text-white"}`}>
                   {formatDayNumber(d)}
                 </p>
-                <div className="flex justify-center gap-0.5 mt-1 h-1.5">
+                <div className="flex flex-wrap justify-center gap-1 mt-1">
                   {dayEvents.slice(0, 3).map((ev, i) => (
-                    <span key={`p-${i}`} title={ev.label} className={`w-1.5 h-1.5 rounded-full ${ev.color}`} />
+                    <span
+                      key={`p-${i}`}
+                      title={ev.label}
+                      className={`inline-block max-w-[64px] truncate rounded px-1 py-0.5 text-[9px] font-medium leading-none ${
+                        ev.color.includes("amber") ? "text-amber-950" : "text-base-950"
+                      } ${ev.color}`}
+                    >
+                      {ev.label}
+                    </span>
                   ))}
                   {dayMeetings.slice(0, 2).map((ev, i) => (
-                    <span key={`m-${i}`} title={ev.title} className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <span
+                      key={`m-${i}`}
+                      title={ev.title}
+                      className="inline-block max-w-[64px] truncate rounded px-1 py-0.5 text-[9px] font-medium leading-none bg-violet-600 text-white"
+                    >
+                      {ev.title}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -151,13 +195,21 @@ export default function WeeklyPlan() {
                 return (
                   <div
                     key={key}
-                    className="border-b border-l border-line min-h-[38px] px-1 py-1 flex flex-col gap-0.5"
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragOverKey(key);
+                    }}
+                    onDragLeave={() => setDragOverKey((k) => (k === key ? null : k))}
+                    onDrop={(e) => handleSlotDrop(e, iso, hour)}
+                    className={`border-b border-l border-line min-h-[38px] px-1 py-1 flex flex-col gap-0.5 transition-colors ${
+                      dragOverKey === key ? "bg-accent/10" : ""
+                    }`}
                   >
                     {meetings.map((m) => (
                       <div
                         key={m.id}
                         title={`${m.title} (from Google Calendar)`}
-                        className="rounded px-1.5 py-0.5 text-[10px] truncate bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                        className="rounded px-1.5 py-0.5 text-[10px] truncate bg-violet-100 text-violet-800 border border-violet-200"
                       >
                         {m.title}
                       </div>

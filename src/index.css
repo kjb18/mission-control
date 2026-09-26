@@ -36,7 +36,7 @@ h6 {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(15, 23, 42, 0.15);
   border-radius: 9999px;
 }
 
@@ -56,10 +56,13 @@ h6 {
     content: "";
     @apply flex-1 h-px bg-line;
   }
+  .mc-section-label-purple {
+    @apply text-violet-600;
+  }
 
-  /* Cards / panels — background surface, hairline border, 8px radius. */
+  /* Cards / panels — background surface, hairline border, 10px radius. */
   .mc-card {
-    @apply bg-base-900 border-[0.5px] border-line rounded-lg;
+    @apply bg-base-900 border-[0.5px] border-line rounded-[10px];
     padding: 10px 12px;
   }
 

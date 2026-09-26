@@ -82,12 +82,12 @@ export default function ManualQuoteForm({ suppliers, onSave, busy }) {
         <button
           type="submit"
           disabled={busy}
-          className="px-3 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong disabled:opacity-50 text-white text-sm shrink-0"
+          className="px-3 py-2 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong disabled:opacity-50 text-white text-sm shrink-0"
         >
           Log Reply
         </button>
       </div>
-      {error && <p className="col-span-full text-xs text-red-400">{error}</p>}
+      {error && <p className="col-span-full text-xs text-red-600">{error}</p>}
     </form>
   );
 }

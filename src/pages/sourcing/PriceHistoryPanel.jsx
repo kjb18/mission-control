@@ -3,9 +3,9 @@ import { daysToWeeks } from "../../lib/sourcing";
 const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
 const OUTCOME_STYLES = {
-  won: "text-emerald-300 bg-emerald-400/15",
+  won: "text-emerald-700 bg-emerald-400/15",
   lost: "text-ink-secondary bg-base-800/60",
-  pending: "text-orange-400 bg-orange-500/15",
+  pending: "text-orange-600 bg-orange-500/15",
 };
 
 export default function PriceHistoryPanel({ history, loading }) {
@@ -19,7 +19,7 @@ export default function PriceHistoryPanel({ history, loading }) {
       {history.map((h) => (
         <li
           key={h.id}
-          className="flex items-center justify-between bg-base-800 border border-line rounded-lg px-3 py-2 text-sm"
+          className="flex items-center justify-between bg-base-800 border border-line rounded-[10px] px-3 py-2 text-sm"
         >
           <div className="flex items-center gap-3">
             <span className="text-white">{h.supplierName}</span>

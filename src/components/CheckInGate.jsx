@@ -76,7 +76,7 @@ export default function CheckInGate() {
           )}
         </div>
 
-        <div className="bg-base-900 border border-line rounded-lg p-6 space-y-6">
+        <div className="bg-base-900 border border-line rounded-[10px] p-6 space-y-6">
           {/* Energy selector */}
           <div>
             <label className="block text-sm font-medium text-white mb-3">
@@ -88,7 +88,7 @@ export default function CheckInGate() {
                   key={level.value}
                   type="button"
                   onClick={() => setEnergyLevel(level.value)}
-                  className={`flex flex-col items-center gap-1 rounded-lg py-3 border transition-colors ${
+                  className={`flex flex-col items-center gap-1 rounded-[10px] py-3 border transition-colors ${
                     energyLevel === level.value
                       ? "bg-accent/20 border-accent text-white"
                       : "bg-base-800 border-line text-ink-secondary hover:border-line-strong"
@@ -140,7 +140,7 @@ export default function CheckInGate() {
                 onChange={(e) => setCustomFeeling(e.target.value)}
                 placeholder="One word…"
                 maxLength={24}
-                className="mt-3 w-full rounded-lg bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
+                className="mt-3 w-full rounded-[10px] bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
               />
             )}
           </div>
@@ -155,17 +155,17 @@ export default function CheckInGate() {
               onChange={(e) => setGratitude(e.target.value)}
               rows={3}
               placeholder="Write a sentence or two…"
-              className="w-full rounded-lg bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none"
+              className="w-full rounded-[10px] bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none"
             />
           </div>
 
-          {error && <p className="text-sm text-red-400">{error}</p>}
+          {error && <p className="text-sm text-red-600">{error}</p>}
 
           <button
             type="button"
             onClick={handleUnlock}
             disabled={!canUnlock || submitting}
-            className="w-full rounded-lg bg-accent hover:bg-accent-light disabled:opacity-40 disabled:cursor-not-allowed text-base-950 font-semibold text-sm py-3 transition-colors"
+            className="w-full rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-40 disabled:cursor-not-allowed text-base-950 font-semibold text-sm py-3 transition-colors"
           >
             {submitting ? "Unlocking…" : "Unlock Mission Control"}
           </button>

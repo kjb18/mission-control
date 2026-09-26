@@ -31,7 +31,7 @@ export default function Crosshairs() {
     <div className="max-w-6xl mx-auto px-4 md:px-6 py-10 space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">Crosshairs</p>
+          <p className="text-[11px] uppercase tracking-widest text-violet-600 font-medium mb-1">Crosshairs</p>
           <h1 className="text-2xl font-semibold text-white">Target Accounts</h1>
           <p className="text-sm text-ink-secondary mt-1">
             Sorted by priority, then by the most neglected last touchpoint first.
@@ -39,14 +39,14 @@ export default function Crosshairs() {
         </div>
         <button
           onClick={() => setFormTarget({})}
-          className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light text-base-950 text-sm font-semibold shrink-0"
+          className="px-4 py-2 rounded-[10px] bg-violet-600 hover:bg-violet-700 text-base-950 text-sm font-semibold shrink-0"
         >
           + New Target
         </button>
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}

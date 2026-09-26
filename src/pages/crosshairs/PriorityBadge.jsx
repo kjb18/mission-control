@@ -1,8 +1,8 @@
 const STYLES = {
-  Hot: "text-red-300 bg-red-400/15",
-  Medium: "text-orange-400 bg-orange-500/15",
-  Low: "text-blue-400 bg-blue-500/15",
-  Nurturing: "text-blue-400 bg-blue-500/15",
+  Hot: "text-red-600 bg-red-400/15",
+  Medium: "text-orange-600 bg-orange-500/15",
+  Low: "text-blue-600 bg-blue-500/15",
+  Nurturing: "text-blue-600 bg-blue-500/15",
 };
 
 export default function PriorityBadge({ priority }) {

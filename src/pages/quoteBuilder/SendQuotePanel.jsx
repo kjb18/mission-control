@@ -12,7 +12,7 @@ export default function SendQuotePanel({ contact, email, approved, sending, sent
             {contact.name} ({contact.email || "no email on file"})
           </span>
         ) : (
-          <span className="text-orange-400/80">
+          <span className="text-orange-600/80">
             No contact found for this client — add one in Contacts, or fill in the email manually below.
           </span>
         )}
@@ -28,7 +28,7 @@ export default function SendQuotePanel({ contact, email, approved, sending, sent
           href={buildMailto({ to: contact?.email, subject: email.subject, body: email.body })}
           onClick={() => canSend && onSend()}
           aria-disabled={!canSend}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+          className={`px-4 py-2 rounded-[10px] text-sm font-semibold ${
             canSend
               ? "bg-accent hover:bg-accent-light text-base-950"
               : "bg-base-800/60 text-ink-muted pointer-events-none"

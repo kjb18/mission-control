@@ -1,9 +1,9 @@
 import { loggedToday } from "../../lib/learningHub";
 
 const STATUS_STYLES = {
-  active: "text-emerald-300 bg-emerald-400/15",
-  paused: "text-orange-400 bg-orange-500/15",
-  completed: "text-blue-400 bg-blue-500/15",
+  active: "text-emerald-700 bg-emerald-400/15",
+  paused: "text-orange-600 bg-orange-500/15",
+  completed: "text-blue-600 bg-blue-500/15",
 };
 
 export default function TopicCard({ topic, onLogSession, onEdit, highlighted }) {
@@ -11,7 +11,7 @@ export default function TopicCard({ topic, onLogSession, onEdit, highlighted }) 
 
   return (
     <div
-      className={`rounded-lg border bg-base-900 p-4 space-y-3 transition-colors ${
+      className={`rounded-[10px] border bg-base-900 p-4 space-y-3 transition-colors ${
         highlighted ? "border-accent" : "border-line"
       }`}
     >
@@ -38,7 +38,7 @@ export default function TopicCard({ topic, onLogSession, onEdit, highlighted }) 
       </div>
 
       <div className="flex items-center justify-between text-xs">
-        <span className="flex items-center gap-1 text-orange-400">
+        <span className="flex items-center gap-1 text-orange-600">
           🔥 {topic.current_streak} day{topic.current_streak === 1 ? "" : "s"}
         </span>
         <span className="text-ink-muted">
@@ -50,13 +50,13 @@ export default function TopicCard({ topic, onLogSession, onEdit, highlighted }) 
         <button
           onClick={() => onLogSession(topic)}
           disabled={doneToday}
-          className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-40 text-base-950 font-medium"
+          className="flex-1 text-xs px-3 py-1.5 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-40 text-base-950 font-medium"
         >
           {doneToday ? "Logged today ✓" : "Log Session"}
         </button>
         <button
           onClick={() => onEdit(topic)}
-          className="text-xs px-3 py-1.5 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white font-medium"
+          className="text-xs px-3 py-1.5 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white font-medium"
         >
           Edit
         </button>

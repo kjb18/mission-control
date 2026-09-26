@@ -28,7 +28,7 @@ export default function Wins() {
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
@@ -39,7 +39,7 @@ export default function Wins() {
         <Stat label="Value This Year" value={currency.format(summary.totalValueThisYear)} tone="text-accent" />
       </div>
 
-      <div className="rounded-lg border border-line bg-base-900 divide-y divide-line">
+      <div className="rounded-[10px] border border-line bg-base-900 divide-y divide-line">
         {wins.map((w) => (
           <div key={w.id} className="flex items-center justify-between px-5 py-4">
             <div>
@@ -52,7 +52,7 @@ export default function Wins() {
               <p className="text-sm font-semibold text-white">
                 {w.total_value ? currency.format(w.total_value) : "—"}
               </p>
-              <p className="text-xs text-emerald-300">
+              <p className="text-xs text-emerald-700">
                 {w.margin_percent !== null && w.margin_percent !== undefined
                   ? `${Number(w.margin_percent).toFixed(1)}% margin`
                   : ""}
@@ -72,7 +72,7 @@ export default function Wins() {
 
 function Stat({ label, value, tone = "text-white" }) {
   return (
-    <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
       <p className="text-[11px] uppercase tracking-wide text-ink-secondary">{label}</p>
       <p className={`text-xl font-semibold mt-1 ${tone}`}>{value}</p>
     </div>

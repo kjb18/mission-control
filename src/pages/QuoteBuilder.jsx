@@ -147,12 +147,12 @@ export default function QuoteBuilder() {
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
 
-      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <label className="block">
           <span className="block text-xs text-ink-secondary mb-1">RFQ (status: sourced)</span>
           <select value={rfqId ?? ""} onChange={(e) => setRfqId(e.target.value || null)} className="input">
@@ -174,7 +174,7 @@ export default function QuoteBuilder() {
 
       {selectedRfq && lines.length > 0 && (
         <>
-          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Line Items</h3>
             <QuoteLineTable
               lines={lines}
@@ -186,7 +186,7 @@ export default function QuoteBuilder() {
 
           <TotalsPanel totals={totals} />
 
-          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">PDF Preview</h3>
             <QuotePdfPreview
               pdfUrl={pdfUrl}
@@ -198,7 +198,7 @@ export default function QuoteBuilder() {
             />
           </section>
 
-          <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
             <h3 className="text-sm font-semibold text-white mb-3">Send Quotation</h3>
             <SendQuotePanel
               contact={contact}

@@ -27,11 +27,11 @@ export default function LogSessionModal({ topic, onClose, onSaved }) {
   return (
     <Modal title={`Log Session — ${topic.title}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
-        <div className="rounded-lg bg-base-800 border border-line px-3 py-2 text-sm text-ink-secondary">
+        <div className="rounded-[10px] bg-base-800 border border-line px-3 py-2 text-sm text-ink-secondary">
           Streak: {topic.current_streak} → <span className="text-accent font-medium">{nextStreak}</span> day
           {nextStreak === 1 ? "" : "s"}
           {gapResetWarning && (
-            <span className="block text-xs text-orange-400/80 mt-1">A day was skipped — streak resets to 1.</span>
+            <span className="block text-xs text-orange-600/80 mt-1">A day was skipped — streak resets to 1.</span>
           )}
         </div>
 
@@ -47,13 +47,13 @@ export default function LogSessionModal({ topic, onClose, onSaved }) {
           />
         </label>
 
-        {error && <p className="text-xs text-red-400">{error}</p>}
+        {error && <p className="text-xs text-red-600">{error}</p>}
 
         <div className="flex gap-2 pt-2">
           <button
             type="submit"
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-semibold"
+            className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-semibold"
           >
             {saving ? "Saving…" : "Log Session"}
           </button>
@@ -61,7 +61,7 @@ export default function LogSessionModal({ topic, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
+            className="px-4 py-2 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
           >
             Cancel
           </button>

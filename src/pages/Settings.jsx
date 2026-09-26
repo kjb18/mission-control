@@ -106,12 +106,12 @@ export default function Settings() {
         <h1 className="text-2xl font-semibold text-white">Account & Integrations</h1>
       </div>
 
-      <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <h2 className="text-sm font-semibold text-white mb-3">Account</h2>
         <p className="text-sm text-ink-secondary">Signed in as {user?.email}</p>
       </section>
 
-      <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <h2 className="text-sm font-semibold text-white mb-3">Pricing</h2>
         <p className="text-sm text-ink-secondary mb-4">
           USD→PHP FX rate used for landed cost on the Sourcing Desk and Quote Builder.
@@ -130,24 +130,24 @@ export default function Settings() {
           <button
             type="submit"
             disabled={savingFx}
-            className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-60 text-base-950 text-sm font-medium"
+            className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-60 text-base-950 text-sm font-medium"
           >
             {savingFx ? "Saving…" : "Save"}
           </button>
         </form>
         {fxStatus && (
-          <p className={`text-xs mt-3 ${fxStatus.type === "error" ? "text-red-400" : "text-emerald-300"}`}>
+          <p className={`text-xs mt-3 ${fxStatus.type === "error" ? "text-red-600" : "text-emerald-700"}`}>
             {fxStatus.message}
           </p>
         )}
       </section>
 
-      <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-white">Google Calendar</h2>
           <span
             className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${
-              connected ? "text-emerald-300 bg-emerald-400/15" : "text-ink-secondary bg-base-800/60"
+              connected ? "text-emerald-700 bg-emerald-400/15" : "text-ink-secondary bg-base-800/60"
             }`}
           >
             {connected ? "Connected" : "Not connected"}
@@ -160,13 +160,13 @@ export default function Settings() {
         </p>
 
         {!isGoogleAuthConfigured() ? (
-          <p className="text-xs text-orange-400/80 bg-orange-500/10 border border-orange-500/20 rounded-lg px-3 py-2">
+          <p className="text-xs text-orange-600/80 bg-orange-500/10 border border-orange-500/20 rounded-[10px] px-3 py-2">
             VITE_GOOGLE_CLIENT_ID is not set.
           </p>
         ) : connected ? (
           <button
             onClick={handleDisconnect}
-            className="px-4 py-2 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm font-medium"
+            className="px-4 py-2 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm font-medium"
           >
             Disconnect Google Calendar
           </button>
@@ -174,7 +174,7 @@ export default function Settings() {
           <button
             onClick={handleConnect}
             disabled={connecting}
-            className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light disabled:opacity-60 text-base-950 text-sm font-medium"
+            className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-60 text-base-950 text-sm font-medium"
           >
             {connecting ? "Connecting…" : "Connect Google Calendar"}
           </button>
@@ -183,7 +183,7 @@ export default function Settings() {
         {status && (
           <p
             className={`text-xs mt-3 ${
-              status.type === "error" ? "text-red-400" : "text-emerald-300"
+              status.type === "error" ? "text-red-600" : "text-emerald-700"
             }`}
           >
             {status.message}
@@ -191,7 +191,7 @@ export default function Settings() {
         )}
       </section>
 
-      <section className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <h2 className="text-sm font-semibold text-white mb-3">Supplier Blacklist</h2>
         <p className="text-sm text-ink-secondary mb-4">
           Blacklisted suppliers are blocked from outreach on the Sourcing Desk.
@@ -201,12 +201,12 @@ export default function Settings() {
           {blacklist.map((s) => (
             <li
               key={s.id}
-              className="flex items-center justify-between bg-base-800 border border-line rounded-lg px-3 py-2"
+              className="flex items-center justify-between bg-base-800 border border-line rounded-[10px] px-3 py-2"
             >
               <span className="text-sm text-white">{s.name}</span>
               <button
                 onClick={() => handleRemoveFromBlacklist(s)}
-                className="text-xs text-ink-muted hover:text-red-300"
+                className="text-xs text-ink-muted hover:text-red-600"
               >
                 Remove
               </button>
@@ -225,12 +225,12 @@ export default function Settings() {
           <button
             type="submit"
             disabled={savingBlacklist}
-            className="px-4 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 disabled:opacity-60 text-red-300 text-sm font-medium"
+            className="px-4 py-2 rounded-[10px] bg-red-500/10 hover:bg-red-500/20 disabled:opacity-60 text-red-600 text-sm font-medium"
           >
             {savingBlacklist ? "Adding…" : "Add"}
           </button>
         </form>
-        {blacklistError && <p className="text-xs text-red-400 mt-2">{blacklistError}</p>}
+        {blacklistError && <p className="text-xs text-red-600 mt-2">{blacklistError}</p>}
       </section>
     </div>
   );

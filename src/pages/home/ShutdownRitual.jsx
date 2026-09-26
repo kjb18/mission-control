@@ -24,7 +24,7 @@ export default function ShutdownRitual() {
         <p className="text-xs font-medium text-ink-secondary">Shutdown Ritual</p>
         <span
           className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
-            allDone ? "bg-emerald-400/15 text-emerald-300" : "bg-base-800/60 text-ink-secondary"
+            allDone ? "bg-emerald-400/15 text-emerald-700" : "bg-base-800/60 text-ink-secondary"
           }`}
         >
           {doneCount}/{DEFAULT_ITEMS.length}
@@ -35,7 +35,7 @@ export default function ShutdownRitual() {
           <li key={item}>
             <button
               onClick={() => toggle(item)}
-              className="w-full flex items-center gap-2 bg-base-800 border border-line rounded-lg px-3 py-2 text-left hover:border-line-strong"
+              className="w-full flex items-center gap-2 bg-base-800 border border-line rounded-[10px] px-3 py-2 text-left hover:border-line-strong"
             >
               <span
                 className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${

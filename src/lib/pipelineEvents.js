@@ -5,12 +5,12 @@ import { supabase } from "./supabaseClient";
 // legend, not decoration), so they're the one deliberate exception to the
 // rest of the app collapsing onto the constrained ops-center palette.
 export const PIPELINE_SOURCES = [
-  { table: "rfqs", dateColumn: "closing_date", label: "RFQ", color: "bg-accent" },
+  { table: "rfqs", dateColumn: "closing_date", label: "RFQ", color: "bg-amber-500" },
   { table: "deliveries", dateColumn: "delivery_date", label: "Delivery", color: "bg-success" },
   { table: "invoices", dateColumn: "closing_date", label: "Invoice", color: "bg-blue-500" },
 ];
 
-export const MEETING_SOURCE = { label: "Meeting", color: "bg-warning" };
+export const MEETING_SOURCE = { label: "Meeting", color: "bg-violet-600" };
 
 export async function fetchPipelineEventsByDate(startISO, endISO) {
   const results = await Promise.all(

@@ -16,7 +16,7 @@ export default function TargetCard({ target, onLogTouchpoint, onEdit }) {
 
   return (
     <div
-      className={`rounded-lg border bg-base-900 p-4 space-y-2.5 ${
+      className={`rounded-[10px] border bg-base-900 p-4 space-y-2.5 ${
         neglected ? "border-red-400/40" : "border-line"
       }`}
     >
@@ -45,14 +45,14 @@ export default function TargetCard({ target, onLogTouchpoint, onEdit }) {
         </div>
         <div>
           <p className="text-ink-muted">Last touchpoint</p>
-          <p className={neglected ? "text-red-300" : "text-white"}>
+          <p className={neglected ? "text-red-600" : "text-white"}>
             {target.last_touchpoint_date ? `${target.last_touchpoint_date} (${since}d ago)` : "Never"}
           </p>
         </div>
       </div>
 
       {target.next_suggested_action && (
-        <p className="text-xs text-accent/90 bg-accent/10 rounded-lg px-2.5 py-1.5">
+        <p className="text-xs text-violet-600/90 bg-violet-600/10 rounded-[10px] px-2.5 py-1.5">
           Next: {target.next_suggested_action}
         </p>
       )}
@@ -61,13 +61,13 @@ export default function TargetCard({ target, onLogTouchpoint, onEdit }) {
       <div className="flex gap-2 pt-1">
         <button
           onClick={() => onLogTouchpoint(target)}
-          className="flex-1 text-xs px-3 py-1.5 rounded-lg bg-accent hover:bg-accent-light text-base-950 font-medium"
+          className="flex-1 text-xs px-3 py-1.5 rounded-[10px] bg-violet-600 hover:bg-violet-700 text-base-950 font-medium"
         >
           Log Touchpoint
         </button>
         <button
           onClick={() => onEdit(target)}
-          className="text-xs px-3 py-1.5 rounded-lg bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white font-medium"
+          className="text-xs px-3 py-1.5 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white font-medium"
         >
           Edit
         </button>

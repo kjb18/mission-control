@@ -4,8 +4,8 @@ import ArticleFormModal from "./seo/ArticleFormModal";
 
 const STATUS_ORDER = { Published: 0, Scheduled: 1, Draft: 2 };
 const STATUS_STYLES = {
-  Published: "text-emerald-300 bg-emerald-400/15",
-  Scheduled: "text-blue-400 bg-blue-500/15",
+  Published: "text-emerald-700 bg-emerald-400/15",
+  Scheduled: "text-blue-600 bg-blue-500/15",
   Draft: "text-ink-secondary bg-base-800/60",
 };
 
@@ -52,42 +52,42 @@ export default function Seo() {
     <div className="max-w-6xl mx-auto px-4 md:px-6 py-10 space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">SEO</p>
+          <p className="text-[11px] uppercase tracking-widest text-violet-600 font-medium mb-1">SEO</p>
           <h1 className="text-2xl font-semibold text-white">Article Tracker</h1>
         </div>
         <button
           onClick={() => setFormArticle({})}
-          className="px-4 py-2 rounded-lg bg-accent hover:bg-accent-light text-base-950 text-sm font-semibold shrink-0"
+          className="px-4 py-2 rounded-[10px] bg-violet-600 hover:bg-violet-700 text-base-950 text-sm font-semibold shrink-0"
         >
           + New Article
         </button>
       </div>
 
-      <div className="rounded-lg border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm text-ink-secondary">
             <span className="text-2xl font-semibold text-white">{publishedCount}</span> of {target} articles
             published
           </p>
-          <span className="text-accent font-medium">
+          <span className="text-violet-600 font-medium">
             {Math.round((publishedCount / target) * 100)}%
           </span>
         </div>
         <div className="w-full h-2 rounded-full bg-base-800/60 overflow-hidden">
           <div
-            className="h-full bg-accent"
+            className="h-full bg-violet-600"
             style={{ width: `${Math.min(100, (publishedCount / target) * 100)}%` }}
           />
         </div>
       </div>
 
       {error && (
-        <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">
+        <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
         </p>
       )}
 
-      <div className="rounded-lg border border-line bg-base-900 overflow-x-auto">
+      <div className="rounded-[10px] border border-line bg-base-900 overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wide text-ink-secondary border-b border-line">
@@ -118,7 +118,7 @@ export default function Seo() {
                 <td className="py-3 px-4 text-ink-secondary">{a.word_count ?? "—"}</td>
                 <td className="py-3 px-4">
                   {a.url ? (
-                    <a href={a.url} target="_blank" rel="noreferrer" className="text-accent hover:text-accent-light text-xs">
+                    <a href={a.url} target="_blank" rel="noreferrer" className="text-violet-600 hover:text-violet-700 text-xs">
                       View ↗
                     </a>
                   ) : (
