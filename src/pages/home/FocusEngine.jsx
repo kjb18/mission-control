@@ -4,6 +4,7 @@ import TimeBlocksToday from "./TimeBlocksToday";
 import PomodoroTimer from "./PomodoroTimer";
 import ShutdownRitual from "./ShutdownRitual";
 import LearningHubCard from "./LearningHubCard";
+import { Card } from "../../components/ui";
 
 export default function FocusEngine() {
   return (
@@ -13,19 +14,19 @@ export default function FocusEngine() {
         title="Focus Engine"
         subtitle="MITs, time blocks, a Pomodoro clock, learning streak, and your shutdown ritual."
       />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-[6px]">
-        <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
           <MitsList />
-        </div>
-        <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+        </Card>
+        <Card>
           <TimeBlocksToday />
-        </div>
-        <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+        </Card>
+        <Card>
           <PomodoroTimer />
-        </div>
-        <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+        </Card>
+        <Card>
           <ShutdownRitual />
-        </div>
+        </Card>
         <LearningHubCard />
       </div>
     </section>

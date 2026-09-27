@@ -3,6 +3,7 @@ import { fetchTargets } from "../lib/crosshairs";
 import TargetCard from "./crosshairs/TargetCard";
 import TargetFormModal from "./crosshairs/TargetFormModal";
 import LogTouchpointModal from "./crosshairs/LogTouchpointModal";
+import { PageHeader, Button, EmptyState } from "../components/ui";
 
 export default function Crosshairs() {
   const [targets, setTargets] = useState([]);
@@ -28,22 +29,16 @@ export default function Crosshairs() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-6 py-10 space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-widest text-violet-600 font-medium mb-1">Crosshairs</p>
-          <h1 className="text-2xl font-semibold text-white">Target Accounts</h1>
-          <p className="text-sm text-ink-secondary mt-1">
-            Sorted by priority, then by the most neglected last touchpoint first.
-          </p>
-        </div>
-        <button
-          onClick={() => setFormTarget({})}
-          className="px-4 py-2 rounded-[10px] bg-violet-600 hover:bg-violet-700 text-base-950 text-sm font-semibold shrink-0"
-        >
-          + New Target
-        </button>
-      </div>
+    <div className="max-w-6xl mx-auto space-y-5">
+      <PageHeader
+        title="Target Accounts"
+        subtitle="Sorted by priority, then by the most neglected last touchpoint first."
+        action={
+          <Button variant="primary" className="!bg-violet-600" onClick={() => setFormTarget({})}>
+            + New Target
+          </Button>
+        }
+      />
 
       {error && (
         <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
@@ -51,21 +46,26 @@ export default function Crosshairs() {
         </p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {targets.map((t) => (
-          <TargetCard
-            key={t.id}
-            target={t}
-            onLogTouchpoint={setTouchpointTarget}
-            onEdit={setFormTarget}
-          />
-        ))}
-        {!loading && targets.length === 0 && (
-          <p className="text-sm text-ink-muted col-span-full text-center py-10">
-            No targets yet — add your first one.
-          </p>
-        )}
-      </div>
+      {!loading && targets.length === 0 ? (
+        <EmptyState
+          title="No targets yet"
+          subtitle="Add your first target account to start tracking touchpoints."
+          ctaLabel="+ New Target"
+          onCta={() => setFormTarget({})}
+          tone="purple"
+        />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {targets.map((t) => (
+            <TargetCard
+              key={t.id}
+              target={t}
+              onLogTouchpoint={setTouchpointTarget}
+              onEdit={setFormTarget}
+            />
+          ))}
+        </div>
+      )}
 
       {formTarget !== null && (
         <TargetFormModal

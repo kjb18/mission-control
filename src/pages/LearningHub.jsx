@@ -4,6 +4,7 @@ import { fetchTopics } from "../lib/learningHub";
 import TopicCard from "./learningHub/TopicCard";
 import TopicFormModal from "./learningHub/TopicFormModal";
 import LogSessionModal from "./learningHub/LogSessionModal";
+import { PageHeader, Button, EmptyState } from "../components/ui";
 
 export default function LearningHub() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,20 +41,16 @@ export default function LearningHub() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-6 py-10 space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">Learning Hub</p>
-          <h1 className="text-2xl font-semibold text-white">Learning Topics</h1>
-          <p className="text-sm text-ink-secondary mt-1">Log a session to build your streak.</p>
-        </div>
-        <button
-          onClick={() => setFormTopic({})}
-          className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light text-base-950 text-sm font-semibold shrink-0"
-        >
-          + New Topic
-        </button>
-      </div>
+    <div className="max-w-6xl mx-auto space-y-5">
+      <PageHeader
+        title="Learning Topics"
+        subtitle="Log a session to build your streak."
+        action={
+          <Button variant="primary" onClick={() => setFormTopic({})}>
+            + New Topic
+          </Button>
+        }
+      />
 
       {error && (
         <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
@@ -61,20 +58,26 @@ export default function LearningHub() {
         </p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {topics.map((t) => (
-          <TopicCard
-            key={t.id}
-            topic={t}
-            highlighted={t.id === highlightId}
-            onLogSession={setSessionTopic}
-            onEdit={setFormTopic}
-          />
-        ))}
-        {!loading && topics.length === 0 && (
-          <p className="text-sm text-ink-muted col-span-full text-center py-10">No topics yet.</p>
-        )}
-      </div>
+      {!loading && topics.length === 0 ? (
+        <EmptyState
+          title="No topics yet"
+          subtitle="Add a learning topic to start tracking your streak."
+          ctaLabel="+ New Topic"
+          onCta={() => setFormTopic({})}
+        />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {topics.map((t) => (
+            <TopicCard
+              key={t.id}
+              topic={t}
+              highlighted={t.id === highlightId}
+              onLogSession={setSessionTopic}
+              onEdit={setFormTopic}
+            />
+          ))}
+        </div>
+      )}
 
       {formTopic !== null && (
         <TopicFormModal

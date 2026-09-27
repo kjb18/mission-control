@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchWins, computeWinsSummary } from "../../lib/wins";
+import { Card } from "../../components/ui";
 
 const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 
@@ -18,7 +19,7 @@ export default function WinsPanel() {
   const summary = computeWinsSummary(wins);
 
   return (
-    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
+    <Card className="flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
         <p className="text-sm font-semibold text-white">Wins</p>
@@ -41,6 +42,6 @@ export default function WinsPanel() {
         ))}
         {!loading && wins.length === 0 && <li className="text-xs text-ink-muted px-1 py-1">No wins yet.</li>}
       </ul>
-    </div>
+    </Card>
   );
 }

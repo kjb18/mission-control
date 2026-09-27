@@ -28,11 +28,12 @@ export default function SendQuotePanel({ contact, email, approved, sending, sent
           href={buildMailto({ to: contact?.email, subject: email.subject, body: email.body })}
           onClick={() => canSend && onSend()}
           aria-disabled={!canSend}
-          className={`px-4 py-2 rounded-[10px] text-sm font-semibold ${
+          className={`inline-flex items-center justify-center rounded-lg text-[13px] font-medium transition-all duration-150 ${
             canSend
-              ? "bg-accent hover:bg-accent-light text-base-950"
+              ? "bg-accent text-[#fff] hover:opacity-90 active:scale-[0.98]"
               : "bg-base-800/60 text-ink-muted pointer-events-none"
           }`}
+          style={{ padding: "8px 16px" }}
         >
           {sent ? "Sent ✓" : sending ? "Recording…" : "Approve → Open Email & Send"}
         </a>

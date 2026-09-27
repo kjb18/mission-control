@@ -3,6 +3,7 @@ import SectionHeader from "./SectionHeader";
 import { useMonthEvents } from "../../lib/useMonthEvents";
 import { daysInMonth, toISODate } from "../../lib/dateUtils";
 import { ChevronLeftIcon } from "../../components/icons";
+import { Card } from "../../components/ui";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -72,7 +73,7 @@ export default function MonthCalendar() {
         </p>
       )}
 
-      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <Card noPadding className="p-3">
         <div className="flex flex-wrap gap-3 px-1 pb-2 mb-1 border-b border-line">
           {LEGEND.map(({ label, color }) => (
             <span key={label} className="flex items-center gap-1.5 text-[11px] text-ink-secondary">
@@ -117,7 +118,7 @@ export default function MonthCalendar() {
             );
           })}
         </div>
-      </div>
+      </Card>
     </section>
   );
 }

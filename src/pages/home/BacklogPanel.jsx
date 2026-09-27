@@ -1,4 +1,5 @@
 import { useClickUpTasks } from "../../lib/useClickUpTasks";
+import { Card, Badge } from "../../components/ui";
 
 function formatDueDate(date) {
   if (!date) return "No due date";
@@ -23,18 +24,12 @@ export default function BacklogPanel() {
   }
 
   return (
-    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
+    <Card className="flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
         <p className="text-sm font-semibold text-white">Backlog</p>
-        <span className="text-[10px] uppercase tracking-wide text-ink-muted bg-base-800/60 rounded px-1.5 py-0.5">
-          ClickUp
-        </span>
-        {staleCount > 0 && (
-          <span className="text-[10px] font-medium text-red-600 bg-red-400/15 rounded-full px-1.5 py-0.5">
-            {staleCount} stale
-          </span>
-        )}
+        <Badge variant="gray">ClickUp</Badge>
+        {staleCount > 0 && <Badge variant="red">{staleCount} stale</Badge>}
         <span className="ml-auto text-xs text-ink-muted">{tasks.length}</span>
         <button
           onClick={refresh}
@@ -77,19 +72,13 @@ export default function BacklogPanel() {
             </a>
             <div className="flex items-center gap-2 text-[11px]">
               <span className="text-ink-secondary">{formatDueDate(task.dueDate)}</span>
-              <span
-                className={`ml-auto font-medium rounded-full px-1.5 py-0.5 ${
-                  task.isStale
-                    ? "text-red-600 bg-red-400/15"
-                    : "text-ink-secondary bg-base-800/60"
-                }`}
-              >
+              <Badge variant={task.isStale ? "red" : "gray"} className="ml-auto">
                 {task.daysSinceActivity === null ? "—" : `${task.daysSinceActivity}d`}
-              </span>
+              </Badge>
             </div>
           </li>
         ))}
       </ul>
-    </div>
+    </Card>
   );
 }

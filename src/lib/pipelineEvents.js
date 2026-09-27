@@ -5,12 +5,12 @@ import { supabase } from "./supabaseClient";
 // legend, not decoration), so they're the one deliberate exception to the
 // rest of the app collapsing onto the constrained ops-center palette.
 export const PIPELINE_SOURCES = [
-  { table: "rfqs", dateColumn: "closing_date", label: "RFQ", color: "bg-amber-500" },
-  { table: "deliveries", dateColumn: "delivery_date", label: "Delivery", color: "bg-success" },
-  { table: "invoices", dateColumn: "closing_date", label: "Invoice", color: "bg-blue-500" },
+  { table: "rfqs", dateColumn: "closing_date", label: "RFQ", color: "bg-amber-500", variant: "amber" },
+  { table: "deliveries", dateColumn: "delivery_date", label: "Delivery", color: "bg-success", variant: "green" },
+  { table: "invoices", dateColumn: "closing_date", label: "Invoice", color: "bg-blue-500", variant: "blue" },
 ];
 
-export const MEETING_SOURCE = { label: "Meeting", color: "bg-violet-600" };
+export const MEETING_SOURCE = { label: "Meeting", color: "bg-violet-600", variant: "purple" };
 
 export async function fetchPipelineEventsByDate(startISO, endISO) {
   const results = await Promise.all(
@@ -25,12 +25,12 @@ export async function fetchPipelineEventsByDate(startISO, endISO) {
 
   const map = {};
   results.forEach((res, idx) => {
-    const { dateColumn, label, color } = PIPELINE_SOURCES[idx];
+    const { dateColumn, label, color, variant } = PIPELINE_SOURCES[idx];
     (res.data ?? []).forEach((row) => {
       const date = row[dateColumn];
       if (!date) return;
       if (!map[date]) map[date] = [];
-      map[date].push({ label, color });
+      map[date].push({ label, color, variant });
     });
   });
 
@@ -43,7 +43,10 @@ export function mergeMeetingEvents(map, meetingEvents) {
     if (!event.start) return;
     const iso = toLocalISODate(event.start);
     if (!next[iso]) next[iso] = [];
-    next[iso] = [...next[iso], { label: event.title, color: MEETING_SOURCE.color, meeting: true }];
+    next[iso] = [
+      ...next[iso],
+      { label: event.title, color: MEETING_SOURCE.color, variant: MEETING_SOURCE.variant, meeting: true },
+    ];
   });
   return next;
 }

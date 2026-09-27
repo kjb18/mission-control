@@ -65,13 +65,26 @@ Neue, sans-serif`), 13px/1.5 body, headings weight 500 (never 700),
 section labels 9–11px uppercase with wide letter-spacing, KPI/count
 numbers use `.tabular-nums`.
 
-**Reusable component classes** (`src/index.css`, `@layer components`):
-`.mc-section-label` (blue eyebrow + trailing rule; `.mc-section-label-purple`
-variant for the Growth zone), `.mc-card` (white, 0.5px border, 10px
-radius), `.mc-panel-header`, `.mc-badge`, `.mc-btn-primary`,
-`.mc-btn-secondary`, `.input`. Most surfaces compose the same look from raw
-Tailwind utilities (`rounded-[10px] border-[0.5px] border-line bg-base-900
-px-3 py-2.5`) rather than the class — both are the same design.
+**Shared component library** (`src/components/ui/`, barrel-exported from
+`src/components/ui/index.js`) — every surface in the app is built from
+these, not ad-hoc Tailwind card/table/header markup:
+
+| Component | What it renders |
+|---|---|
+| `Card` | White surface, 1px border, 12px radius, subtle shadow, 16/20px padding (`noPadding` to opt out) |
+| `CardHeader` | A card's title/subtitle/action row, hairline bottom border |
+| `PageHeader` | The page-level title (20px/500) + subtitle + right-side action slot; `compact` drops the bottom padding (used in the topbar) |
+| `SectionLabel` | 9px uppercase eyebrow + full-width rule; `tone="blue"` (default), `"purple"`, or `"gray"` |
+| `StatCard` | A `Card` shaped for a KPI: label, 28px number, optional colored top border (`color="blue"/"amber"/"green"/"red"`), optional delta arrow, optional `href` link |
+| `Badge` | Small pill; `variant="blue"/"purple"/"green"/"amber"/"red"/"gray"` |
+| `DataTable` | `columns` (`{key, label, render?}`) + `rows` → a table with the app's header/row/hover styling; pair with `EmptyState` when `rows` is empty |
+| `NavItem` | A sidebar `NavLink` with the active-state left border; `tone="blue"` or `"purple"` |
+| `Button` | `variant="primary"/"secondary"/"danger"`; override a specific color with an `!`-prefixed Tailwind class (e.g. `className="!bg-violet-600"` for a Growth-domain action) |
+| `EmptyState` | Icon + title + subtitle + optional CTA button (`tone="purple"` to match a Growth-domain page) |
+
+Growth-domain pages (Crosshairs, OKRs, Content, SEO) recolor these from
+their blue defaults to violet via `tone`/`variant` props or a `!bg-violet-600`
+override — there's no separate "purple" component, just a prop.
 
 **Layout**: sidebar fixed at 200px (`bg-sidebar`, grouped nav — Operations /
 Growth / Workspace — with a 2px active-item left border, blue by default

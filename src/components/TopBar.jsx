@@ -1,6 +1,8 @@
-import { useAuth } from "../lib/AuthContext";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCheckIn } from "../lib/CheckInContext";
-import { LogoMark, SparkleIcon } from "./icons";
+import { SparkleIcon } from "./icons";
+import { PageHeader, Badge, Button } from "./ui";
 
 const TODAY_LABEL = new Date().toLocaleDateString("en-US", {
   weekday: "long",
@@ -9,55 +11,42 @@ const TODAY_LABEL = new Date().toLocaleDateString("en-US", {
 });
 
 export default function TopBar() {
-  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const { isComplete, openGate } = useCheckIn();
+  const [syncing, setSyncing] = useState(false);
+
+  function handleSync() {
+    setSyncing(true);
+    window.location.reload();
+  }
 
   return (
     <header
       className="shrink-0 border-b border-line bg-sidebar flex items-center gap-3 px-3 md:px-4"
-      style={{ height: 48 }}
+      style={{ height: 52 }}
     >
-      <div className="flex items-center gap-2 md:hidden">
-        <LogoMark className="w-4 h-4 text-accent shrink-0" />
+      <div className="min-w-0 flex-1">
+        <PageHeader title="Mission Control" compact />
       </div>
 
-      <p className="hidden md:block text-white font-medium" style={{ fontSize: 13 }}>
-        Mission Control
-      </p>
-
-      <div className="hidden sm:flex items-center gap-1 min-w-0">
+      <div className="hidden sm:flex items-center gap-1 shrink-0">
         <SparkleIcon className="w-3 h-3 text-violet-600 shrink-0" />
         <p className="text-blue-600 truncate" style={{ fontSize: 10 }}>
           {TODAY_LABEL}
         </p>
       </div>
 
-      <div className="flex-1" />
-
-      <button
-        onClick={openGate}
-        title={isComplete ? "Daily check-in complete — tap to redo" : "Daily check-in pending"}
-        className={`mc-badge rounded-full transition-colors ${
-          isComplete
-            ? "bg-blue-100 text-blue-800"
-            : "bg-base-800 text-ink-secondary hover:text-white"
-        }`}
-      >
-        {isComplete ? "On track" : "Check in"}
+      <button onClick={openGate} className="shrink-0">
+        <Badge variant="blue">{isComplete ? "On track" : "Check in"}</Badge>
       </button>
 
-      <div className="flex items-center gap-2 pl-2 ml-1 border-l border-line">
-        <div className="w-6 h-6 rounded-full bg-accent/20 text-accent flex items-center justify-center text-[10px] font-medium">
-          {user?.email?.[0]?.toUpperCase() ?? "?"}
-        </div>
-        <button
-          onClick={signOut}
-          className="hidden sm:inline text-ink-muted hover:text-white"
-          style={{ fontSize: 10 }}
-        >
-          Sign out
-        </button>
-      </div>
+      <Button variant="secondary" onClick={handleSync} disabled={syncing} className="shrink-0 hidden sm:inline-flex">
+        {syncing ? "Syncing…" : "Sync"}
+      </Button>
+
+      <Button variant="primary" onClick={() => navigate("/intake")} className="shrink-0">
+        + New RFQ
+      </Button>
     </header>
   );
 }

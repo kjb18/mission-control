@@ -21,7 +21,7 @@ export default function Layout() {
 
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar />
-        <main className="flex-1 overflow-y-auto pb-[52px] md:pb-0">
+        <main className="flex-1 overflow-y-auto p-6 pb-[76px] md:pb-6">
           <Outlet />
         </main>
       </div>

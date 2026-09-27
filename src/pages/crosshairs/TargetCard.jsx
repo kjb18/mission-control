@@ -1,4 +1,5 @@
 import PriorityBadge from "./PriorityBadge";
+import { Card, Button } from "../../components/ui";
 
 const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
 
@@ -15,11 +16,7 @@ export default function TargetCard({ target, onLogTouchpoint, onEdit }) {
   const neglected = target.priority === "Hot" && (since === null || since >= 2);
 
   return (
-    <div
-      className={`rounded-[10px] border bg-base-900 p-4 space-y-2.5 ${
-        neglected ? "border-red-400/40" : "border-line"
-      }`}
-    >
+    <Card className={`space-y-2.5 ${neglected ? "!border-red-400/40" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-white">{target.target_name}</p>
@@ -59,19 +56,13 @@ export default function TargetCard({ target, onLogTouchpoint, onEdit }) {
       {target.notes && <p className="text-xs text-ink-secondary line-clamp-2">{target.notes}</p>}
 
       <div className="flex gap-2 pt-1">
-        <button
-          onClick={() => onLogTouchpoint(target)}
-          className="flex-1 text-xs px-3 py-1.5 rounded-[10px] bg-violet-600 hover:bg-violet-700 text-base-950 font-medium"
-        >
+        <Button variant="primary" className="flex-1 !bg-violet-600" onClick={() => onLogTouchpoint(target)}>
           Log Touchpoint
-        </button>
-        <button
-          onClick={() => onEdit(target)}
-          className="text-xs px-3 py-1.5 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white font-medium"
-        >
+        </Button>
+        <Button variant="secondary" onClick={() => onEdit(target)}>
           Edit
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }

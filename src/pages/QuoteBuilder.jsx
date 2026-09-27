@@ -15,6 +15,7 @@ import QuoteLineTable from "./quoteBuilder/QuoteLineTable";
 import TotalsPanel from "./quoteBuilder/TotalsPanel";
 import QuotePdfPreview from "./quoteBuilder/QuotePdfPreview";
 import SendQuotePanel from "./quoteBuilder/SendQuotePanel";
+import { PageHeader, Card, CardHeader } from "../components/ui";
 
 export default function QuoteBuilder() {
   const [rfqs, setRfqs] = useState([]);
@@ -137,14 +138,8 @@ export default function QuoteBuilder() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 md:px-6 py-10 space-y-6">
-      <div>
-        <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">
-          Quote Builder
-        </p>
-        <h1 className="text-2xl font-semibold text-white">Build a Quotation</h1>
-        <p className="text-sm text-ink-secondary mt-1">Sourced RFQs, ready to price and send.</p>
-      </div>
+    <div className="max-w-6xl mx-auto space-y-5">
+      <PageHeader title="Build a Quotation" subtitle="Sourced RFQs, ready to price and send." />
 
       {error && (
         <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
@@ -152,7 +147,7 @@ export default function QuoteBuilder() {
         </p>
       )}
 
-      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <Card>
         <label className="block">
           <span className="block text-xs text-ink-secondary mb-1">RFQ (status: sourced)</span>
           <select value={rfqId ?? ""} onChange={(e) => setRfqId(e.target.value || null)} className="input">
@@ -170,45 +165,51 @@ export default function QuoteBuilder() {
             No RFQs are ready to quote. Finish sourcing one on the Sourcing Desk first.
           </p>
         )}
-      </div>
+      </Card>
 
       {selectedRfq && lines.length > 0 && (
         <>
-          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-            <h3 className="text-sm font-semibold text-white mb-3">Line Items</h3>
-            <QuoteLineTable
-              lines={lines}
-              markups={markups}
-              onMarkupChange={handleMarkupChange}
-              computed={computed}
-            />
-          </section>
+          <Card noPadding>
+            <CardHeader title="Line Items" />
+            <div className="px-5 py-4">
+              <QuoteLineTable
+                lines={lines}
+                markups={markups}
+                onMarkupChange={handleMarkupChange}
+                computed={computed}
+              />
+            </div>
+          </Card>
 
           <TotalsPanel totals={totals} />
 
-          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-            <h3 className="text-sm font-semibold text-white mb-3">PDF Preview</h3>
-            <QuotePdfPreview
-              pdfUrl={pdfUrl}
-              generating={generating}
-              approved={approved}
-              onGenerate={handleGeneratePdf}
-              onApprove={setApproved}
-              stale={stale}
-            />
-          </section>
+          <Card noPadding>
+            <CardHeader title="PDF Preview" />
+            <div className="px-5 py-4">
+              <QuotePdfPreview
+                pdfUrl={pdfUrl}
+                generating={generating}
+                approved={approved}
+                onGenerate={handleGeneratePdf}
+                onApprove={setApproved}
+                stale={stale}
+              />
+            </div>
+          </Card>
 
-          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-            <h3 className="text-sm font-semibold text-white mb-3">Send Quotation</h3>
-            <SendQuotePanel
-              contact={contact}
-              email={email}
-              approved={approved && !stale}
-              sending={sending}
-              sent={sent}
-              onSend={handleSend}
-            />
-          </section>
+          <Card noPadding>
+            <CardHeader title="Send Quotation" />
+            <div className="px-5 py-4">
+              <SendQuotePanel
+                contact={contact}
+                email={email}
+                approved={approved && !stale}
+                sending={sending}
+                sent={sent}
+                onSend={handleSend}
+              />
+            </div>
+          </Card>
         </>
       )}
     </div>

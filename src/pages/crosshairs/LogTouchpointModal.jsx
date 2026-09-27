@@ -2,6 +2,7 @@ import { useState } from "react";
 import Modal from "../../components/Modal";
 import { logTouchpoint } from "../../lib/crosshairs";
 import { todayISODate } from "../../lib/dateUtils";
+import { Button } from "../../components/ui";
 
 export default function LogTouchpointModal({ target, onClose, onSaved }) {
   const [date, setDate] = useState(todayISODate());
@@ -44,21 +45,12 @@ export default function LogTouchpointModal({ target, onClose, onSaved }) {
         {error && <p className="text-xs text-red-600">{error}</p>}
 
         <div className="flex gap-2 pt-2">
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-4 py-2 rounded-[10px] bg-violet-600 hover:bg-violet-700 disabled:opacity-50 text-base-950 text-sm font-semibold"
-          >
+          <Button type="submit" variant="primary" className="!bg-violet-600" disabled={saving}>
             {saving ? "Saving…" : "Log Touchpoint"}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="px-4 py-2 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
-          >
+          </Button>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
             Cancel
-          </button>
+          </Button>
         </div>
       </form>
     </Modal>

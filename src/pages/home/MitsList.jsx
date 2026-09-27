@@ -75,7 +75,7 @@ export default function MitsList() {
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             placeholder="Add a most important task…"
-            className="flex-1 rounded-[10px] bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
+            className="flex-1 min-w-0 rounded-[10px] bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
           />
           <button
             type="submit"

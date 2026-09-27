@@ -1,4 +1,3 @@
-import { NavLink } from "react-router-dom";
 import {
   HomeIcon,
   PipelineIcon,
@@ -17,6 +16,9 @@ import {
   SettingsIcon,
   LogoMark,
 } from "./icons";
+import { SectionLabel, NavItem } from "./ui";
+import { useAuth } from "../lib/AuthContext";
+import { useCheckIn } from "../lib/CheckInContext";
 
 const NAV_SECTIONS = [
   {
@@ -55,13 +57,16 @@ const NAV_SECTIONS = [
 ];
 
 export default function Sidebar({ isOpen, onNavigate }) {
+  const { user, signOut } = useAuth();
+  const { isComplete } = useCheckIn();
+
   return (
     <aside
       className={`fixed md:static inset-y-0 left-0 z-40 w-[200px] shrink-0 bg-sidebar border-r border-line flex flex-col transition-transform duration-200 ${
         isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       }`}
     >
-      <div className="flex items-center gap-2.5 px-3 py-3 border-b border-line">
+      <div className="flex items-center gap-2.5 border-b border-line" style={{ padding: 20 }}>
         <div
           className="w-8 h-8 rounded-[10px] flex items-center justify-center shrink-0"
           style={{ background: "linear-gradient(135deg, #3b82f6, #7c3aed)" }}
@@ -69,7 +74,10 @@ export default function Sidebar({ isOpen, onNavigate }) {
           <LogoMark className="w-4 h-4 text-white" />
         </div>
         <div className="leading-tight min-w-0">
-          <p className="text-white font-medium text-[12px] truncate">Ultra Power</p>
+          <p className="text-white font-medium text-[13px] truncate">Mission Control</p>
+          <p className="text-ink-secondary truncate" style={{ fontSize: 11 }}>
+            Ultra Power
+          </p>
           <p className="text-ink-muted" style={{ fontSize: 10, lineHeight: 1.25 }}>
             Engineering Solutions Director
           </p>
@@ -80,50 +88,37 @@ export default function Sidebar({ isOpen, onNavigate }) {
         {NAV_SECTIONS.map((section, si) => (
           <div key={si}>
             {section.label && (
-              <p
-                className="uppercase text-ink-muted px-2 mb-1"
-                style={{ fontSize: 9, letterSpacing: "0.07em", fontWeight: 500 }}
-              >
-                {section.label}
-              </p>
+              <div className="px-2">
+                <SectionLabel tone="gray">{section.label}</SectionLabel>
+              </div>
             )}
             <div className="space-y-0.5">
-              {section.items.map(({ to, label, icon: Icon, end, tone }) => {
-                const isPurple = tone === "purple";
-                return (
-                  <NavLink
-                    key={to}
-                    to={to}
-                    end={end}
-                    onClick={onNavigate}
-                    className={({ isActive }) =>
-                      `flex items-center gap-2 rounded-md border-l-2 text-[11px] transition-colors ${
-                        isActive
-                          ? isPurple
-                            ? "border-violet-600 bg-violet-600/10 text-white font-medium"
-                            : "border-accent bg-accent/10 text-white font-medium"
-                          : "border-transparent text-ink-secondary hover:bg-base-800 hover:text-white"
-                      }`
-                    }
-                    style={{ padding: "5px 10px" }}
-                  >
-                    {({ isActive }) => (
-                      <>
-                        <Icon
-                          className={`w-[15px] h-[15px] shrink-0 ${
-                            isActive ? (isPurple ? "text-violet-600" : "text-accent") : "text-ink-muted"
-                          }`}
-                        />
-                        <span className="truncate">{label}</span>
-                      </>
-                    )}
-                  </NavLink>
-                );
-              })}
+              {section.items.map(({ to, label, icon, end, tone }) => (
+                <NavItem key={to} to={to} end={end} icon={icon} tone={tone} onClick={onNavigate}>
+                  {label}
+                </NavItem>
+              ))}
             </div>
           </div>
         ))}
       </nav>
+
+      <div className="flex items-center gap-2 px-3 py-3 border-t border-line">
+        <span
+          className={`w-1.5 h-1.5 rounded-full shrink-0 ${isComplete ? "bg-emerald-500" : "bg-line-strong"}`}
+          title={isComplete ? "Checked in today" : "Check-in pending"}
+        />
+        <p className="text-ink-secondary truncate flex-1" style={{ fontSize: 10 }}>
+          {user?.email ?? "—"}
+        </p>
+        <button
+          onClick={signOut}
+          className="text-ink-muted hover:text-white shrink-0"
+          style={{ fontSize: 10 }}
+        >
+          Sign out
+        </button>
+      </div>
     </aside>
   );
 }

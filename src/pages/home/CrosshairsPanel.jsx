@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchTargets, fetchTodaysRotatedTarget, logTouchpoint } from "../../lib/crosshairs";
 import { todayISODate } from "../../lib/dateUtils";
+import { Card, Badge } from "../../components/ui";
 
 export default function CrosshairsPanel() {
   const [rotated, setRotated] = useState(null);
@@ -35,7 +36,7 @@ export default function CrosshairsPanel() {
   }
 
   return (
-    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
+    <Card className="flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <span className="w-1.5 h-1.5 rounded-full bg-violet-600" />
         <p className="text-sm font-semibold text-white">Crosshairs</p>
@@ -53,7 +54,7 @@ export default function CrosshairsPanel() {
           <div className="rounded-[10px] border border-violet-600/30 bg-violet-600/10 px-3 py-2">
             <div className="flex items-center justify-between gap-2">
               <p className="text-sm text-white font-medium truncate">{rotated.target_name}</p>
-              <span className="text-[10px] uppercase tracking-wide text-violet-600 shrink-0">{rotated.priority}</span>
+              <Badge variant="purple" className="shrink-0">{rotated.priority}</Badge>
             </div>
             <p className="text-[11px] text-ink-secondary mt-0.5">
               {rotated.next_suggested_action || "No suggested action set."}
@@ -77,6 +78,6 @@ export default function CrosshairsPanel() {
           </ul>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

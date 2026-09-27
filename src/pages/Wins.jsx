@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchWins, computeWinsSummary } from "../lib/wins";
+import { PageHeader, StatCard, Card, DataTable, EmptyState } from "../components/ui";
 
 const currency = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" });
 
@@ -17,15 +18,40 @@ export default function Wins() {
 
   const summary = computeWinsSummary(wins);
 
+  const columns = [
+    {
+      key: "client",
+      label: "Client",
+      render: (w) => (
+        <div>
+          <p className="font-medium">{w.client_name}</p>
+          <p className="text-xs text-ink-secondary mt-0.5">
+            {w.rfq_reference || "No reference"} · Awarded {w.awarded_date}
+          </p>
+        </div>
+      ),
+    },
+    {
+      key: "value",
+      label: "Value",
+      render: (w) => (w.total_value ? currency.format(w.total_value) : "—"),
+    },
+    {
+      key: "margin",
+      label: "Margin",
+      render: (w) => (
+        <span className="text-emerald-700">
+          {w.margin_percent !== null && w.margin_percent !== undefined
+            ? `${Number(w.margin_percent).toFixed(1)}%`
+            : "—"}
+        </span>
+      ),
+    },
+  ];
+
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-6 py-10 space-y-6">
-      <div>
-        <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">Wins</p>
-        <h1 className="text-2xl font-semibold text-white">Wins Log</h1>
-        <p className="text-sm text-ink-secondary mt-1">
-          Automatically logged whenever an RFQ is awarded.
-        </p>
-      </div>
+    <div className="max-w-5xl mx-auto space-y-5">
+      <PageHeader title="Wins Log" subtitle="Automatically logged whenever an RFQ is awarded." />
 
       {error && (
         <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
@@ -34,47 +60,23 @@ export default function Wins() {
       )}
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <Stat label="Total Wins" value={summary.totalCount} />
-        <Stat label={`Wins in ${new Date().getFullYear()}`} value={summary.countThisYear} />
-        <Stat label="Value This Year" value={currency.format(summary.totalValueThisYear)} tone="text-accent" />
+        <StatCard label="Total Wins" value={summary.totalCount} />
+        <StatCard label={`Wins in ${new Date().getFullYear()}`} value={summary.countThisYear} />
+        <StatCard label="Value This Year" value={currency.format(summary.totalValueThisYear)} color="blue" />
       </div>
 
-      <div className="rounded-[10px] border border-line bg-base-900 divide-y divide-line">
-        {wins.map((w) => (
-          <div key={w.id} className="flex items-center justify-between px-5 py-4">
-            <div>
-              <p className="text-sm font-semibold text-white">{w.client_name}</p>
-              <p className="text-xs text-ink-secondary">
-                {w.rfq_reference || "No reference"} · Awarded {w.awarded_date}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-sm font-semibold text-white">
-                {w.total_value ? currency.format(w.total_value) : "—"}
-              </p>
-              <p className="text-xs text-emerald-700">
-                {w.margin_percent !== null && w.margin_percent !== undefined
-                  ? `${Number(w.margin_percent).toFixed(1)}% margin`
-                  : ""}
-              </p>
-            </div>
-          </div>
-        ))}
-        {!loading && wins.length === 0 && (
-          <p className="text-sm text-ink-muted text-center py-10">
-            No wins yet — they'll appear automatically once an RFQ is awarded.
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function Stat({ label, value, tone = "text-white" }) {
-  return (
-    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-      <p className="text-[11px] uppercase tracking-wide text-ink-secondary">{label}</p>
-      <p className={`text-xl font-semibold mt-1 ${tone}`}>{value}</p>
+      {!loading && wins.length === 0 ? (
+        <Card>
+          <EmptyState
+            title="No wins yet"
+            subtitle="They'll appear automatically once an RFQ is awarded."
+          />
+        </Card>
+      ) : (
+        <Card noPadding className="overflow-x-auto">
+          <DataTable columns={columns} rows={wins} />
+        </Card>
+      )}
     </div>
   );
 }

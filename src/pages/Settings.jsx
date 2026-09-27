@@ -8,6 +8,7 @@ import {
 } from "../lib/googleAuth";
 import { fetchFxRate, updateFxRate, DEFAULT_FX_RATE } from "../lib/settings";
 import { fetchBlacklistedSuppliers, addSupplierToBlacklist, removeSupplierFromBlacklist } from "../lib/sourcing";
+import { PageHeader, Card, CardHeader, Badge, Button } from "../components/ui";
 
 export default function Settings() {
   const { user } = useAuth();
@@ -98,140 +99,118 @@ export default function Settings() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-4 md:px-6 py-10 space-y-8">
-      <div>
-        <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">
-          Settings
-        </p>
-        <h1 className="text-2xl font-semibold text-white">Account & Integrations</h1>
-      </div>
+    <div className="max-w-2xl mx-auto space-y-5">
+      <PageHeader title="Account & Integrations" />
 
-      <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-        <h2 className="text-sm font-semibold text-white mb-3">Account</h2>
-        <p className="text-sm text-ink-secondary">Signed in as {user?.email}</p>
-      </section>
-
-      <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-        <h2 className="text-sm font-semibold text-white mb-3">Pricing</h2>
-        <p className="text-sm text-ink-secondary mb-4">
-          USD→PHP FX rate used for landed cost on the Sourcing Desk and Quote Builder.
-        </p>
-        <form onSubmit={handleSaveFxRate} className="flex items-end gap-2">
-          <label className="block">
-            <span className="block text-xs text-ink-secondary mb-1">FX Rate (PHP per USD)</span>
-            <input
-              type="number"
-              step="0.01"
-              value={fxRateInput}
-              onChange={(e) => setFxRateInput(e.target.value)}
-              className="input w-40"
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={savingFx}
-            className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-60 text-base-950 text-sm font-medium"
-          >
-            {savingFx ? "Saving…" : "Save"}
-          </button>
-        </form>
-        {fxStatus && (
-          <p className={`text-xs mt-3 ${fxStatus.type === "error" ? "text-red-600" : "text-emerald-700"}`}>
-            {fxStatus.message}
-          </p>
-        )}
-      </section>
-
-      <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-white">Google Calendar</h2>
-          <span
-            className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${
-              connected ? "text-emerald-700 bg-emerald-400/15" : "text-ink-secondary bg-base-800/60"
-            }`}
-          >
-            {connected ? "Connected" : "Not connected"}
-          </span>
+      <Card noPadding>
+        <CardHeader title="Account" />
+        <div className="px-5 py-4">
+          <p className="text-sm text-ink-secondary">Signed in as {user?.email}</p>
         </div>
-        <p className="text-sm text-ink-secondary mb-4">
-          Connect your Google account so time blocks you create in Mission Control push to
-          Google Calendar with a 5-minute reminder, and so private calendar events can be read
-          into the Weekly Plan and Month Calendar.
-        </p>
+      </Card>
 
-        {!isGoogleAuthConfigured() ? (
-          <p className="text-xs text-orange-600/80 bg-orange-500/10 border border-orange-500/20 rounded-[10px] px-3 py-2">
-            VITE_GOOGLE_CLIENT_ID is not set.
+      <Card noPadding>
+        <CardHeader title="Pricing" />
+        <div className="px-5 py-4">
+          <p className="text-sm text-ink-secondary mb-4">
+            USD→PHP FX rate used for landed cost on the Sourcing Desk and Quote Builder.
           </p>
-        ) : connected ? (
-          <button
-            onClick={handleDisconnect}
-            className="px-4 py-2 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm font-medium"
-          >
-            Disconnect Google Calendar
-          </button>
-        ) : (
-          <button
-            onClick={handleConnect}
-            disabled={connecting}
-            className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-60 text-base-950 text-sm font-medium"
-          >
-            {connecting ? "Connecting…" : "Connect Google Calendar"}
-          </button>
-        )}
+          <form onSubmit={handleSaveFxRate} className="flex items-end gap-2">
+            <label className="block">
+              <span className="block text-xs text-ink-secondary mb-1">FX Rate (PHP per USD)</span>
+              <input
+                type="number"
+                step="0.01"
+                value={fxRateInput}
+                onChange={(e) => setFxRateInput(e.target.value)}
+                className="input w-40"
+              />
+            </label>
+            <Button type="submit" variant="primary" disabled={savingFx}>
+              {savingFx ? "Saving…" : "Save"}
+            </Button>
+          </form>
+          {fxStatus && (
+            <p className={`text-xs mt-3 ${fxStatus.type === "error" ? "text-red-600" : "text-emerald-700"}`}>
+              {fxStatus.message}
+            </p>
+          )}
+        </div>
+      </Card>
 
-        {status && (
-          <p
-            className={`text-xs mt-3 ${
-              status.type === "error" ? "text-red-600" : "text-emerald-700"
-            }`}
-          >
-            {status.message}
+      <Card noPadding>
+        <CardHeader
+          title="Google Calendar"
+          action={<Badge variant={connected ? "green" : "gray"}>{connected ? "Connected" : "Not connected"}</Badge>}
+        />
+        <div className="px-5 py-4">
+          <p className="text-sm text-ink-secondary mb-4">
+            Connect your Google account so time blocks you create in Mission Control push to
+            Google Calendar with a 5-minute reminder, and so private calendar events can be read
+            into the Weekly Plan and Month Calendar.
           </p>
-        )}
-      </section>
 
-      <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-        <h2 className="text-sm font-semibold text-white mb-3">Supplier Blacklist</h2>
-        <p className="text-sm text-ink-secondary mb-4">
-          Blacklisted suppliers are blocked from outreach on the Sourcing Desk.
-        </p>
+          {!isGoogleAuthConfigured() ? (
+            <p className="text-xs text-orange-600/80 bg-orange-500/10 border border-orange-500/20 rounded-[10px] px-3 py-2">
+              VITE_GOOGLE_CLIENT_ID is not set.
+            </p>
+          ) : connected ? (
+            <Button variant="secondary" onClick={handleDisconnect}>
+              Disconnect Google Calendar
+            </Button>
+          ) : (
+            <Button variant="primary" onClick={handleConnect} disabled={connecting}>
+              {connecting ? "Connecting…" : "Connect Google Calendar"}
+            </Button>
+          )}
 
-        <ul className="space-y-1.5 mb-4">
-          {blacklist.map((s) => (
-            <li
-              key={s.id}
-              className="flex items-center justify-between bg-base-800 border border-line rounded-[10px] px-3 py-2"
-            >
-              <span className="text-sm text-white">{s.name}</span>
-              <button
-                onClick={() => handleRemoveFromBlacklist(s)}
-                className="text-xs text-ink-muted hover:text-red-600"
+          {status && (
+            <p className={`text-xs mt-3 ${status.type === "error" ? "text-red-600" : "text-emerald-700"}`}>
+              {status.message}
+            </p>
+          )}
+        </div>
+      </Card>
+
+      <Card noPadding>
+        <CardHeader title="Supplier Blacklist" />
+        <div className="px-5 py-4">
+          <p className="text-sm text-ink-secondary mb-4">
+            Blacklisted suppliers are blocked from outreach on the Sourcing Desk.
+          </p>
+
+          <ul className="space-y-1.5 mb-4">
+            {blacklist.map((s) => (
+              <li
+                key={s.id}
+                className="flex items-center justify-between bg-base-800 border border-line rounded-[10px] px-3 py-2"
               >
-                Remove
-              </button>
-            </li>
-          ))}
-          {blacklist.length === 0 && <li className="text-sm text-ink-muted">No blacklisted suppliers.</li>}
-        </ul>
+                <span className="text-sm text-white">{s.name}</span>
+                <button
+                  onClick={() => handleRemoveFromBlacklist(s)}
+                  className="text-xs text-ink-muted hover:text-red-600"
+                >
+                  Remove
+                </button>
+              </li>
+            ))}
+            {blacklist.length === 0 && <li className="text-sm text-ink-muted">No blacklisted suppliers.</li>}
+          </ul>
 
-        <form onSubmit={handleAddToBlacklist} className="flex gap-2">
-          <input
-            value={blacklistInput}
-            onChange={(e) => setBlacklistInput(e.target.value)}
-            placeholder="Supplier name…"
-            className="input flex-1"
-          />
-          <button
-            type="submit"
-            disabled={savingBlacklist}
-            className="px-4 py-2 rounded-[10px] bg-red-500/10 hover:bg-red-500/20 disabled:opacity-60 text-red-600 text-sm font-medium"
-          >
-            {savingBlacklist ? "Adding…" : "Add"}
-          </button>
-        </form>
-        {blacklistError && <p className="text-xs text-red-600 mt-2">{blacklistError}</p>}
-      </section>
+          <form onSubmit={handleAddToBlacklist} className="flex gap-2">
+            <input
+              value={blacklistInput}
+              onChange={(e) => setBlacklistInput(e.target.value)}
+              placeholder="Supplier name…"
+              className="input flex-1 min-w-0"
+            />
+            <Button type="submit" variant="danger" className="!bg-red-500/10 !text-red-600" disabled={savingBlacklist}>
+              {savingBlacklist ? "Adding…" : "Add"}
+            </Button>
+          </form>
+          {blacklistError && <p className="text-xs text-red-600 mt-2">{blacklistError}</p>}
+        </div>
+      </Card>
     </div>
   );
 }

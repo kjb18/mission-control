@@ -5,6 +5,7 @@ import { useWeekEvents } from "../../lib/useWeekEvents";
 import { createEvent, updateEvent } from "../../lib/googleCalendar";
 import { hasConnectedBefore } from "../../lib/googleAuth";
 import SectionHeader from "./SectionHeader";
+import { Badge } from "../../components/ui";
 
 const HOURS = Array.from({ length: 11 }, (_, i) => 8 + i); // 8am - 6pm
 
@@ -156,24 +157,14 @@ export default function WeeklyPlan() {
                 </p>
                 <div className="flex flex-wrap justify-center gap-1 mt-1">
                   {dayEvents.slice(0, 3).map((ev, i) => (
-                    <span
-                      key={`p-${i}`}
-                      title={ev.label}
-                      className={`inline-block max-w-[64px] truncate rounded px-1 py-0.5 text-[9px] font-medium leading-none ${
-                        ev.color.includes("amber") ? "text-amber-950" : "text-base-950"
-                      } ${ev.color}`}
-                    >
+                    <Badge key={`p-${i}`} variant={ev.variant} className="max-w-[64px] truncate block" title={ev.label}>
                       {ev.label}
-                    </span>
+                    </Badge>
                   ))}
                   {dayMeetings.slice(0, 2).map((ev, i) => (
-                    <span
-                      key={`m-${i}`}
-                      title={ev.title}
-                      className="inline-block max-w-[64px] truncate rounded px-1 py-0.5 text-[9px] font-medium leading-none bg-violet-600 text-white"
-                    >
+                    <Badge key={`m-${i}`} variant="purple" className="max-w-[64px] truncate block" title={ev.title}>
                       {ev.title}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               </div>
@@ -206,13 +197,14 @@ export default function WeeklyPlan() {
                     }`}
                   >
                     {meetings.map((m) => (
-                      <div
+                      <Badge
                         key={m.id}
+                        variant="purple"
                         title={`${m.title} (from Google Calendar)`}
-                        className="rounded px-1.5 py-0.5 text-[10px] truncate bg-violet-100 text-violet-800 border border-violet-200"
+                        className="truncate block text-[10px]"
                       >
                         {m.title}
-                      </div>
+                      </Badge>
                     ))}
                     {isEditing ? (
                       <input

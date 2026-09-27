@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchOkrs, progressPercent } from "../../lib/okrs";
+import { Card } from "../../components/ui";
 
 export default function OkrPanel() {
   const [okrs, setOkrs] = useState([]);
@@ -14,7 +15,7 @@ export default function OkrPanel() {
   }, []);
 
   return (
-    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 flex flex-col">
+    <Card className="flex flex-col">
       <div className="flex items-center gap-2 mb-3">
         <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
         <p className="text-sm font-semibold text-white">OKRs</p>
@@ -40,6 +41,6 @@ export default function OkrPanel() {
         })}
         {!loading && okrs.length === 0 && <li className="text-xs text-ink-muted px-1 py-1">No OKRs yet.</li>}
       </ul>
-    </div>
+    </Card>
   );
 }

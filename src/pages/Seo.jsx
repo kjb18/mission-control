@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchArticles, fetchSeoTarget } from "../lib/seo";
 import ArticleFormModal from "./seo/ArticleFormModal";
+import { PageHeader, Card, Badge, Button, DataTable, EmptyState } from "../components/ui";
 
 const STATUS_ORDER = { Published: 0, Scheduled: 1, Draft: 2 };
-const STATUS_STYLES = {
-  Published: "text-emerald-700 bg-emerald-400/15",
-  Scheduled: "text-blue-600 bg-blue-500/15",
-  Draft: "text-ink-secondary bg-base-800/60",
+const STATUS_VARIANT = {
+  Published: "green",
+  Scheduled: "blue",
+  Draft: "gray",
 };
 
 export default function Seo() {
@@ -48,22 +49,63 @@ export default function Seo() {
     load();
   }
 
-  return (
-    <div className="max-w-6xl mx-auto px-4 md:px-6 py-10 space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-[11px] uppercase tracking-widest text-violet-600 font-medium mb-1">SEO</p>
-          <h1 className="text-2xl font-semibold text-white">Article Tracker</h1>
-        </div>
-        <button
-          onClick={() => setFormArticle({})}
-          className="px-4 py-2 rounded-[10px] bg-violet-600 hover:bg-violet-700 text-base-950 text-sm font-semibold shrink-0"
-        >
-          + New Article
+  const columns = [
+    { key: "title", label: "Title" },
+    { key: "target_keyword", label: "Keyword", render: (a) => a.target_keyword || "—" },
+    {
+      key: "status",
+      label: (
+        <span className="cursor-pointer hover:text-ink-secondary" onClick={() => setSortKey("status")}>
+          Status {sortKey === "status" ? "↓" : ""}
+        </span>
+      ),
+      render: (a) => <Badge variant={STATUS_VARIANT[a.status]}>{a.status}</Badge>,
+    },
+    {
+      key: "publish_date",
+      label: (
+        <span className="cursor-pointer hover:text-ink-secondary" onClick={() => setSortKey("publish_date")}>
+          Publish Date {sortKey === "publish_date" ? "↓" : ""}
+        </span>
+      ),
+      render: (a) => a.publish_date || "—",
+    },
+    { key: "word_count", label: "Words", render: (a) => a.word_count ?? "—" },
+    {
+      key: "url",
+      label: "URL",
+      render: (a) =>
+        a.url ? (
+          <a href={a.url} target="_blank" rel="noreferrer" className="text-violet-600 hover:text-violet-700 text-xs">
+            View ↗
+          </a>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      key: "edit",
+      label: "",
+      render: (a) => (
+        <button onClick={() => setFormArticle(a)} className="text-xs text-ink-secondary hover:text-white">
+          Edit
         </button>
-      </div>
+      ),
+    },
+  ];
 
-      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+  return (
+    <div className="max-w-6xl mx-auto space-y-5">
+      <PageHeader
+        title="Article Tracker"
+        action={
+          <Button variant="primary" className="!bg-violet-600" onClick={() => setFormArticle({})}>
+            + New Article
+          </Button>
+        }
+      />
+
+      <Card>
         <div className="flex items-center justify-between mb-2">
           <p className="text-sm text-ink-secondary">
             <span className="text-2xl font-semibold text-white">{publishedCount}</span> of {target} articles
@@ -79,7 +121,7 @@ export default function Seo() {
             style={{ width: `${Math.min(100, (publishedCount / target) * 100)}%` }}
           />
         </div>
-      </div>
+      </Card>
 
       {error && (
         <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
@@ -87,61 +129,15 @@ export default function Seo() {
         </p>
       )}
 
-      <div className="rounded-[10px] border border-line bg-base-900 overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wide text-ink-secondary border-b border-line">
-              <th className="py-3 px-4">Title</th>
-              <th className="py-3 px-4">Keyword</th>
-              <th className="py-3 px-4 cursor-pointer hover:text-ink-secondary" onClick={() => setSortKey("status")}>
-                Status {sortKey === "status" ? "↓" : ""}
-              </th>
-              <th className="py-3 px-4 cursor-pointer hover:text-ink-secondary" onClick={() => setSortKey("publish_date")}>
-                Publish Date {sortKey === "publish_date" ? "↓" : ""}
-              </th>
-              <th className="py-3 px-4">Words</th>
-              <th className="py-3 px-4">URL</th>
-              <th className="py-3 px-4" />
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((a) => (
-              <tr key={a.id} className="border-b border-line">
-                <td className="py-3 px-4 text-white">{a.title}</td>
-                <td className="py-3 px-4 text-ink-secondary">{a.target_keyword || "—"}</td>
-                <td className="py-3 px-4">
-                  <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${STATUS_STYLES[a.status]}`}>
-                    {a.status}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-ink-secondary">{a.publish_date || "—"}</td>
-                <td className="py-3 px-4 text-ink-secondary">{a.word_count ?? "—"}</td>
-                <td className="py-3 px-4">
-                  {a.url ? (
-                    <a href={a.url} target="_blank" rel="noreferrer" className="text-violet-600 hover:text-violet-700 text-xs">
-                      View ↗
-                    </a>
-                  ) : (
-                    "—"
-                  )}
-                </td>
-                <td className="py-3 px-4">
-                  <button onClick={() => setFormArticle(a)} className="text-xs text-ink-secondary hover:text-white">
-                    Edit
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {!loading && sorted.length === 0 && (
-              <tr>
-                <td colSpan={7} className="py-8 text-center text-sm text-ink-muted">
-                  No articles yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+      {!loading && sorted.length === 0 ? (
+        <Card>
+          <EmptyState title="No articles yet" subtitle="Add your first tracked article." />
+        </Card>
+      ) : (
+        <Card noPadding className="overflow-x-auto">
+          <DataTable columns={columns} rows={sorted} />
+        </Card>
+      )}
 
       {formArticle !== null && (
         <ArticleFormModal

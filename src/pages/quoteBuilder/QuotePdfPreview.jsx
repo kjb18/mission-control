@@ -1,14 +1,12 @@
+import { Button } from "../../components/ui";
+
 export default function QuotePdfPreview({ pdfUrl, generating, approved, onGenerate, onApprove, stale }) {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <button
-          onClick={onGenerate}
-          disabled={generating}
-          className="px-4 py-2 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong disabled:opacity-50 text-white text-sm font-medium"
-        >
+        <Button variant="secondary" onClick={onGenerate} disabled={generating}>
           {generating ? "Generating PDF…" : pdfUrl ? "Regenerate PDF" : "Generate PDF Preview"}
-        </button>
+        </Button>
         {pdfUrl && (
           <a
             href={pdfUrl}

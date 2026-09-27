@@ -156,7 +156,7 @@ export default function TimeBlocksToday() {
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Block label…"
-          className="flex-1 rounded-[10px] bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
+          className="flex-1 min-w-0 rounded-[10px] bg-base-800 border border-line px-3 py-2 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent"
         />
         <button type="submit" className="px-3 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm">
           Add

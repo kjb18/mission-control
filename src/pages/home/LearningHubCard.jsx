@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchTopics, loggedToday } from "../../lib/learningHub";
+import { Card, Button } from "../../components/ui";
 
 /**
  * "Highest priority" active topic — no priority field exists on the
@@ -32,18 +33,18 @@ export default function LearningHubCard() {
 
   if (loading) {
     return (
-      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <Card>
         <p className="text-xs text-ink-muted">Loading…</p>
-      </div>
+      </Card>
     );
   }
 
   if (!topic) {
     return (
-      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <Card>
         <p className="text-sm font-semibold text-white mb-1">Learning Hub</p>
         <p className="text-xs text-ink-muted">No active topics.</p>
-      </div>
+      </Card>
     );
   }
 
@@ -51,18 +52,18 @@ export default function LearningHubCard() {
 
   if (doneToday) {
     return (
-      <div className="rounded-[10px] border border-emerald-400/30 bg-emerald-400/5 px-4 py-3 flex items-center justify-between">
+      <Card className="border-emerald-400/30 bg-emerald-400/5 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
           <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
           <span className="text-sm text-white truncate">{topic.title}</span>
         </div>
         <span className="text-xs text-orange-600 shrink-0 ml-2">🔥 {topic.current_streak}</span>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+    <Card>
       <p className="text-xs font-medium text-ink-secondary mb-2">Learning Hub</p>
       <p className="text-sm font-semibold text-white mb-2">{topic.title}</p>
       <div className="w-full h-1.5 rounded-full bg-base-800/60 overflow-hidden mb-2">
@@ -72,13 +73,10 @@ export default function LearningHubCard() {
         <span className="text-xs text-orange-600">
           🔥 {topic.current_streak} day{topic.current_streak === 1 ? "" : "s"}
         </span>
-        <button
-          onClick={() => navigate(`/learning-hub?topic=${topic.id}&log=1`)}
-          className="text-xs px-3 py-1.5 rounded-[10px] bg-accent hover:bg-accent-light text-base-950 font-medium"
-        >
+        <Button variant="primary" onClick={() => navigate(`/learning-hub?topic=${topic.id}&log=1`)}>
           Continue
-        </button>
+        </Button>
       </div>
-    </div>
+    </Card>
   );
 }

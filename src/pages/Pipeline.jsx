@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { STAGES, fetchPipelineRfqs, updateRfqStage, urgencyFor, subscribeToRfqChanges } from "../lib/pipeline";
 import PoReceiptModal from "./pipeline/PoReceiptModal";
 import ConfirmDeliveryModal from "./pipeline/ConfirmDeliveryModal";
+import { PageHeader, Card, Badge, Button } from "../components/ui";
 
 const URGENCY_STYLES = {
   red: "border-l-red-500",
@@ -59,14 +60,11 @@ export default function Pipeline() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-6 py-10 space-y-6">
-      <div>
-        <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">Pipeline</p>
-        <h1 className="text-2xl font-semibold text-white">Pipeline Board</h1>
-        <p className="text-sm text-ink-secondary mt-1">
-          Drag a card to move it manually — it also moves itself as RFQs progress elsewhere.
-        </p>
-      </div>
+    <div className="max-w-7xl mx-auto space-y-5">
+      <PageHeader
+        title="Pipeline Board"
+        subtitle="Drag a card to move it manually — it also moves itself as RFQs progress elsewhere."
+      />
 
       {error && (
         <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
@@ -83,16 +81,17 @@ export default function Pipeline() {
         {STAGES.map((stage) => {
           const stageCards = cards.filter((c) => c.status === stage.key);
           return (
-            <div
+            <Card
               key={stage.key}
+              noPadding
               onDragOver={(e) => {
                 e.preventDefault();
                 setDragOverStage(stage.key);
               }}
               onDragLeave={() => setDragOverStage((s) => (s === stage.key ? null : s))}
               onDrop={(e) => handleDrop(e, stage.key)}
-              className={`rounded-[10px] border-[0.5px] bg-base-900 p-3 min-h-[200px] transition-colors ${
-                dragOverStage === stage.key ? "border-accent bg-accent/5" : "border-line"
+              className={`p-3 min-h-[200px] transition-colors ${
+                dragOverStage === stage.key ? "border-accent bg-accent/5" : ""
               }`}
             >
               <div className="flex items-center justify-between mb-3 px-1">
@@ -117,7 +116,7 @@ export default function Pipeline() {
                   <p className="text-xs text-ink-muted px-1 py-2">Nothing here.</p>
                 )}
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>
@@ -156,25 +155,19 @@ function PipelineCard({ card, onReceivePo, onConfirmDelivery }) {
         {card.closingDate ? ` · Closes ${card.closingDate}` : ""}
       </p>
       <div className="flex items-center justify-end mt-1.5">
-        <span className="mc-badge bg-base-900 text-ink-secondary tabular-nums">
+        <Badge variant="gray">
           {card.lineCount} line{card.lineCount === 1 ? "" : "s"}
-        </span>
+        </Badge>
       </div>
       {onReceivePo && (
-        <button
-          onClick={onReceivePo}
-          className="mt-2 w-full text-xs px-2 py-1.5 rounded-[10px] bg-accent/15 hover:bg-accent/25 text-accent font-medium"
-        >
+        <Button variant="primary" onClick={onReceivePo} className="w-full mt-2 !text-xs !py-1.5">
           Receive PO
-        </button>
+        </Button>
       )}
       {onConfirmDelivery && (
-        <button
-          onClick={onConfirmDelivery}
-          className="mt-2 w-full text-xs px-2 py-1.5 rounded-[10px] bg-emerald-400/15 hover:bg-emerald-400/25 text-emerald-700 font-medium"
-        >
+        <Button variant="primary" onClick={onConfirmDelivery} className="w-full mt-2 !text-xs !py-1.5 !bg-emerald-500">
           Confirm Delivery
-        </button>
+        </Button>
       )}
     </div>
   );

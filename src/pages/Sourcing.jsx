@@ -15,6 +15,7 @@ import SupplierComparisonGrid from "./sourcing/SupplierComparisonGrid";
 import ManualQuoteForm from "./sourcing/ManualQuoteForm";
 import OutreachPanel from "./sourcing/OutreachPanel";
 import PriceHistoryPanel from "./sourcing/PriceHistoryPanel";
+import { PageHeader, Card, CardHeader, Badge, Button } from "../components/ui";
 
 export default function Sourcing() {
   const navigate = useNavigate();
@@ -103,16 +104,8 @@ export default function Sourcing() {
   const selectedRfq = rfqs.find((r) => r.id === rfqId);
 
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-6 py-10 space-y-6">
-      <div>
-        <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">
-          Sourcing
-        </p>
-        <h1 className="text-2xl font-semibold text-white">Sourcing Desk</h1>
-        <p className="text-sm text-ink-secondary mt-1">
-          Work one confirmed RFQ, one line item, at a time.
-        </p>
-      </div>
+    <div className="max-w-5xl mx-auto space-y-5">
+      <PageHeader title="Sourcing Desk" subtitle="Work one confirmed RFQ, one line item, at a time." />
 
       {error && (
         <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
@@ -120,7 +113,7 @@ export default function Sourcing() {
         </p>
       )}
 
-      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+      <Card>
         <label className="block">
           <span className="block text-xs text-ink-secondary mb-1">RFQ (awaiting or in sourcing)</span>
           <select
@@ -142,10 +135,10 @@ export default function Sourcing() {
             No RFQs are waiting on sourcing. Confirm one in Intake first.
           </p>
         )}
-      </div>
+      </Card>
 
       {selectedRfq && allSourced && (
-        <div className="rounded-[10px] border border-emerald-400/30 bg-emerald-400/10 p-5 flex items-center justify-between">
+        <Card className="border-emerald-400/30 bg-emerald-400/10 flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-emerald-700">
               All lines sourced — RFQ marked as sourced.
@@ -154,13 +147,10 @@ export default function Sourcing() {
               Ready to build a client-facing quotation.
             </p>
           </div>
-          <button
-            onClick={() => navigate("/quote-builder")}
-            className="px-4 py-2 rounded-[10px] bg-emerald-400 hover:bg-emerald-300 text-base-950 text-sm font-semibold shrink-0"
-          >
+          <Button variant="primary" onClick={() => navigate("/quote-builder")} className="shrink-0 !bg-emerald-500">
             Proceed to Quote Builder
-          </button>
-        </div>
+          </Button>
+        </Card>
       )}
 
       {currentLine && (
@@ -185,49 +175,51 @@ export default function Sourcing() {
             </button>
           </div>
 
-          <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
+          <Card>
             <div className="flex items-start justify-between gap-4 mb-1">
               <h2 className="text-lg font-semibold text-white">{currentLine.description}</h2>
-              <span
-                className={`text-[11px] font-medium rounded-full px-2 py-0.5 shrink-0 ${
-                  currentLine.status === "sourced"
-                    ? "text-emerald-700 bg-emerald-400/15"
-                    : "text-ink-secondary bg-base-800/60"
-                }`}
-              >
+              <Badge variant={currentLine.status === "sourced" ? "green" : "gray"} className="shrink-0">
                 {currentLine.status}
-              </span>
+              </Badge>
             </div>
             <p className="text-sm text-ink-secondary">
               Qty {currentLine.quantity} {currentLine.unit}
             </p>
-          </div>
+          </Card>
 
-          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-            <h3 className="text-sm font-semibold text-white mb-3">Supplier Comparison</h3>
-            <SupplierComparisonGrid
-              quotes={quotes}
-              line={currentLine}
-              onSelect={handleSelectQuote}
-              busy={busy}
-              fxRate={fxRate}
-            />
-          </section>
+          <Card noPadding>
+            <CardHeader title="Supplier Comparison" />
+            <div className="px-5 py-4">
+              <SupplierComparisonGrid
+                quotes={quotes}
+                line={currentLine}
+                onSelect={handleSelectQuote}
+                busy={busy}
+                fxRate={fxRate}
+              />
+            </div>
+          </Card>
 
-          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-            <h3 className="text-sm font-semibold text-white mb-3">Log a Supplier Reply</h3>
-            <ManualQuoteForm suppliers={suppliers} onSave={handleManualQuote} busy={busy} />
-          </section>
+          <Card noPadding>
+            <CardHeader title="Log a Supplier Reply" />
+            <div className="px-5 py-4">
+              <ManualQuoteForm suppliers={suppliers} onSave={handleManualQuote} busy={busy} />
+            </div>
+          </Card>
 
-          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-            <h3 className="text-sm font-semibold text-white mb-3">Supplier Outreach</h3>
-            <OutreachPanel line={currentLine} suppliers={suppliers} />
-          </section>
+          <Card noPadding>
+            <CardHeader title="Supplier Outreach" />
+            <div className="px-5 py-4">
+              <OutreachPanel line={currentLine} suppliers={suppliers} />
+            </div>
+          </Card>
 
-          <section className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5">
-            <h3 className="text-sm font-semibold text-white mb-3">Price History</h3>
-            <PriceHistoryPanel history={history} loading={historyLoading} />
-          </section>
+          <Card noPadding>
+            <CardHeader title="Price History" />
+            <div className="px-5 py-4">
+              <PriceHistoryPanel history={history} loading={historyLoading} />
+            </div>
+          </Card>
         </>
       )}
     </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { parseRfqText, parseRfqFile, matchOnly } from "../lib/parseRfq";
 import { confirmRfq } from "../lib/rfqIntake";
+import { PageHeader, Card, Button, EmptyState } from "../components/ui";
 
 const TABS = [
   { key: "paste", label: "Paste Email" },
@@ -115,16 +116,11 @@ export default function Intake() {
   const webhookUrl = `${window.location.origin}/api/intake`;
 
   return (
-    <div className="max-w-4xl mx-auto px-4 md:px-6 py-10 space-y-6">
-      <div>
-        <p className="text-[11px] uppercase tracking-widest text-accent font-medium mb-1">
-          Intake
-        </p>
-        <h1 className="text-2xl font-semibold text-white">New RFQ</h1>
-        <p className="text-sm text-ink-secondary mt-1">
-          Paste an email, upload a PDF or image, or receive one from the iOS Shortcut webhook.
-        </p>
-      </div>
+    <div className="max-w-4xl mx-auto space-y-5">
+      <PageHeader
+        title="New RFQ"
+        subtitle="Paste an email, upload a PDF or image, or receive one from the iOS Shortcut webhook."
+      />
 
       {!review && (
         <>
@@ -159,13 +155,9 @@ export default function Intake() {
                 placeholder="Paste the RFQ email text here…"
                 className="w-full rounded-[10px] bg-base-900 border border-line px-4 py-3 text-sm text-white placeholder:text-ink-muted focus:outline-none focus:ring-2 focus:ring-accent resize-none"
               />
-              <button
-                type="submit"
-                disabled={busy || !pasteText.trim()}
-                className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-medium"
-              >
+              <Button type="submit" variant="primary" disabled={busy || !pasteText.trim()}>
                 {busy ? "Parsing…" : "Parse with Claude"}
-              </button>
+              </Button>
             </form>
           )}
 
@@ -186,7 +178,7 @@ export default function Intake() {
 
           {tab === "webhook" && (
             <div className="space-y-4">
-              <div className="rounded-[10px] border border-line bg-base-900 p-4 text-sm text-ink-secondary space-y-2">
+              <Card className="text-sm text-ink-secondary space-y-2">
                 <p className="text-white font-medium">iOS Shortcut setup</p>
                 <p>
                   POST JSON to <code className="text-accent">{webhookUrl}</code> with header{" "}
@@ -200,34 +192,30 @@ export default function Intake() {
                     {`{ "client_name", "rfq_reference", "closing_date", "line_items": [...] }`}
                   </code>
                 </p>
-              </div>
+              </Card>
               <div>
                 <p className="text-sm font-medium text-ink-secondary mb-2">
                   Pending ({pendingQueue.length})
                 </p>
-                <ul className="space-y-2">
-                  {pendingQueue.map((row) => (
-                    <li
-                      key={row.id}
-                      className="flex items-center justify-between bg-base-900 border border-line rounded-[10px] px-4 py-3"
-                    >
-                      <div className="text-sm text-ink-secondary">
-                        {row.parsed?.client_name || "Unknown client"} —{" "}
-                        {row.parsed?.rfq_reference || "no reference"}
-                      </div>
-                      <button
-                        onClick={() => handleReviewQueueItem(row)}
-                        disabled={busy}
-                        className="text-xs px-3 py-1.5 rounded-[10px] bg-accent hover:bg-accent-light text-base-950 font-medium"
-                      >
-                        Review
-                      </button>
-                    </li>
-                  ))}
-                  {pendingQueue.length === 0 && (
-                    <li className="text-sm text-ink-muted">No pending webhook submissions.</li>
-                  )}
-                </ul>
+                {pendingQueue.length === 0 ? (
+                  <EmptyState title="No pending submissions" subtitle="Webhook intake will show up here." />
+                ) : (
+                  <ul className="space-y-2">
+                    {pendingQueue.map((row) => (
+                      <li key={row.id}>
+                        <Card className="flex items-center justify-between">
+                          <div className="text-sm text-ink-secondary">
+                            {row.parsed?.client_name || "Unknown client"} —{" "}
+                            {row.parsed?.rfq_reference || "no reference"}
+                          </div>
+                          <Button variant="primary" disabled={busy} onClick={() => handleReviewQueueItem(row)}>
+                            Review
+                          </Button>
+                        </Card>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
           )}
@@ -270,7 +258,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
 
   return (
     <div className="space-y-6">
-      <div className="rounded-[10px] border-[0.5px] border-line bg-base-900 px-3 py-2.5 space-y-4">
+      <Card className="space-y-4">
         <p className="text-sm font-semibold text-white">Review before confirming</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field label="Client name">
@@ -296,12 +284,12 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
             />
           </Field>
         </div>
-      </div>
+      </Card>
 
       <div className="space-y-3">
         <p className="text-sm font-semibold text-white">Line items ({lines.length})</p>
         {lines.map((line, i) => (
-          <div key={i} className="rounded-[10px] border border-line bg-base-900 p-4 space-y-3">
+          <Card key={i} className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_100px_100px] gap-2">
               <input
                 value={line.description}
@@ -358,7 +346,7 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
                 ))}
               </div>
             )}
-          </div>
+          </Card>
         ))}
       </div>
 
@@ -369,20 +357,12 @@ function RfqReviewForm({ review, setReview, busy, error, onConfirm, onCancel }) 
       )}
 
       <div className="flex gap-2">
-        <button
-          onClick={onConfirm}
-          disabled={busy}
-          className="px-5 py-2.5 rounded-[10px] bg-accent hover:bg-accent-light disabled:opacity-50 text-base-950 text-sm font-semibold"
-        >
+        <Button variant="primary" onClick={onConfirm} disabled={busy}>
           {busy ? "Confirming…" : "Confirm & Create RFQ"}
-        </button>
-        <button
-          onClick={onCancel}
-          disabled={busy}
-          className="px-4 py-2.5 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
-        >
+        </Button>
+        <Button variant="secondary" onClick={onCancel} disabled={busy}>
           Cancel
-        </button>
+        </Button>
       </div>
     </div>
   );
