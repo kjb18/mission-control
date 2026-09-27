@@ -62,7 +62,7 @@ export default function Sidebar({ isOpen, onNavigate }) {
 
   return (
     <aside
-      className={`fixed md:static inset-y-0 left-0 z-40 w-[200px] shrink-0 bg-sidebar border-r border-line flex flex-col transition-transform duration-200 ${
+      className={`fixed md:static inset-y-0 left-0 z-40 w-[156px] shrink-0 bg-sidebar border-r border-line flex flex-col transition-transform duration-200 ${
         isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       }`}
     >

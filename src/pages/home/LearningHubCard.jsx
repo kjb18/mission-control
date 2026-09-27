@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchTopics, loggedToday } from "../../lib/learningHub";
-import { Card, Button } from "../../components/ui";
+import { Card, CardHeader } from "../../components/ui";
+import { LearningIcon } from "../../components/icons";
 
 /**
- * "Highest priority" active topic — no priority field exists on the
- * table, so this picks the one most urgently needing today's session:
- * not-yet-logged-today first, then the biggest streak to protect.
+ * "Today's module" — no priority field exists on the table, so this picks
+ * the one most urgently needing today's session: not-yet-logged-today
+ * first, then the biggest streak to protect.
  */
 function pickPriorityTopic(topics) {
   const active = topics.filter((t) => t.status === "active");
@@ -18,6 +19,13 @@ function pickPriorityTopic(topics) {
     return (b.current_streak ?? 0) - (a.current_streak ?? 0);
   })[0];
 }
+
+const HEADER_TITLE = (
+  <span className="flex items-center gap-1.5">
+    <LearningIcon className="w-3 h-3" />
+    Learning Hub
+  </span>
+);
 
 export default function LearningHubCard() {
   const navigate = useNavigate();
@@ -31,19 +39,34 @@ export default function LearningHubCard() {
       .finally(() => setLoading(false));
   }, []);
 
+  function goContinue() {
+    if (topic) navigate(`/learning-hub?topic=${topic.id}&log=1`);
+  }
+
+  const continueAction = (
+    <button
+      onClick={goContinue}
+      disabled={!topic}
+      className="text-[10px] font-medium text-accent hover:text-accent-light disabled:opacity-40 disabled:pointer-events-none"
+    >
+      Continue
+    </button>
+  );
+
   if (loading) {
     return (
-      <Card>
-        <p className="text-xs text-ink-muted">Loading…</p>
+      <Card noPadding>
+        <CardHeader title={HEADER_TITLE} action={continueAction} />
+        <p className="text-xs text-ink-muted px-5 py-3">Loading…</p>
       </Card>
     );
   }
 
   if (!topic) {
     return (
-      <Card>
-        <p className="text-sm font-semibold text-white mb-1">Learning Hub</p>
-        <p className="text-xs text-ink-muted">No active topics.</p>
+      <Card noPadding>
+        <CardHeader title={HEADER_TITLE} action={continueAction} />
+        <p className="text-xs text-ink-muted px-5 py-3">No active topics.</p>
       </Card>
     );
   }
@@ -52,30 +75,44 @@ export default function LearningHubCard() {
 
   if (doneToday) {
     return (
-      <Card className="border-emerald-400/30 bg-emerald-400/5 flex items-center justify-between">
-        <div className="flex items-center gap-2 min-w-0">
+      <Card noPadding>
+        <CardHeader title={HEADER_TITLE} action={continueAction} />
+        <div className="flex items-center gap-2 px-5 py-3 min-w-0">
           <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-          <span className="text-sm text-white truncate">{topic.title}</span>
+          <span className="text-[11px] font-medium text-white truncate">{topic.title}</span>
         </div>
-        <span className="text-xs text-orange-600 shrink-0 ml-2">🔥 {topic.current_streak}</span>
       </Card>
     );
   }
 
   return (
-    <Card>
-      <p className="text-xs font-medium text-ink-secondary mb-2">Learning Hub</p>
-      <p className="text-sm font-semibold text-white mb-2">{topic.title}</p>
-      <div className="w-full h-1.5 rounded-full bg-base-800/60 overflow-hidden mb-2">
-        <div className="h-full bg-accent" style={{ width: `${topic.progress_percent}%` }} />
-      </div>
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-orange-600">
-          🔥 {topic.current_streak} day{topic.current_streak === 1 ? "" : "s"}
-        </span>
-        <Button variant="primary" onClick={() => navigate(`/learning-hub?topic=${topic.id}&log=1`)}>
-          Continue
-        </Button>
+    <Card noPadding>
+      <CardHeader title={HEADER_TITLE} action={continueAction} />
+      <div className="px-5 py-3">
+        <p className="text-[11px] font-medium text-white truncate">{topic.title}</p>
+        {topic.description && (
+          <p
+            className="text-[10px] italic mt-1"
+            style={{
+              color: "#64748b",
+              display: "-webkit-box",
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            “{topic.description}”
+          </p>
+        )}
+        <div className="flex items-center gap-2 mt-2">
+          <div className="flex-1 h-1.5 rounded-full bg-base-800/60 overflow-hidden">
+            <div className="h-full bg-accent" style={{ width: `${topic.progress_percent}%` }} />
+          </div>
+          <span className="text-[10px] text-orange-600 shrink-0">
+            🔥 {topic.current_streak}
+          </span>
+        </div>
       </div>
     </Card>
   );

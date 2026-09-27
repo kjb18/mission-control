@@ -1,244 +1,86 @@
-import { useState } from "react";
-import { useLocalStorage } from "../../lib/useLocalStorage";
-import { startOfWeek, addDays, toISODate, formatWeekday, formatDayNumber } from "../../lib/dateUtils";
+import { addDays, toISODate, formatWeekday, formatDayNumber } from "../../lib/dateUtils";
 import { useWeekEvents } from "../../lib/useWeekEvents";
-import { createEvent, updateEvent } from "../../lib/googleCalendar";
-import { hasConnectedBefore } from "../../lib/googleAuth";
 import SectionHeader from "./SectionHeader";
-import { Badge } from "../../components/ui";
+import { Card, Badge } from "../../components/ui";
 
-const HOURS = Array.from({ length: 11 }, (_, i) => 8 + i); // 8am - 6pm
-
-function slotKey(dateISO, hour) {
-  return `${dateISO}_${hour}`;
-}
-
-// Block values used to be plain strings; normalize old data transparently.
-function blockLabel(value) {
-  return typeof value === "string" ? value : value?.label ?? "";
-}
-function blockEventId(value) {
-  return typeof value === "string" ? null : value?.googleEventId ?? null;
+// The plan always shows a full Mon–Fri work week: the week containing
+// today when today is a weekday, or the upcoming week when today falls
+// on a Saturday or Sunday (nothing to plan for a week that's already over).
+function startOfPlanWeek(date = new Date()) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay(); // 0 = Sun .. 6 = Sat
+  const diff = day === 0 ? 1 : day === 6 ? 2 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
 }
 
 export default function WeeklyPlan() {
-  const weekStart = startOfWeek(new Date());
-  const weekEnd = addDays(weekStart, 6);
+  const weekStart = startOfPlanWeek(new Date());
+  const weekEnd = addDays(weekStart, 4);
   const days = Array.from({ length: 5 }, (_, i) => addDays(weekStart, i));
-  const weekKey = `mc:weekplan:${toISODate(weekStart)}`;
-  const [blocks, setBlocks] = useLocalStorage(weekKey, {});
-  const [editingSlot, setEditingSlot] = useState(null);
-  const [draft, setDraft] = useState("");
-  const [syncNotice, setSyncNotice] = useState(null);
-  const [dragOverKey, setDragOverKey] = useState(null);
   const todayISO = toISODate(new Date());
 
   const { pipelineByDate, meetingEvents, calendarError } = useWeekEvents(weekStart, weekEnd);
 
-  function meetingsForSlot(iso, hour) {
-    return meetingEvents.filter(
-      (ev) => ev.start && toISODate(ev.start) === iso && ev.start.getHours() === hour
-    );
-  }
-
-  function openEditor(dateISO, hour) {
-    const key = slotKey(dateISO, hour);
-    setEditingSlot(key);
-    setDraft(blockLabel(blocks[key]));
-  }
-
-  async function commit(dateISO, hour) {
-    if (!editingSlot) return;
-    const label = draft.trim();
-    const existing = blocks[editingSlot];
-    const existingEventId = blockEventId(existing);
-    setEditingSlot(null);
-    setDraft("");
-
-    if (!label) {
-      setBlocks((prev) => {
-        const next = { ...prev };
-        delete next[editingSlot];
-        return next;
-      });
-      return;
-    }
-
-    const start = new Date(`${dateISO}T${String(hour).padStart(2, "0")}:00:00`);
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
-
-    let result;
-    if (existingEventId) {
-      result = await updateEvent(existingEventId, { title: label, start, end });
-    } else {
-      result = await createEvent({ title: label, start, end });
-    }
-
-    const googleEventId = result?.skipped ? existingEventId : result?.id ?? null;
-    setBlocks((prev) => ({ ...prev, [editingSlot]: { label, googleEventId } }));
-    setSyncNotice(
-      result?.skipped
-        ? result.reason
-        : existingEventId
-        ? "Google Calendar event updated."
-        : "Synced to Google Calendar."
-    );
-  }
-
-  async function handleSlotDrop(e, dateISO, hour) {
-    e.preventDefault();
-    setDragOverKey(null);
-    const raw = e.dataTransfer.getData("application/json");
-    if (!raw) return;
-    let task;
-    try {
-      task = JSON.parse(raw);
-    } catch {
-      return;
-    }
-    if (task.source !== "clickup") return;
-
-    const key = slotKey(dateISO, hour);
-    const start = new Date(`${dateISO}T${String(hour).padStart(2, "0")}:00:00`);
-    const end = new Date(start.getTime() + 60 * 60 * 1000);
-
-    // Show it immediately — the calendar sync result only updates the
-    // Google event id once it resolves.
-    setBlocks((prev) => ({ ...prev, [key]: { label: task.name, googleEventId: null } }));
-
-    const result = await createEvent({ title: task.name, start, end, reminderMinutes: 10 });
-    const googleEventId = result?.skipped ? null : result?.id ?? null;
-    setBlocks((prev) => ({ ...prev, [key]: { label: task.name, googleEventId } }));
-    setSyncNotice(
-      result?.skipped ? result.reason : "Scheduled from Backlog and synced to Google Calendar."
-    );
-  }
-
   return (
     <section>
-      <SectionHeader
-        eyebrow="This Week"
-        title="Weekly Plan"
-        subtitle="Block your five working days. Click a slot to add a focus block."
-      />
+      <SectionHeader eyebrow="This Week" title="Weekly Plan" />
 
-      {!hasConnectedBefore() && (
-        <p className="text-xs text-ink-muted mb-3">
-          Google Calendar isn't connected — connect it in Settings to push new blocks and see
-          private events.
-        </p>
-      )}
       {calendarError && (
-        <p className="text-xs text-orange-600/80 bg-orange-500/10 border border-orange-500/20 rounded-[10px] px-3 py-2 mb-3">
+        <p className="text-[10px] text-orange-600/80 bg-orange-500/10 border border-orange-500/20 rounded px-2 py-1 mb-1.5">
           {calendarError}
         </p>
       )}
 
-      <div className="rounded-[10px] border border-line bg-base-900 overflow-x-auto">
-        <div className="min-w-[720px] grid grid-cols-[64px_repeat(5,1fr)]">
-          <div className="border-b border-line" />
+      <Card noPadding className="p-2" style={{ maxHeight: 140, overflow: "hidden" }}>
+        <div className="grid grid-cols-5 gap-1.5">
           {days.map((d) => {
             const iso = toISODate(d);
             const isToday = iso === todayISO;
             const dayEvents = pipelineByDate[iso] ?? [];
             const dayMeetings = meetingEvents.filter((ev) => ev.start && toISODate(ev.start) === iso);
+            const chips = [
+              ...dayEvents.map((ev) => ({ label: ev.label, variant: ev.variant })),
+              ...dayMeetings.map((ev) => ({ label: ev.title, variant: "purple" })),
+            ];
+
             return (
-              <div
-                key={iso}
-                className={`border-b border-l border-line px-3 py-2 text-center ${
-                  isToday ? "bg-accent/10" : ""
-                }`}
-              >
-                <p className="text-[11px] uppercase tracking-wide text-ink-secondary">
+              <div key={iso} className={`text-center rounded ${isToday ? "bg-accent/10" : ""}`}>
+                <p
+                  className="uppercase text-ink-muted font-medium"
+                  style={{ fontSize: 7, letterSpacing: "0.04em" }}
+                >
                   {formatWeekday(d)}
                 </p>
-                <p className={`text-sm font-semibold ${isToday ? "text-accent" : "text-white"}`}>
+                <p
+                  className={`font-semibold ${isToday ? "text-accent" : "text-white"}`}
+                  style={{ fontSize: 9 }}
+                >
                   {formatDayNumber(d)}
                 </p>
-                <div className="flex flex-wrap justify-center gap-1 mt-1">
-                  {dayEvents.slice(0, 3).map((ev, i) => (
-                    <Badge key={`p-${i}`} variant={ev.variant} className="max-w-[64px] truncate block" title={ev.label}>
-                      {ev.label}
+                <div className="mt-1 space-y-0.5 px-0.5">
+                  {chips.slice(0, 3).map((chip, i) => (
+                    <Badge
+                      key={i}
+                      variant={chip.variant}
+                      title={chip.label}
+                      className="block w-full truncate !text-[7px] !leading-tight !px-1 !py-0"
+                    >
+                      {chip.label}
                     </Badge>
                   ))}
-                  {dayMeetings.slice(0, 2).map((ev, i) => (
-                    <Badge key={`m-${i}`} variant="purple" className="max-w-[64px] truncate block" title={ev.title}>
-                      {ev.title}
-                    </Badge>
-                  ))}
+                  {chips.length > 3 && (
+                    <p className="text-ink-muted" style={{ fontSize: 7 }}>
+                      +{chips.length - 3}
+                    </p>
+                  )}
                 </div>
               </div>
             );
           })}
-
-          {HOURS.map((hour) => (
-            <div key={hour} className="contents">
-              <div className="border-b border-line px-2 py-2 text-right text-[11px] text-ink-muted">
-                {hour % 12 === 0 ? 12 : hour % 12}
-                {hour < 12 ? "a" : "p"}
-              </div>
-              {days.map((d) => {
-                const iso = toISODate(d);
-                const key = slotKey(iso, hour);
-                const isEditing = editingSlot === key;
-                const value = blockLabel(blocks[key]);
-                const meetings = meetingsForSlot(iso, hour);
-                return (
-                  <div
-                    key={key}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setDragOverKey(key);
-                    }}
-                    onDragLeave={() => setDragOverKey((k) => (k === key ? null : k))}
-                    onDrop={(e) => handleSlotDrop(e, iso, hour)}
-                    className={`border-b border-l border-line min-h-[38px] px-1 py-1 flex flex-col gap-0.5 transition-colors ${
-                      dragOverKey === key ? "bg-accent/10" : ""
-                    }`}
-                  >
-                    {meetings.map((m) => (
-                      <Badge
-                        key={m.id}
-                        variant="purple"
-                        title={`${m.title} (from Google Calendar)`}
-                        className="truncate block text-[10px]"
-                      >
-                        {m.title}
-                      </Badge>
-                    ))}
-                    {isEditing ? (
-                      <input
-                        autoFocus
-                        value={draft}
-                        onChange={(e) => setDraft(e.target.value)}
-                        onBlur={() => commit(iso, hour)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") commit(iso, hour);
-                          if (e.key === "Escape") setEditingSlot(null);
-                        }}
-                        className="w-full h-full bg-base-800 border border-accent/50 rounded px-1.5 py-1 text-xs text-white focus:outline-none"
-                      />
-                    ) : (
-                      <button
-                        onClick={() => openEditor(iso, hour)}
-                        className={`w-full h-full rounded px-1.5 py-1 text-left text-xs truncate transition-colors ${
-                          value
-                            ? "bg-accent/20 text-white/90 hover:bg-accent/25"
-                            : "hover:bg-base-800/60 text-transparent"
-                        }`}
-                      >
-                        {value || "·"}
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          ))}
         </div>
-      </div>
-
-      {syncNotice && <p className="text-xs text-ink-muted mt-2">{syncNotice}</p>}
+      </Card>
     </section>
   );
 }

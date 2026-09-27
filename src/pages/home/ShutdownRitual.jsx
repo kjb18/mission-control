@@ -30,12 +30,12 @@ export default function ShutdownRitual() {
           {doneCount}/{DEFAULT_ITEMS.length}
         </span>
       </div>
-      <ul className="space-y-1.5">
+      <ul className="space-y-1">
         {DEFAULT_ITEMS.map((item) => (
           <li key={item}>
             <button
               onClick={() => toggle(item)}
-              className="w-full flex items-center gap-2 bg-base-800 border border-line rounded-[10px] px-3 py-2 text-left hover:border-line-strong"
+              className="w-full flex items-center gap-2 bg-base-800 border border-line rounded-[10px] px-2.5 py-1 text-left hover:border-line-strong"
             >
               <span
                 className={`w-4 h-4 shrink-0 rounded border flex items-center justify-center ${

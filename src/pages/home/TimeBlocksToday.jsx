@@ -106,7 +106,7 @@ export default function TimeBlocksToday() {
         }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
-        className={`space-y-1.5 mb-2 max-h-40 overflow-y-auto rounded-[10px] transition-colors ${
+        className={`space-y-1 mb-1.5 max-h-24 overflow-y-auto rounded-[10px] transition-colors ${
           isDragOver ? "ring-2 ring-accent bg-accent/5" : ""
         }`}
       >

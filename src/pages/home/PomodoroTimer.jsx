@@ -40,9 +40,9 @@ export default function PomodoroTimer() {
       <p className="text-xs font-medium text-ink-secondary mb-2">
         Pomodoro — {mode === "focus" ? "Focus" : "Break"}
       </p>
-      <div className="bg-base-800 border border-line rounded-[10px] p-4 flex items-center gap-4">
-        <div className="relative w-16 h-16 shrink-0">
-          <svg viewBox="0 0 36 36" className="w-16 h-16 -rotate-90">
+      <div className="bg-base-800 border border-line rounded-[10px] p-2.5 flex items-center gap-3">
+        <div className="relative w-11 h-11 shrink-0">
+          <svg viewBox="0 0 36 36" className="w-11 h-11 -rotate-90">
             <circle cx="18" cy="18" r="16" fill="none" stroke="#e2e8f0" strokeWidth="2" />
             <circle
               cx="18"
@@ -60,16 +60,16 @@ export default function PomodoroTimer() {
             {minutes}:{seconds}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           <button
             onClick={() => setRunning((r) => !r)}
-            className="px-4 py-2 rounded-[10px] bg-accent hover:bg-accent-light text-base-950 text-sm font-medium"
+            className="px-3 py-1.5 rounded-[10px] bg-accent hover:bg-accent-light text-base-950 text-xs font-medium"
           >
             {running ? "Pause" : "Start"}
           </button>
           <button
             onClick={reset}
-            className="px-3 py-2 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-sm"
+            className="px-2.5 py-1.5 rounded-[10px] bg-base-800 hover:bg-base-800/80 border-[0.5px] border-line-strong text-white text-xs"
           >
             Reset
           </button>

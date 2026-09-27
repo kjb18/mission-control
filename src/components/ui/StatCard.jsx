@@ -8,14 +8,27 @@ const TOP_BORDER = {
   red: "border-t-red-500",
 };
 
-export default function StatCard({ label, value, sub, color, delta, deltaLabel, href }) {
+const VALUE_COLOR = {
+  red: "text-red-600",
+  orange: "text-orange-600",
+  amber: "text-amber-600",
+  green: "text-emerald-600",
+};
+
+export default function StatCard({ label, value, sub, color, valueColor, delta, deltaLabel, href }) {
   const topBorder = color ? TOP_BORDER[color] : "";
   const deltaUp = typeof delta === "number" && delta >= 0;
 
   return (
     <Card className={color ? `border-t-[3px] ${topBorder}` : ""}>
       <p className="text-[10px] uppercase text-ink-muted tracking-wide">{label}</p>
-      <p className="text-[28px] font-medium text-white tabular-nums leading-tight mt-1">{value}</p>
+      <p
+        className={`text-[28px] font-medium tabular-nums leading-tight mt-1 ${
+          valueColor ? VALUE_COLOR[valueColor] : "text-white"
+        }`}
+      >
+        {value}
+      </p>
       <div className="flex items-center gap-2 mt-1">
         {sub && <p className="text-[11px] text-ink-muted">{sub}</p>}
         {typeof delta === "number" && (

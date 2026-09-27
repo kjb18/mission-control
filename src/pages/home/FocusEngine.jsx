@@ -9,25 +9,19 @@ import { Card } from "../../components/ui";
 export default function FocusEngine() {
   return (
     <section>
-      <SectionHeader
-        eyebrow="Today"
-        title="Focus Engine"
-        subtitle="MITs, time blocks, a Pomodoro clock, learning streak, and your shutdown ritual."
-      />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <MitsList />
-        </Card>
-        <Card>
+      <SectionHeader eyebrow="Today" title="Focus Engine" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-1.5 items-start">
+        <div className="flex flex-col gap-1.5">
+          <Card>
+            <MitsList />
+          </Card>
+          <LearningHubCard />
+        </div>
+        <Card className="flex flex-col gap-2">
           <TimeBlocksToday />
-        </Card>
-        <Card>
           <PomodoroTimer />
-        </Card>
-        <Card>
           <ShutdownRitual />
         </Card>
-        <LearningHubCard />
       </div>
     </section>
   );

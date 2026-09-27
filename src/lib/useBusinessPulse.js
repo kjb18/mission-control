@@ -31,7 +31,7 @@ export function useBusinessPulse() {
           .neq("status", "delivered"),
         supabase
           .from("invoices")
-          .select("id", { count: "exact", head: true })
+          .select("amount")
           .in("status", ["unpaid", "pending"]),
         supabase
           .from("purchase_orders")
@@ -45,7 +45,7 @@ export function useBusinessPulse() {
         setStats({
           rfqsUnanswered: rfqs.count ?? 0,
           posUndelivered: pos.count ?? 0,
-          pendingPayment: invoices.count ?? 0,
+          pendingPayment: (invoices.data ?? []).reduce((sum, i) => sum + Number(i.amount ?? 0), 0),
           completedThisYear: completed.count ?? 0,
         });
         setLoading(false);
