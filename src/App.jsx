@@ -37,8 +37,10 @@ function AppRoutes() {
   return (
     <CheckInProvider>
       <Routes>
+        {/* Home is a fully self-contained page (its own sidebar/topbar) —
+            it does not use the shared Layout wrapper. */}
+        <Route index element={<Home />} />
         <Route element={<Layout />}>
-          <Route index element={<Home />} />
           <Route path="intake" element={<Intake />} />
           <Route path="sourcing" element={<Sourcing />} />
           <Route path="quote-builder" element={<QuoteBuilder />} />
