@@ -1,1633 +1,1312 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import homeCss from "./Home.css?raw";
+import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { useCheckIn } from "../lib/CheckInContext";
-import CheckInGate from "../components/CheckInGate";
-import { useBusinessPulse } from "../lib/useBusinessPulse";
-import { useWeekEvents } from "../lib/useWeekEvents";
-import { useMonthEvents } from "../lib/useMonthEvents";
-import { daysInMonth } from "../lib/dateUtils";
-import { fetchTopics, loggedToday } from "../lib/learningHub";
+import { todayISODate } from "../lib/dateUtils";
+import { fetchTopics as fetchLearningTopics, loggedToday } from "../lib/learningHub";
 import { fetchTargets } from "../lib/crosshairs";
+import { fetchOkrs } from "../lib/okrs";
+import { fetchBrewingItems } from "../lib/brewing";
 import { useClickUpTasks } from "../lib/useClickUpTasks";
 import { CLICKUP_WORKSPACE_ID } from "../lib/clickup";
-import { fetchBrewingItems, createBrewingItem } from "../lib/brewing";
+import { listEvents, isGoogleCalendarConfigured } from "../lib/googleCalendar";
 import { useLocalStorage } from "../lib/useLocalStorage";
-import { todayISODate } from "../lib/dateUtils";
-import {
-  HomeIcon,
-  PipelineIcon,
-  IntakeIcon,
-  SourcingIcon,
-  QuoteIcon,
-  LedgerIcon,
-  CrosshairsIcon,
-  OkrIcon,
-  TrophyIcon,
-  BrewingIcon,
-  ContentIcon,
-  SeoIcon,
-  ContactsIcon,
-  LearningIcon,
-  SettingsIcon,
-  ChevronLeftIcon,
-  SparkleIcon,
-  LogoMark,
-} from "../components/icons";
 
-/* =========================================================================
-   This entire page is intentionally self-contained: every color, size, and
-   spacing value below is a literal hex/px pulled straight from the spec,
-   not a shared Tailwind token — nothing here is imported from
-   tailwind.config.js or src/index.css. All other routes keep using the
-   shared Sidebar/TopBar/Layout components untouched; this file supplies
-   its own instead (wired in as a route sibling to <Layout/> in App.jsx).
-   ========================================================================= */
+/* =============================================================================
+   This page is a direct port of the approved HTML/CSS reference
+   (mission-control-homepage.html). Every class name, pixel value, and DOM
+   shape below matches that file exactly — src/pages/Home.css is a verbatim
+   copy of its <style> block, injected as a real <style> tag scoped to this
+   component's lifetime (mounted/unmounted by React along with the page,
+   so it never leaks onto any other route). No Tailwind, no shared
+   src/components/ui/* library, no shared Sidebar/TopBar/Layout — this file
+   renders 100% of its own markup, exactly like the previous self-contained
+   homepage session, per Task 2.
+   ============================================================================= */
 
-const COLOR = {
-  bg: "#f0f2f5",
-  card: "#ffffff",
-  border: "#e2e8f0",
-  textPrimary: "#0f172a",
-  textSecondary: "#64748b",
-  textMuted: "#94a3b8",
-  blue: "#3b82f6",
-  blueLight: "#eff6ff",
-  blueDark: "#1e40af",
-  purple: "#7c3aed",
-  purpleLight: "#f5f3ff",
-  purpleDark: "#4c1d95",
-  amber: "#f59e0b",
-  amberDark: "#d97706",
-  amberLight: "#fef3c7",
-  amberText: "#92400e",
-  green: "#10b981",
-  greenLight: "#d1fae5",
-  greenText: "#065f46",
-  red: "#ef4444",
-  orange: "#f97316",
-  rowLine: "#f8fafc",
-  headerLine: "#f1f5f9",
-  fafafa: "#fafafa",
-  cellEmpty: "#cbd5e1",
-};
+// ---------------------------------------------------------------------------
+// Date helpers — ported 1:1 from the reference's <script> block.
+// ---------------------------------------------------------------------------
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAYNAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const CARD_SHADOW = "0 1px 2px rgba(0,0,0,0.04)";
-
-const CHIP_COLORS = {
-  amber: { bg: COLOR.amberLight, text: COLOR.amberText },
-  green: { bg: COLOR.greenLight, text: COLOR.greenText },
-  purple: { bg: "#ede9fe", text: COLOR.purpleDark },
-  blue: { bg: "#dbeafe", text: COLOR.blueDark },
-};
-
-const DOT_SOLID = {
-  amber: COLOR.amber,
-  green: COLOR.green,
-  blue: COLOR.blue,
-  purple: COLOR.purple,
-};
-
-/* -------------------------------------------------------------------------
-   Small local icons — not in components/icons.jsx, defined here so this
-   page stays self-contained rather than adding to the shared icon set.
-   ------------------------------------------------------------------------- */
-const iconBase = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
-
-function ClockIcon(p) {
-  return (
-    <svg viewBox="0 0 24 24" {...iconBase} {...p}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3.5 2" />
-    </svg>
-  );
+function getManilaDate() {
+  return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
 }
-function StackIcon(p) {
-  return (
-    <svg viewBox="0 0 24 24" {...iconBase} {...p}>
-      <path d="m12 3 9 4.5-9 4.5-9-4.5Z" />
-      <path d="m3 12 9 4.5 9-4.5" />
-      <path d="m3 16.5 9 4.5 9-4.5" />
-    </svg>
-  );
+function isoDate(d) {
+  return d.toISOString().slice(0, 10);
 }
-function FlameIcon(p) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" {...p}>
-      <path d="M12 2c1 3-2 4.5-2 7.5A2 2 0 0 0 12 12a2 2 0 0 0 2-2.2c1.4 1 2.5 2.9 2.5 5A4.5 4.5 0 0 1 12 19a4.5 4.5 0 0 1-4.5-4.5C7.5 10.5 10.5 8.5 12 2Z" />
-    </svg>
-  );
-}
-function ListNumbersIcon(p) {
-  return (
-    <svg viewBox="0 0 24 24" {...iconBase} {...p}>
-      <path d="M9 6h11M9 12h11M9 18h11" />
-      <path d="M4.5 5.5v2M4 7.5h1M4.2 12.2c.2-.6.9-.9 1.4-.6.5.3.5.9.1 1.3l-1.4 1.4h1.9" />
-    </svg>
-  );
-}
-function BookIcon(p) {
-  return <LearningIcon {...p} />;
+function getWeekDates() {
+  const d = getManilaDate();
+  const day = d.getDay();
+  const skip = day === 0 ? 1 : day === 6 ? 2 : -(day - 1);
+  const mon = new Date(d);
+  mon.setDate(d.getDate() + skip);
+  return Array.from({ length: 5 }, (_, i) => {
+    const dd = new Date(mon);
+    dd.setDate(mon.getDate() + i);
+    return dd;
+  });
 }
 
-/* -------------------------------------------------------------------------
-   Date helpers — computed in Asia/Manila wall-clock time regardless of the
-   browser/server's own timezone, per spec.
-   ------------------------------------------------------------------------- */
-function manilaNow() {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Manila",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date());
-  const get = (t) => Number(parts.find((p) => p.type === t)?.value);
-  return { year: get("year"), month: get("month") - 1, day: get("day"), hour: get("hour") };
-}
-
-function pad2(n) {
-  return String(n).padStart(2, "0");
-}
-
-function isoOf(year, month, day) {
-  return `${year}-${pad2(month + 1)}-${pad2(day)}`;
-}
-
-const WEEKDAY_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const EVENT_CLASS = { rfq: "ev-rfq", del: "ev-del", mtg: "ev-mtg", adm: "ev-adm" };
+const POM_TOTAL = 25 * 60;
 
 export default function Home() {
-  const manila = manilaNow();
-  const manilaDate = new Date(manila.year, manila.month, manila.day);
-  const manilaDow = manilaDate.getDay(); // 0 Sun .. 6 Sat
-  const todayISO = isoOf(manila.year, manila.month, manila.day);
-  const greetingWord = manila.hour < 12 ? "Good morning" : manila.hour < 18 ? "Good afternoon" : "Good evening";
-
   return (
-    <div style={{ display: "flex", height: "100vh", background: COLOR.bg, overflow: "hidden" }}>
-      <HomeSidebar />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <HomeTopBar greetingWord={greetingWord} />
-        <main style={{ flex: 1, overflowY: "auto", padding: "10px 12px" }}>
-          <div style={{ maxWidth: 1400, margin: "0 auto", display: "flex", flexDirection: "column", gap: 8 }}>
-            <BusinessPulseZone />
-            <WeeklyPlanZone todayISO={todayISO} manilaDow={manilaDow} manila={manila} />
-            <FocusEngineZone />
-            <GrowthLayerZone />
-            <MonthCalendarZone todayISO={todayISO} manila={manila} />
-          </div>
-        </main>
-      </div>
-      <CheckInGate />
-    </div>
+    <>
+      <style>{homeCss}</style>
+      <HomeInner />
+    </>
   );
 }
 
-/* =========================================================================
-   Section label
-   ========================================================================= */
-function SectionLabel({ children, tone = "blue" }) {
-  const color = tone === "purple" ? COLOR.purple : COLOR.blue;
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-      <span
-        style={{
-          fontSize: 8,
-          fontWeight: 500,
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-          color,
-          whiteSpace: "nowrap",
-        }}
-      >
-        {children}
-      </span>
-      <span style={{ flex: 1, height: 1, background: COLOR.border }} />
-    </div>
-  );
-}
-
-function cardStyle(extra) {
-  return {
-    background: COLOR.card,
-    border: `1px solid ${COLOR.border}`,
-    borderRadius: 8,
-    boxShadow: CARD_SHADOW,
-    ...extra,
-  };
-}
-
-/* =========================================================================
-   SIDEBAR
-   ========================================================================= */
-const NAV_SECTIONS = [
-  { label: null, items: [{ to: "/", label: "Home", icon: HomeIcon, end: true }] },
-  {
-    label: "Operations",
-    items: [
-      { to: "/pipeline", label: "Pipeline", icon: PipelineIcon },
-      { to: "/intake", label: "Intake", icon: IntakeIcon },
-      { to: "/sourcing", label: "Sourcing", icon: SourcingIcon },
-      { to: "/quote-builder", label: "Quote Builder", icon: QuoteIcon },
-      { to: "/ledger", label: "Ledger", icon: LedgerIcon },
-    ],
-  },
-  {
-    label: "Growth",
-    items: [
-      { to: "/crosshairs", label: "Crosshairs", icon: CrosshairsIcon, tone: "purple" },
-      { to: "/wins", label: "Wins", icon: TrophyIcon },
-      { to: "/okrs", label: "OKRs", icon: OkrIcon, tone: "purple" },
-      { to: "/brewing", label: "Brewing", icon: BrewingIcon },
-      { to: "/content", label: "Content", icon: ContentIcon, tone: "purple" },
-      { to: "/seo", label: "SEO", icon: SeoIcon, tone: "purple" },
-    ],
-  },
-  {
-    label: "Workspace",
-    items: [
-      { to: "/contacts", label: "Contacts", icon: ContactsIcon },
-      { to: "/learning-hub", label: "Learning Hub", icon: LearningIcon },
-      { to: "/settings", label: "Settings", icon: SettingsIcon },
-    ],
-  },
-];
-
-function HomeSidebar() {
-  const { user, signOut } = useAuth();
-  const { isComplete } = useCheckIn();
-
-  return (
-    <aside
-      style={{
-        width: 156,
-        flexShrink: 0,
-        background: "#ffffff",
-        borderRight: `1px solid ${COLOR.border}`,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 6, padding: "12px 10px", borderBottom: `1px solid ${COLOR.border}` }}>
-        <div
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: 7,
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: `linear-gradient(135deg, ${COLOR.blue}, ${COLOR.purple})`,
-          }}
-        >
-          <LogoMark style={{ width: 13, height: 13, color: "#fff" }} />
-        </div>
-        <div style={{ minWidth: 0, flex: 1, lineHeight: 1.3 }}>
-          <p style={{ margin: 0, fontSize: 12, fontWeight: 500, color: COLOR.textPrimary, wordBreak: "break-word" }}>
-            Mission Control
-          </p>
-          <p style={{ margin: 0, fontSize: 9, color: COLOR.textSecondary, wordBreak: "break-word" }}>Ultra Power</p>
-          <p style={{ margin: 0, fontSize: 9, color: COLOR.textMuted, wordBreak: "break-word" }}>
-            Engineering Solutions Director
-          </p>
-        </div>
-      </div>
-
-      <nav style={{ flex: 1, overflowY: "auto", padding: "8px 6px", display: "flex", flexDirection: "column", gap: 10 }}>
-        {NAV_SECTIONS.map((section, si) => (
-          <div key={si}>
-            {section.label && (
-              <p
-                style={{
-                  margin: "0 0 3px 8px",
-                  fontSize: 8,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  color: COLOR.textMuted,
-                  fontWeight: 500,
-                }}
-              >
-                {section.label}
-              </p>
-            )}
-            <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              {section.items.map(({ to, label, icon: Icon, end, tone }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={end}
-                  style={({ isActive }) => ({
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 7,
-                    fontSize: 10,
-                    padding: "5px 8px",
-                    marginRight: 4,
-                    borderRadius: "0 5px 5px 0",
-                    textDecoration: "none",
-                    borderLeft: isActive
-                      ? `2px solid ${tone === "purple" ? COLOR.purple : COLOR.blue}`
-                      : "2px solid transparent",
-                    background: isActive ? (tone === "purple" ? COLOR.purpleLight : COLOR.blueLight) : "transparent",
-                    color: isActive ? (tone === "purple" ? COLOR.purpleDark : COLOR.blueDark) : COLOR.textSecondary,
-                  })}
-                >
-                  {({ isActive }) => (
-                    <>
-                      <Icon
-                        style={{
-                          width: 13,
-                          height: 13,
-                          flexShrink: 0,
-                          color: isActive ? (tone === "purple" ? COLOR.purple : COLOR.blue) : COLOR.textMuted,
-                        }}
-                      />
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-          </div>
-        ))}
-      </nav>
-
-      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", borderTop: `1px solid ${COLOR.border}` }}>
-        <span
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: "50%",
-            flexShrink: 0,
-            background: isComplete ? COLOR.green : "#cbd5e1",
-          }}
-        />
-        <p style={{ margin: 0, flex: 1, fontSize: 9, color: COLOR.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {user?.email ?? "—"}
-        </p>
-        <button
-          onClick={signOut}
-          style={{ fontSize: 9, color: COLOR.textMuted, background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}
-        >
-          Sign out
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-/* =========================================================================
-   TOPBAR
-   ========================================================================= */
-function HomeTopBar({ greetingWord }) {
+function HomeInner() {
   const navigate = useNavigate();
-  const [syncing, setSyncing] = useState(false);
+  const { user, signOut } = useAuth();
+  const { todayLog, isComplete, submit, updateMits } = useCheckIn();
 
-  return (
-    <header
-      style={{
-        height: 44,
-        flexShrink: 0,
-        background: "#ffffff",
-        borderBottom: `1px solid ${COLOR.border}`,
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "0 14px",
-      }}
-    >
-      <div style={{ minWidth: 0 }}>
-        <p style={{ margin: 0, fontSize: 13, fontWeight: 500, color: COLOR.textPrimary, whiteSpace: "nowrap" }}>
-          {greetingWord}, Khalil.
-        </p>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <SparkleIcon style={{ width: 9, height: 9, color: COLOR.purple, flexShrink: 0 }} />
-          <span style={{ fontSize: 10, color: COLOR.blue, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-            Five RFQs are quiet this week — worth a nudge before Friday.
-          </span>
-        </div>
-      </div>
-
-      <div style={{ flex: 1 }} />
-
-      <span
-        style={{
-          fontSize: 10,
-          fontWeight: 500,
-          padding: "3px 10px",
-          borderRadius: 999,
-          background: "#dbeafe",
-          color: COLOR.blueDark,
-          whiteSpace: "nowrap",
-        }}
-      >
-        On Full Send
-      </span>
-
-      <button
-        onClick={() => {
-          setSyncing(true);
-          window.location.reload();
-        }}
-        disabled={syncing}
-        style={{
-          fontSize: 12,
-          fontWeight: 500,
-          padding: "6px 14px",
-          borderRadius: 8,
-          background: "#ffffff",
-          border: `1px solid ${COLOR.border}`,
-          color: COLOR.textSecondary,
-          cursor: "pointer",
-        }}
-      >
-        {syncing ? "Syncing…" : "Sync"}
-      </button>
-
-      <button
-        onClick={() => navigate("/intake")}
-        style={{
-          fontSize: 12,
-          fontWeight: 500,
-          padding: "6px 14px",
-          borderRadius: 8,
-          background: COLOR.blue,
-          border: "none",
-          color: "#ffffff",
-          cursor: "pointer",
-          whiteSpace: "nowrap",
-        }}
-      >
-        + New RFQ
-      </button>
-    </header>
-  );
-}
-
-/* =========================================================================
-   ZONE 1 — BUSINESS PULSE
-   ========================================================================= */
-function StatChip({ topBorder, label, value, valueColor, sub, linkLabel, linkTo }) {
-  return (
-    <div
-      style={cardStyle({
-        borderTop: `2px solid ${topBorder}`,
-        padding: "8px 10px",
-        height: 80,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        minWidth: 0,
-      })}
-    >
-      <div>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 8,
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
-            color: COLOR.textMuted,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-        >
-          {label}
-        </p>
-        <p style={{ margin: "2px 0 0", fontSize: 20, fontWeight: 500, color: valueColor, lineHeight: 1.1 }}>{value}</p>
-        {sub && <p style={{ margin: "1px 0 0", fontSize: 8, color: COLOR.textMuted }}>{sub}</p>}
-      </div>
-      <Link to={linkTo} style={{ fontSize: 8, color: COLOR.blue, textDecoration: "none" }}>
-        {linkLabel} →
-      </Link>
-    </div>
-  );
-}
-
-const phpFmt = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
-
-function BusinessPulseZone() {
-  const { stats, loading } = useBusinessPulse();
-
-  const rfqs = stats.rfqsUnanswered ?? 0;
-  const pos = stats.posUndelivered ?? 0;
-  const pending = stats.pendingPayment ?? 0;
-  const completed = stats.completedThisYear ?? 0;
-
-  return (
-    <section>
-      <SectionLabel tone="blue">Operations</SectionLabel>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
-        <StatChip
-          topBorder={COLOR.blue}
-          label="RFQs unanswered"
-          value={loading ? "—" : rfqs}
-          valueColor={!loading && rfqs > 0 ? COLOR.red : COLOR.textPrimary}
-          sub="awaiting reply"
-          linkLabel="Pipeline"
-          linkTo="/pipeline"
-        />
-        <StatChip
-          topBorder={COLOR.blue}
-          label="POs undelivered"
-          value={loading ? "—" : pos}
-          valueColor={!loading && pos > 0 ? COLOR.orange : COLOR.textPrimary}
-          sub="in transit"
-          linkLabel="Pipeline"
-          linkTo="/pipeline"
-        />
-        <StatChip
-          topBorder={COLOR.amber}
-          label="Pending payment"
-          value={loading ? "—" : phpFmt.format(pending)}
-          valueColor={COLOR.amberDark}
-          sub="outstanding"
-          linkLabel="Ledger"
-          linkTo="/ledger"
-        />
-        <StatChip
-          topBorder={COLOR.green}
-          label="Completed this year"
-          value={loading ? "—" : completed}
-          valueColor={COLOR.green}
-          sub="RFQs won"
-          linkLabel="History"
-          linkTo="/wins"
-        />
-      </div>
-    </section>
-  );
-}
-
-/* =========================================================================
-   ZONE 2 — WEEKLY PLAN
-   ========================================================================= */
-function WeeklyPlanZone({ todayISO, manilaDow, manila }) {
-  // Monday–Friday of this work week, or next week if today is Sat/Sun.
-  const weekStart = useMemo(() => {
-    const diff = manilaDow === 0 ? 1 : manilaDow === 6 ? 2 : 1 - manilaDow;
-    return new Date(manila.year, manila.month, manila.day + diff);
-  }, [manila.year, manila.month, manila.day, manilaDow]);
-
-  const days = Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-  const weekEnd = days[4];
-
-  const { pipelineByDate, meetingEvents } = useWeekEvents(weekStart, weekEnd);
-
-  return (
-    <section>
-      <SectionLabel tone="blue">This Week</SectionLabel>
-      <div style={cardStyle({ padding: "7px 10px", maxHeight: 140, overflow: "hidden" })}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 4 }}>
-          {days.map((d) => {
-            const iso = isoOf(d.getFullYear(), d.getMonth(), d.getDate());
-            const isToday = iso === todayISO;
-            const dayEvents = pipelineByDate[iso] ?? [];
-            const dayMeetings = meetingEvents.filter(
-              (ev) => ev.start && isoOf(ev.start.getFullYear(), ev.start.getMonth(), ev.start.getDate()) === iso
-            );
-            const chips = [
-              ...dayEvents.map((ev) => ({ label: ev.label, variant: ev.variant })),
-              ...dayMeetings.map((ev) => ({ label: ev.title, variant: "purple" })),
-            ].slice(0, 2);
-
-            return (
-              <div key={iso} style={{ textAlign: "center", minWidth: 0 }}>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: 7,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.04em",
-                    color: COLOR.textMuted,
-                  }}
-                >
-                  {WEEKDAY_SHORT[d.getDay()]}
-                </p>
-                {isToday ? (
-                  <div
-                    style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      background: COLOR.blue,
-                      color: "#fff",
-                      fontSize: 9,
-                      fontWeight: 500,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "1px auto 2px",
-                    }}
-                  >
-                    {d.getDate()}
-                  </div>
-                ) : (
-                  <p style={{ margin: "1px 0 2px", fontSize: 9, fontWeight: 500, color: COLOR.textSecondary }}>
-                    {d.getDate()}
-                  </p>
-                )}
-                {chips.length > 0 ? (
-                  chips.map((chip, i) => {
-                    const c = CHIP_COLORS[chip.variant] ?? CHIP_COLORS.blue;
-                    return (
-                      <div
-                        key={i}
-                        title={chip.label}
-                        style={{
-                          background: c.bg,
-                          color: c.text,
-                          borderRadius: 3,
-                          padding: "2px 4px",
-                          fontSize: 7,
-                          marginBottom: 1,
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {chip.label}
-                      </div>
-                    );
-                  })
-                ) : (
-                  <>
-                    <div style={{ height: 9, background: COLOR.rowLine, borderRadius: 2, marginBottom: 1 }} />
-                    <div style={{ height: 9, background: COLOR.rowLine, borderRadius: 2 }} />
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* =========================================================================
-   ZONE 3 — FOCUS ENGINE
-   ========================================================================= */
-function ZoneCardHeader({ icon, title, action }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "6px 10px",
-        borderBottom: `1px solid ${COLOR.headerLine}`,
-      }}
-    >
-      {icon}
-      <span style={{ fontSize: 10, fontWeight: 500, color: COLOR.textPrimary, flex: 1, minWidth: 0 }}>{title}</span>
-      {action}
-    </div>
-  );
-}
-
-function MitsCard() {
-  const { todayLog, updateMits } = useCheckIn();
-  const [mits, setMits] = useState(todayLog?.mits ?? []);
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
-
-  useEffect(() => {
-    setMits(todayLog?.mits ?? []);
-  }, [todayLog?.mits]);
-
-  function persist(next) {
-    setMits(next);
+  /* ------------------------------ MITs ------------------------------ */
+  const mits = todayLog?.mits ?? [];
+  function persistMits(next) {
     updateMits(next).catch(() => {});
   }
-
-  function toggle(i) {
-    persist(mits.map((m, idx) => (idx === i ? { ...m, done: !m.done } : m)));
+  function removeMIT(i) {
+    persistMits(mits.filter((_, idx) => idx !== i));
   }
-  function remove(i) {
-    persist(mits.filter((_, idx) => idx !== i));
-  }
-  function add(e) {
-    e.preventDefault();
-    if (!draft.trim() || mits.length >= 3) return;
-    persist([...mits, { text: draft.trim(), done: false }]);
-    setDraft("");
+  function addMitOrHitlist(text) {
+    if (mits.length < 3) {
+      persistMits([...mits, text]);
+    } else {
+      setHitlistOverlay((prev) => [{ label: text, age: 0, stale: false, source: "local" }, ...prev]);
+    }
   }
 
-  const TAG_STYLE = {
-    urgent: { bg: "#fee2e2", text: "#991b1b", label: "Urgent" },
-    today: { bg: COLOR.amberLight, text: COLOR.amberText, label: "Today" },
-  };
+  /* --------------------------- New task bar --------------------------- */
+  const [newTask, setNewTask] = useState("");
+  async function addNewTask() {
+    const v = newTask.trim();
+    if (!v) return;
+    setNewTask("");
 
-  return (
-    <div style={cardStyle({ display: "flex", flexDirection: "column", overflow: "hidden" })}>
-      <ZoneCardHeader
-        icon={<ListNumbersIcon style={{ width: 12, height: 12, color: COLOR.blue }} />}
-        title={
-          <>
-            MITs today <span style={{ color: COLOR.textMuted, fontWeight: 400 }}>({mits.length}/3)</span>
-          </>
-        }
-        action={
-          <button
-            onClick={() => setEditing((v) => !v)}
-            style={{ fontSize: 9, color: COLOR.blue, background: "none", border: "none", cursor: "pointer", padding: 0 }}
-          >
-            {editing ? "Done" : "Edit"}
-          </button>
-        }
-      />
-      <div>
-        {mits.map((m, i) => {
-          const tag = m.tag && TAG_STYLE[m.tag];
-          return (
-            <div
-              key={i}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "4px 10px",
-                borderBottom: `1px solid ${COLOR.rowLine}`,
-              }}
-            >
-              <button
-                onClick={() => toggle(i)}
-                style={{
-                  width: 15,
-                  height: 15,
-                  borderRadius: "50%",
-                  flexShrink: 0,
-                  border: "none",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 8,
-                  fontWeight: 500,
-                  color: "#fff",
-                  background: COLOR.blue,
-                  opacity: m.done ? 0.45 : 1,
-                }}
-              >
-                {m.done ? "✓" : i + 1}
-              </button>
-              <span
-                style={{
-                  fontSize: 10,
-                  flex: 1,
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  color: m.done ? COLOR.textMuted : COLOR.textPrimary,
-                  textDecoration: m.done ? "line-through" : "none",
-                }}
-              >
-                {m.text}
-              </span>
-              {tag && (
-                <span
-                  style={{
-                    fontSize: 7,
-                    fontWeight: 500,
-                    padding: "1px 5px",
-                    borderRadius: 999,
-                    background: tag.bg,
-                    color: tag.text,
-                    flexShrink: 0,
-                  }}
-                >
-                  {tag.label}
-                </span>
-              )}
-              {editing && (
-                <button
-                  onClick={() => remove(i)}
-                  style={{ fontSize: 9, color: COLOR.textMuted, background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-          );
-        })}
-        {editing && mits.length < 3 && (
-          <form onSubmit={add} style={{ display: "flex", gap: 4, padding: "4px 10px" }}>
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Add a task…"
-              style={{
-                flex: 1,
-                minWidth: 0,
-                fontSize: 10,
-                padding: "3px 6px",
-                borderRadius: 3,
-                border: `1px solid ${COLOR.border}`,
-                background: COLOR.rowLine,
-                color: COLOR.textPrimary,
-              }}
-            />
-            <button
-              type="submit"
-              style={{ fontSize: 9, color: COLOR.blue, background: "none", border: "none", cursor: "pointer" }}
-            >
-              Add
-            </button>
-          </form>
-        )}
-      </div>
-      <div style={{ flex: 1 }} />
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 5,
-          padding: "5px 10px",
-          background: COLOR.fafafa,
-          borderTop: `1px solid ${COLOR.headerLine}`,
-        }}
-      >
-        <SparkleIcon style={{ width: 8, height: 8, color: COLOR.purple }} />
-        <span style={{ fontSize: 8, color: COLOR.textMuted }}>Suggested by Claude</span>
-      </div>
-    </div>
-  );
-}
+    const goingToMits = mits.length < 3;
+    addMitOrHitlist(v);
 
-function LearningHubCompactCard() {
-  const navigate = useNavigate();
+    // Best-effort persistence to work_items — this table doesn't exist in
+    // the current schema (verified against supabase/migrations/*.sql), so
+    // this always falls through to the console.warn fallback per Task 8.
+    try {
+      const { error } = await supabase.from("work_items").insert({
+        type: "task",
+        title: v,
+        mit_date: goingToMits ? todayISODate() : null,
+        area_id: await getSystemsAreaId(),
+      });
+      if (error) throw error;
+    } catch (err) {
+      console.warn(
+        "work_items table is not available in this Supabase project — new task kept in local state only.",
+        err?.message ?? err
+      );
+    }
+  }
+
+  /* --------------------------- Hitlist (ClickUp) --------------------------- */
+  const { tasks: clickupTasks } = useClickUpTasks();
+  const [hitlistOverlay, setHitlistOverlay] = useState([]); // client-only additions (demoted MITs, new tasks over the cap)
+  const [hiddenHitlistKeys, setHiddenHitlistKeys] = useState(() => new Set());
+
+  const hitlist = useMemo(() => {
+    const real = clickupTasks
+      .filter((t) => !hiddenHitlistKeys.has(t.id))
+      .map((t) => ({
+        key: t.id,
+        label: t.name,
+        age: t.daysSinceActivity ?? 0,
+        stale: t.isStale,
+      }));
+    return [...hitlistOverlay.map((h, i) => ({ key: `local-${i}-${h.label}`, ...h })), ...real];
+  }, [clickupTasks, hiddenHitlistKeys, hitlistOverlay]);
+
+  const staleCount = hitlist.filter((t) => t.stale).length;
+
+  function demoteMitToHitlist(label, mitIndex) {
+    setHitlistOverlay((prev) => [{ label, age: 0, stale: false }, ...prev]);
+    persistMits(mits.filter((_, idx) => idx !== mitIndex));
+  }
+
+  /* --------------------------- Time blocks --------------------------- */
+  const [blocks, setBlocks] = useLocalStorage(`mc:v3:timeblocks:${todayISODate()}`, []);
+  const [tbTime, setTbTime] = useState("09:00");
+  const [tbLabel, setTbLabel] = useState("");
+
+  function addTimeBlock(time, label) {
+    if (!time || !label) return;
+    setBlocks((prev) => [...prev, { time, label }].sort((a, b) => a.time.localeCompare(b.time)));
+  }
+  function nextHalfHourManila() {
+    const now = getManilaDate();
+    const h = String(now.getHours()).padStart(2, "0");
+    const m = String((Math.ceil(now.getMinutes() / 30) * 30) % 60).padStart(2, "0");
+    return `${h}:${m}`;
+  }
+
+  /* --------------------------- Learning Hub --------------------------- */
   const [topic, setTopic] = useState(null);
-  const [loading, setLoading] = useState(true);
-
+  const [topicLoading, setTopicLoading] = useState(true);
   useEffect(() => {
-    fetchTopics()
-      .then((data) => {
-        const active = data.filter((t) => t.status === "active");
-        const pick = [...active].sort((a, b) => {
-          const aDone = loggedToday(a) ? 1 : 0;
-          const bDone = loggedToday(b) ? 1 : 0;
-          if (aDone !== bDone) return aDone - bDone;
-          return (b.current_streak ?? 0) - (a.current_streak ?? 0);
-        })[0];
-        setTopic(pick ?? null);
+    fetchLearningTopics()
+      .then((rows) => {
+        const mostRecent = [...rows].sort(
+          (a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0)
+        )[0];
+        setTopic(mostRecent ?? null);
       })
       .catch(() => {})
-      .finally(() => setLoading(false));
+      .finally(() => setTopicLoading(false));
   }, []);
+  const topicDoneToday = topic ? loggedToday(topic) : false;
 
-  const doneToday = topic ? loggedToday(topic) : false;
-
-  return (
-    <div style={cardStyle({ overflow: "hidden" })}>
-      <ZoneCardHeader
-        icon={<BookIcon style={{ width: 12, height: 12, color: COLOR.blue }} />}
-        title="Learning Hub"
-        action={
-          <button
-            onClick={() => topic && navigate(`/learning-hub?topic=${topic.id}&log=1`)}
-            disabled={!topic}
-            style={{
-              fontSize: 8,
-              color: COLOR.blue,
-              background: "none",
-              border: "none",
-              cursor: topic ? "pointer" : "default",
-              padding: 0,
-              opacity: topic ? 1 : 0.4,
-            }}
-          >
-            Continue
-          </button>
-        }
-      />
-      <div style={{ padding: "8px 10px" }}>
-        {loading ? (
-          <p style={{ margin: 0, fontSize: 10, color: COLOR.textMuted }}>Loading…</p>
-        ) : !topic ? (
-          <p style={{ margin: 0, fontSize: 10, color: COLOR.textMuted }}>No active topics.</p>
-        ) : doneToday ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ width: 6, height: 6, borderRadius: "50%", background: COLOR.green, flexShrink: 0 }} />
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 500,
-                color: COLOR.textPrimary,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {topic.title}
-            </span>
-          </div>
-        ) : (
-          <>
-            <p
-              style={{
-                margin: 0,
-                fontSize: 11,
-                fontWeight: 500,
-                color: COLOR.textPrimary,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {topic.title}
-            </p>
-            {topic.description && (
-              <p
-                style={{
-                  margin: "2px 0 0",
-                  fontSize: 10,
-                  fontStyle: "italic",
-                  color: COLOR.textSecondary,
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                “{topic.description}”
-              </p>
-            )}
-            <div style={{ height: 4, background: COLOR.headerLine, borderRadius: 2, overflow: "hidden", marginTop: 6 }}>
-              <div style={{ height: "100%", width: `${topic.progress_percent ?? 0}%`, background: COLOR.blue }} />
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 4 }}>
-              <FlameIcon style={{ width: 9, height: 9, color: COLOR.orange }} />
-              <span style={{ fontSize: 9, color: COLOR.textSecondary }}>{topic.current_streak ?? 0} day streak</span>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function TimeBlocksCard() {
-  const { todayLog } = useCheckIn();
-  const [blocks, setBlocks] = useLocalStorage(`mc:timeblocks:${todayISODate()}`, []);
-  const [adding, setAdding] = useState(false);
-  const [time, setTime] = useState("");
-  const [label, setLabel] = useState("");
-
-  function nowHHMM() {
-    const d = new Date();
-    return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-  }
-  const nowStr = nowHHMM();
-
-  function addBlock(e) {
-    e.preventDefault();
-    if (!time || !label.trim()) return;
-    setBlocks((prev) => [...prev, { id: crypto.randomUUID(), time, label: label.trim() }].sort((a, b) => a.time.localeCompare(b.time)));
-    setTime("");
-    setLabel("");
-    setAdding(false);
-  }
-
-  // --- Pomodoro (self-contained, local state) ---
-  const FOCUS_SECONDS = 25 * 60;
-  const [secondsLeft, setSecondsLeft] = useState(FOCUS_SECONDS);
-  const [running, setRunning] = useState(false);
-  const [sessionCount, setSessionCount] = useLocalStorage(`mc:pomodoro-sessions:${todayISODate()}`, 0);
+  /* --------------------------- Pomodoro --------------------------- */
+  const [pomSeconds, setPomSeconds] = useState(POM_TOTAL);
+  const [pomRunning, setPomRunning] = useState(false);
+  const pomIntervalRef = useRef(null);
 
   useEffect(() => {
-    if (!running) return;
-    const id = setInterval(() => {
-      setSecondsLeft((s) => {
+    if (!pomRunning) return;
+    pomIntervalRef.current = setInterval(() => {
+      setPomSeconds((s) => {
         if (s <= 1) {
-          setRunning(false);
-          setSessionCount((n) => n + 1);
-          return FOCUS_SECONDS;
+          setPomRunning(false);
+          return POM_TOTAL;
         }
         return s - 1;
       });
     }, 1000);
-    return () => clearInterval(id);
-  }, [running]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => clearInterval(pomIntervalRef.current);
+  }, [pomRunning]);
 
-  const mm = pad2(Math.floor(secondsLeft / 60));
-  const ss = pad2(secondsLeft % 60);
-  const firstMit = todayLog?.mits?.[0]?.text ?? "No MIT set";
-  const streak = Number(window?.localStorage?.getItem?.(`mc:pomodoro-streak`)) || 0;
+  function togglePom() {
+    setPomRunning((r) => !r);
+  }
+  function resetPom() {
+    clearInterval(pomIntervalRef.current);
+    setPomRunning(false);
+    setPomSeconds(POM_TOTAL);
+  }
+  function openLofi() {
+    window.open("https://www.youtube.com/watch?v=jfKfPfyJRdk", "_blank");
+  }
+  const pomMin = String(Math.floor(pomSeconds / 60)).padStart(2, "0");
+  const pomSec = String(pomSeconds % 60).padStart(2, "0");
+  const pomCirc = 100;
+  const pomPct = (pomSeconds / POM_TOTAL) * pomCirc;
 
-  // --- Shutdown ritual (two free-text fields + a save button) ---
-  const [shutdown, setShutdown] = useLocalStorage(`mc:shutdown:${todayISODate()}`, { top: "", note: "" });
-  const [shutdownSaved, setShutdownSaved] = useState(false);
+  /* --------------------------- Shutdown ritual --------------------------- */
+  const SHUT_ITEMS = ["Inbox zero", "Tomorrow's MITs set", "Desk cleared", "Wins logged", "Calendar checked"];
+  const [shutChecked, setShutChecked] = useLocalStorage(`mc:v3:shutdown:${todayISODate()}`, {});
+  const shutDone = SHUT_ITEMS.filter((i) => shutChecked[i]).length;
+  function toggleShut(item) {
+    setShutChecked((prev) => ({ ...prev, [item]: !prev[item] }));
+  }
 
-  return (
-    <div style={cardStyle({ display: "flex", flexDirection: "column", overflow: "hidden", height: "100%" })}>
-      <ZoneCardHeader
-        icon={<ClockIcon style={{ width: 12, height: 12, color: COLOR.textMuted }} />}
-        title="Time blocks"
-        action={
-          <button
-            onClick={() => setAdding((v) => !v)}
-            style={{ fontSize: 9, color: COLOR.blue, background: "none", border: "none", cursor: "pointer", padding: 0 }}
-          >
-            + Add
-          </button>
-        }
-      />
-
-      <div style={{ maxHeight: 130, overflowY: "auto" }}>
-        {blocks.length === 0 && !adding && (
-          <p style={{ margin: 0, fontSize: 9, color: COLOR.textMuted, padding: "6px 10px" }}>No blocks yet today.</p>
-        )}
-        {blocks.map((b, i) => {
-          const next = blocks[i + 1];
-          const isActive = b.time <= nowStr && (!next || nowStr < next.time);
-          return (
-            <div
-              key={b.id}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "3px 10px",
-                borderBottom: `1px solid ${COLOR.rowLine}`,
-                background: isActive ? COLOR.blueLight : "transparent",
-              }}
-            >
-              <span style={{ fontSize: 8, minWidth: 26, color: isActive ? COLOR.blue : COLOR.textMuted }}>{b.time}</span>
-              <span
-                style={{
-                  fontSize: 9,
-                  flex: 1,
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  color: isActive ? COLOR.blueDark : COLOR.textPrimary,
-                  fontWeight: isActive ? 500 : 400,
-                }}
-              >
-                {b.label}
-              </span>
-              {isActive && (
-                <span
-                  style={{
-                    fontSize: 7,
-                    padding: "1px 5px",
-                    borderRadius: 999,
-                    background: COLOR.blue,
-                    color: "#fff",
-                    flexShrink: 0,
-                  }}
-                >
-                  Now
-                </span>
-              )}
-            </div>
-          );
-        })}
-        {adding && (
-          <form onSubmit={addBlock} style={{ display: "flex", gap: 4, padding: "4px 10px" }}>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              style={{ fontSize: 8, padding: "3px 4px", borderRadius: 3, border: `1px solid ${COLOR.border}`, width: 70 }}
-            />
-            <input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="Label…"
-              style={{ flex: 1, minWidth: 0, fontSize: 9, padding: "3px 6px", borderRadius: 3, border: `1px solid ${COLOR.border}` }}
-            />
-            <button type="submit" style={{ fontSize: 9, color: COLOR.blue, background: "none", border: "none", cursor: "pointer" }}>
-              Add
-            </button>
-          </form>
-        )}
-      </div>
-
-      <div style={{ flex: 1 }} />
-
-      {/* Pomodoro bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          padding: "5px 10px",
-          background: COLOR.fafafa,
-          borderTop: `1px solid ${COLOR.headerLine}`,
-        }}
-      >
-        <div
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: "50%",
-            border: `2px solid ${COLOR.purple}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
-        >
-          <span style={{ fontSize: 8, fontWeight: 600, color: COLOR.purple }}>{mm}:{ss}</span>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p
-            style={{
-              margin: 0,
-              fontSize: 9,
-              color: COLOR.textPrimary,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            MIT 1 · {firstMit}
-          </p>
-          <p style={{ margin: 0, fontSize: 7, color: COLOR.textMuted }}>
-            Session {sessionCount + 1} of 4 · streak {streak}
-          </p>
-        </div>
-        <button
-          onClick={() => setRunning((r) => !r)}
-          style={{
-            fontSize: 8,
-            fontWeight: 500,
-            padding: "3px 8px",
-            borderRadius: 3,
-            border: "none",
-            background: COLOR.purple,
-            color: "#fff",
-            cursor: "pointer",
-            flexShrink: 0,
-          }}
-        >
-          {running ? "Pause" : "Start"}
-        </button>
-      </div>
-
-      {/* Shutdown bar */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "4px 10px",
-          borderTop: `1px solid ${COLOR.headerLine}`,
-        }}
-      >
-        <input
-          value={shutdown.top}
-          onChange={(e) => {
-            setShutdown((s) => ({ ...s, top: e.target.value }));
-            setShutdownSaved(false);
-          }}
-          placeholder="Tomorrow's #1…"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            background: COLOR.rowLine,
-            border: `1px solid ${COLOR.border}`,
-            borderRadius: 3,
-            padding: "3px 6px",
-            fontSize: 8,
-            color: COLOR.textMuted,
-          }}
-        />
-        <input
-          value={shutdown.note}
-          onChange={(e) => {
-            setShutdown((s) => ({ ...s, note: e.target.value }));
-            setShutdownSaved(false);
-          }}
-          placeholder="Note…"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            background: COLOR.rowLine,
-            border: `1px solid ${COLOR.border}`,
-            borderRadius: 3,
-            padding: "3px 6px",
-            fontSize: 8,
-            color: COLOR.textMuted,
-          }}
-        />
-        <button
-          onClick={() => setShutdownSaved(true)}
-          style={{
-            fontSize: 8,
-            fontWeight: 500,
-            padding: "3px 8px",
-            borderRadius: 3,
-            border: "none",
-            background: COLOR.green,
-            color: "#fff",
-            cursor: "pointer",
-            flexShrink: 0,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {shutdownSaved ? "Saved ✓" : "Shutdown"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function FocusEngineZone() {
-  return (
-    <section>
-      <SectionLabel tone="blue">Today</SectionLabel>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, alignItems: "start" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <MitsCard />
-          <LearningHubCompactCard />
-        </div>
-        <TimeBlocksCard />
-      </div>
-    </section>
-  );
-}
-
-/* =========================================================================
-   ZONE 4 — GROWTH LAYER
-   ========================================================================= */
-function PriorityBadge({ priority }) {
-  const map = {
-    Hot: { bg: "#fee2e2", text: "#991b1b" },
-    Medium: { bg: COLOR.amberLight, text: COLOR.amberText },
-    Low: { bg: COLOR.headerLine, text: COLOR.textSecondary },
-    Nurturing: { bg: COLOR.headerLine, text: COLOR.textSecondary },
-  };
-  const s = map[priority] ?? map.Low;
-  return (
-    <span style={{ fontSize: 7, fontWeight: 500, padding: "1px 5px", borderRadius: 999, background: s.bg, color: s.text, flexShrink: 0 }}>
-      {priority}
-    </span>
-  );
-}
-const PRIORITY_DOT = { Hot: COLOR.red, Medium: COLOR.amber, Low: COLOR.textMuted, Nurturing: COLOR.textMuted };
-
-function CrosshairsCard() {
-  const [targets, setTargets] = useState([]);
-  const [loading, setLoading] = useState(true);
-
+  /* --------------------------- Business pulse --------------------------- */
+  const [pulse, setPulse] = useState({ rfqs: null, pos: null, pending: null, completed: null });
   useEffect(() => {
-    fetchTargets()
-      .then(setTargets)
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    const yearStart = `${new Date().getFullYear()}-01-01`;
+    const yearEnd = `${new Date().getFullYear()}-12-31`;
+    Promise.all([
+      supabase.from("rfqs").select("id", { count: "exact", head: true }).in("status", ["intake_confirmed", "sourced"]),
+      supabase.from("purchase_orders").select("id", { count: "exact", head: true }).neq("status", "delivered"),
+      supabase.from("invoices").select("amount").neq("status", "paid"),
+      supabase
+        .from("rfqs")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "delivered")
+        .gte("created_at", yearStart)
+        .lte("created_at", `${yearEnd}T23:59:59`),
+    ]).then(([rfqs, pos, invoices, completed]) => {
+      setPulse({
+        rfqs: rfqs.count ?? 0,
+        pos: pos.count ?? 0,
+        pending: (invoices.data ?? []).reduce((sum, i) => sum + Number(i.amount ?? 0), 0),
+        completed: completed.count ?? 0,
+      });
+    });
   }, []);
 
-  return (
-    <div style={cardStyle({ overflow: "hidden" })}>
-      <ZoneCardHeader
-        icon={<CrosshairsIcon style={{ width: 12, height: 12, color: COLOR.purple }} />}
-        title="Crosshairs"
-        action={
-          <Link to="/crosshairs" style={{ fontSize: 9, color: COLOR.purple, textDecoration: "none" }}>
-            + Add
-          </Link>
-        }
-      />
-      <div>
-        {!loading && targets.length === 0 && (
-          <p style={{ margin: 0, fontSize: 10, color: COLOR.textMuted, padding: "8px 10px" }}>No targets yet.</p>
-        )}
-        {targets.slice(0, 4).map((t) => (
-          <div
-            key={t.id}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderBottom: `1px solid ${COLOR.rowLine}` }}
-          >
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: PRIORITY_DOT[t.priority] ?? COLOR.textMuted, flexShrink: 0 }} />
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 500,
-                flex: 1,
-                minWidth: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                color: COLOR.textPrimary,
-              }}
-            >
-              {t.target_name}
-            </span>
-            <PriorityBadge priority={t.priority} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+  /* --------------------------- Crosshairs (growth layer) --------------------------- */
+  const [crosshairs, setCrosshairs] = useState([]);
+  useEffect(() => {
+    fetchTargets().then(setCrosshairs).catch(() => {});
+  }, []);
 
-function BacklogCard() {
-  const { tasks } = useClickUpTasks();
-  const staleCount = tasks.filter((t) => t.isStale).length;
+  /* --------------------------- Brewing --------------------------- */
+  const [brewing, setBrewing] = useState([]);
+  useEffect(() => {
+    fetchBrewingItems({ limit: 5 }).then(setBrewing).catch(() => {});
+  }, []);
 
-  function ageColor(days) {
-    if (days === null) return COLOR.textMuted;
-    if (days > 14) return COLOR.red;
-    if (days >= 7) return COLOR.amber;
-    return COLOR.textMuted;
-  }
+  /* --------------------------- Weekly plan + real events --------------------------- */
+  const weekDays = useMemo(() => getWeekDates(), []);
+  const weekStartISO = isoDate(weekDays[0]);
+  const weekEndISO = isoDate(weekDays[4]);
+  const [weekEvents, setWeekEvents] = useState({}); // { iso: [{t,l}] } from real Supabase + Google Calendar
+  const [localWeekEvents, setLocalWeekEvents] = useState({}); // drag-drop additions, client-only
+  const [calendarError, setCalendarError] = useState(null);
 
-  return (
-    <div style={cardStyle({ overflow: "hidden" })}>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "6px 10px",
-          borderBottom: `1px solid ${COLOR.headerLine}`,
-        }}
-      >
-        <StackIcon style={{ width: 12, height: 12, color: COLOR.textSecondary }} />
-        <span style={{ fontSize: 10, fontWeight: 500, color: COLOR.textPrimary, flex: 1, minWidth: 0 }}>Backlog</span>
-        {staleCount > 0 && (
-          <span style={{ fontSize: 7, fontWeight: 500, padding: "1px 5px", borderRadius: 999, background: "#fee2e2", color: "#991b1b" }}>
-            {staleCount} stale
-          </span>
-        )}
-        <a
-          href={`https://app.clickup.com/${CLICKUP_WORKSPACE_ID}`}
-          target="_blank"
-          rel="noreferrer"
-          style={{ fontSize: 9, color: COLOR.blue, textDecoration: "none", whiteSpace: "nowrap" }}
-        >
-          ClickUp ↗
-        </a>
-      </div>
-      <div>
-        {tasks.length === 0 && <p style={{ margin: 0, fontSize: 10, color: COLOR.textMuted, padding: "8px 10px" }}>No open tasks.</p>}
-        {tasks.slice(0, 4).map((t) => (
-          <div
-            key={t.id}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderBottom: `1px solid ${COLOR.rowLine}` }}
-          >
-            <span style={{ width: 5, height: 5, borderRadius: "50%", background: COLOR.blue, flexShrink: 0 }} />
-            <span
-              style={{
-                fontSize: 10,
-                flex: 1,
-                minWidth: 0,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                color: COLOR.textPrimary,
-              }}
-            >
-              {t.name}
-            </span>
-            <span style={{ fontSize: 9, color: ageColor(t.daysSinceActivity), flexShrink: 0 }}>
-              {t.daysSinceActivity === null ? "—" : `${t.daysSinceActivity}d`}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const map = {};
+      const [rfqs, deliveries, invoices] = await Promise.all([
+        supabase.from("rfqs").select("id, closing_date").gte("closing_date", weekStartISO).lte("closing_date", weekEndISO),
+        supabase
+          .from("deliveries")
+          .select("id, delivery_date")
+          .gte("delivery_date", weekStartISO)
+          .lte("delivery_date", weekEndISO),
+        supabase.from("invoices").select("id, due_date").gte("due_date", weekStartISO).lte("due_date", weekEndISO),
+      ]);
+      (rfqs.data ?? []).forEach((r) => {
+        (map[r.closing_date] ??= []).push({ t: "rfq", l: "RFQ closing" });
+      });
+      (deliveries.data ?? []).forEach((d) => {
+        (map[d.delivery_date] ??= []).push({ t: "del", l: "Delivery" });
+      });
+      (invoices.data ?? []).forEach((i) => {
+        (map[i.due_date] ??= []).push({ t: "adm", l: "Invoice due" });
+      });
 
-const BREWING_STATUS_STYLE = {
-  Active: { bg: COLOR.greenLight, text: COLOR.greenText },
-  Planning: { bg: "#dbeafe", text: COLOR.blueDark },
-  Draft: { bg: COLOR.headerLine, text: COLOR.textSecondary },
-  Scheduled: { bg: "#ede9fe", text: COLOR.purpleDark },
-  Idea: { bg: COLOR.amberLight, text: COLOR.amberText },
-};
-const BREWING_DOT = {
-  Active: COLOR.green,
-  Planning: COLOR.blue,
-  Draft: COLOR.textMuted,
-  Scheduled: COLOR.purple,
-  Idea: COLOR.amber,
-};
+      if (isGoogleCalendarConfigured()) {
+        const timeMin = new Date(`${weekStartISO}T00:00:00`);
+        const timeMax = new Date(`${weekEndISO}T23:59:59`);
+        const { events, error } = await listEvents({ timeMin, timeMax });
+        if (error) setCalendarError(error);
+        events.forEach((ev) => {
+          if (!ev.start) return;
+          const key = isoDate(ev.start);
+          (map[key] ??= []).push({ t: "mtg", l: ev.title });
+        });
+      }
 
-function BrewingCard() {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [draft, setDraft] = useState("");
-
-  function load() {
-    fetchBrewingItems({ limit: 4 })
-      .then(setItems)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }
-  useEffect(load, []);
-
-  async function quickAdd(e) {
-    e.preventDefault();
-    if (!draft.trim()) return;
-    try {
-      await createBrewingItem({ name: draft.trim() });
-      setDraft("");
-      load();
-    } catch {
-      // best-effort — the full Brewing page is always available
+      if (!cancelled) setWeekEvents(map);
     }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [weekStartISO, weekEndISO]);
+
+  function mergedEventsFor(iso) {
+    return [...(weekEvents[iso] ?? []), ...(localWeekEvents[iso] ?? [])];
+  }
+  function dropOnDay(iso, label) {
+    if (!label) return;
+    setLocalWeekEvents((prev) => ({ ...prev, [iso]: [...(prev[iso] ?? []), { t: "adm", l: label }] }));
   }
 
-  return (
-    <div style={cardStyle({ overflow: "hidden", display: "flex", flexDirection: "column" })}>
-      <ZoneCardHeader
-        icon={<FlameIcon style={{ width: 11, height: 11, color: COLOR.purple }} />}
-        title="Brewing"
-        action={
-          <Link to="/brewing" style={{ fontSize: 9, color: COLOR.purple, textDecoration: "none" }}>
-            + Add
-          </Link>
-        }
-      />
-      <div>
-        {!loading && items.length === 0 && (
-          <p style={{ margin: 0, fontSize: 10, color: COLOR.textMuted, padding: "8px 10px" }}>Nothing here.</p>
-        )}
-        {items.map((item) => {
-          const s = BREWING_STATUS_STYLE[item.status] ?? BREWING_STATUS_STYLE.Draft;
-          return (
-            <div
-              key={item.id}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderBottom: `1px solid ${COLOR.rowLine}` }}
-            >
-              <span style={{ width: 5, height: 5, borderRadius: "50%", background: BREWING_DOT[item.status] ?? COLOR.textMuted, flexShrink: 0 }} />
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 500,
-                  flex: 1,
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  color: COLOR.textPrimary,
-                }}
-              >
-                {item.name}
-              </span>
-              <span style={{ fontSize: 7, fontWeight: 500, padding: "1px 5px", borderRadius: 999, background: s.bg, color: s.text, flexShrink: 0 }}>
-                {item.status}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ flex: 1 }} />
-      <form onSubmit={quickAdd} style={{ display: "flex", gap: 4, padding: "4px 10px", borderTop: `1px solid ${COLOR.headerLine}` }}>
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="An idea still forming…"
-          style={{ flex: 1, minWidth: 0, fontSize: 9, padding: "3px 6px", borderRadius: 3, border: `1px solid ${COLOR.border}`, color: COLOR.textPrimary }}
-        />
-        <button type="submit" style={{ fontSize: 9, color: COLOR.purple, background: "none", border: "none", cursor: "pointer" }}>
-          Add
-        </button>
-      </form>
-    </div>
-  );
-}
+  const weekLabel = `Weekly plan — ${weekDays[0].getDate()} ${MONTHS[weekDays[0].getMonth()]} to ${weekDays[4].getDate()} ${
+    MONTHS[weekDays[4].getMonth()]
+  }`;
 
-function GrowthLayerZone() {
-  return (
-    <section>
-      <SectionLabel tone="purple">Growth</SectionLabel>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, alignItems: "start" }}>
-        <CrosshairsCard />
-        <BacklogCard />
-        <BrewingCard />
-      </div>
-    </section>
-  );
-}
+  /* --------------------------- Month calendar --------------------------- */
+  const manilaToday = getManilaDate();
+  const todayStr = isoDate(manilaToday);
+  const [calCursor, setCalCursor] = useState({ year: manilaToday.getFullYear(), month: manilaToday.getMonth() });
+  const [calDots, setCalDots] = useState({});
 
-/* =========================================================================
-   ZONE 5 — MONTH CALENDAR
-   ========================================================================= */
-const LEGEND = [
-  { label: "RFQ", color: COLOR.amber },
-  { label: "Delivery", color: COLOR.green },
-  { label: "Invoice", color: COLOR.blue },
-  { label: "Meeting", color: COLOR.purple },
-];
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const monthStart = new Date(calCursor.year, calCursor.month, 1);
+      const monthEnd = new Date(calCursor.year, calCursor.month + 1, 0);
+      const startISO = isoDate(monthStart);
+      const endISO = isoDate(monthEnd);
+      const dots = {};
+      const add = (dateStr, color) => {
+        if (!dateStr) return;
+        (dots[dateStr] ??= []).push(color);
+      };
 
-function MonthCalendarZone({ todayISO, manila }) {
-  const [cursor, setCursor] = useState({ year: manila.year, month: manila.month });
-  const { eventsByDate } = useMonthEvents(cursor.year, cursor.month);
+      const [rfqs, deliveries, invoices] = await Promise.all([
+        supabase.from("rfqs").select("closing_date").gte("closing_date", startISO).lte("closing_date", endISO),
+        supabase.from("deliveries").select("delivery_date").gte("delivery_date", startISO).lte("delivery_date", endISO),
+        supabase.from("invoices").select("due_date").gte("due_date", startISO).lte("due_date", endISO),
+      ]);
+      (rfqs.data ?? []).forEach((r) => add(r.closing_date, "amber"));
+      (deliveries.data ?? []).forEach((d) => add(d.delivery_date, "green"));
+      (invoices.data ?? []).forEach((i) => add(i.due_date, "blue"));
 
-  const firstOfMonth = new Date(cursor.year, cursor.month, 1);
-  const firstWeekday = (firstOfMonth.getDay() + 6) % 7; // Monday = 0
-  const totalDays = daysInMonth(cursor.year, cursor.month);
+      if (isGoogleCalendarConfigured()) {
+        const { events } = await listEvents({
+          timeMin: new Date(`${startISO}T00:00:00`),
+          timeMax: new Date(`${endISO}T23:59:59`),
+        });
+        events.forEach((ev) => ev.start && add(isoDate(ev.start), "purple"));
+      }
 
-  const cells = [];
-  for (let i = 0; i < firstWeekday; i++) cells.push(null);
-  for (let d = 1; d <= totalDays; d++) cells.push(d);
+      if (!cancelled) setCalDots(dots);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [calCursor]);
 
   function shiftMonth(delta) {
-    setCursor(({ year, month }) => {
+    setCalCursor(({ year, month }) => {
       const next = new Date(year, month + delta, 1);
       return { year: next.getFullYear(), month: next.getMonth() };
     });
   }
+  const calMonthLabel = new Date(calCursor.year, calCursor.month, 1).toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+  const calFirstWeekday = new Date(calCursor.year, calCursor.month, 1).getDay();
+  const calDaysInMonth = new Date(calCursor.year, calCursor.month + 1, 0).getDate();
 
-  const monthLabel = firstOfMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  /* --------------------------- Drag & drop plumbing --------------------------- */
+  function dragMitStart(e, label) {
+    e.dataTransfer.setData("text", label);
+    e.dataTransfer.setData("source", "mit");
+  }
+  function dragHitlistStart(e, label) {
+    e.dataTransfer.setData("text", label);
+    e.dataTransfer.setData("source", "hitlist");
+  }
+
+  function onMitDrop(e) {
+    e.preventDefault();
+    const label = e.dataTransfer.getData("text");
+    const source = e.dataTransfer.getData("source");
+    if (source === "hitlist" && label && mits.length < 3 && !mits.includes(label)) {
+      persistMits([...mits, label]);
+      setHiddenHitlistKeys((prev) => new Set(prev)); // hitlist item stays visible — reference doesn't remove it either
+      setHitlistOverlay((prev) => prev.filter((h) => h.label !== label));
+    }
+  }
+
+  function onTimeBlocksDrop(e) {
+    e.preventDefault();
+    const label = e.dataTransfer.getData("text");
+    const source = e.dataTransfer.getData("source");
+    if (!label) return;
+    if (source === "mit") {
+      const idx = mits.indexOf(label);
+      if (idx > -1) persistMits(mits.filter((_, i) => i !== idx));
+    }
+    addTimeBlock(nextHalfHourManila(), label);
+  }
+
+  function onHitlistDrop(e) {
+    e.preventDefault();
+    const label = e.dataTransfer.getData("text");
+    const source = e.dataTransfer.getData("source");
+    if (source === "mit" && label) {
+      const idx = mits.indexOf(label);
+      if (idx > -1) demoteMitToHitlist(label, idx);
+    }
+  }
+
+  /* --------------------------- Morning ritual --------------------------- */
+  const [ritualDismissed, setRitualDismissed] = useState(false);
+  const showRitual = !isComplete && !ritualDismissed;
+  const [mmStep, setMmStep] = useState(1); // 1..5, then "done"
+  const [chip, setChip] = useState(null);
+  const [energyIdx, setEnergyIdx] = useState(null);
+  const [gratitude, setGratitude] = useState("");
+  const [hottestTarget, setHottestTarget] = useState(null);
+  const [seoOkr, setSeoOkr] = useState(null);
+
+  useEffect(() => {
+    if (!showRitual) return;
+    fetchTargets()
+      .then((rows) => setHottestTarget(rows.find((t) => t.priority === "Hot") ?? rows[0] ?? null))
+      .catch(() => {});
+    fetchOkrs()
+      .then((rows) => setSeoOkr(rows.find((o) => o.objective?.toLowerCase().includes("seo")) ?? null))
+      .catch(() => {});
+  }, [showRitual]);
+
+  function nextStep() {
+    if (mmStep === 5) {
+      setMmStep("done");
+      return;
+    }
+    setMmStep((s) => s + 1);
+  }
+  async function unlockMorning() {
+    try {
+      await submit({
+        energyLevel: energyIdx === null ? null : energyIdx + 1,
+        feeling: chip,
+        gratitude,
+        mits,
+      });
+    } catch {
+      // best-effort — the ritual still closes for this session either way
+    }
+    setRitualDismissed(true);
+  }
+  function skipMorning() {
+    setRitualDismissed(true);
+  }
+
+  const seoPct = seoOkr?.target_number ? Math.round((Number(seoOkr.current_count) / Number(seoOkr.target_number)) * 100) : 0;
 
   return (
-    <section>
-      <SectionLabel tone="blue">Overview</SectionLabel>
-      <div style={cardStyle({ padding: "7px 10px" })}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 6 }}>
-          <button
-            onClick={() => shiftMonth(-1)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: COLOR.textSecondary, display: "flex" }}
-          >
-            <ChevronLeftIcon style={{ width: 12, height: 12 }} />
-          </button>
-          <span style={{ fontSize: 10, fontWeight: 500, color: COLOR.textPrimary, width: 120, textAlign: "center" }}>
-            {monthLabel}
-          </span>
-          <button
-            onClick={() => shiftMonth(1)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: COLOR.textSecondary, display: "flex", transform: "rotate(180deg)" }}
-          >
-            <ChevronLeftIcon style={{ width: 12, height: 12 }} />
-          </button>
+    <div className="shell">
+      {showRitual && (
+        <div className="morning-overlay">
+          <div className="morning-modal">
+            <div className="mm-head">
+              <div className="mm-icon">🌅</div>
+              <div className="mm-title">Good morning, Khalil.</div>
+              <div className="mm-sub">3-minute ritual. Own your day.</div>
+            </div>
+            <div className="mm-body">
+              {mmStep === 1 && (
+                <div className="mm-step active">
+                  <div className="mm-step-label">
+                    <span>1</span> Name how you feel right now
+                  </div>
+                  <div className="mm-chips">
+                    {["Focused", "Motivated", "Anxious", "Tired", "Calm", "Scattered", "Confident", "Heavy", "Energised", "Grateful"].map(
+                      (c) => (
+                        <span
+                          key={c}
+                          className={`mm-chip${chip === c ? " sel" : ""}`}
+                          onClick={() => setChip(c)}
+                        >
+                          {c}
+                        </span>
+                      )
+                    )}
+                  </div>
+                  <div className="mm-note">
+                    Naming your emotional state reduces amygdala activation and improves focus. Takes 5 seconds.
+                  </div>
+                </div>
+              )}
+              {mmStep === 2 && (
+                <div className="mm-step active">
+                  <div className="mm-step-label">
+                    <span>2</span> Energy level today
+                  </div>
+                  <div className="mm-energy">
+                    {[
+                      ["😔", "Low"],
+                      ["😐", "Meh"],
+                      ["🙂", "Good"],
+                      ["😊", "Great"],
+                      ["⚡", "On fire"],
+                    ].map(([emoji, label], i) => (
+                      <div
+                        key={label}
+                        className={`mm-e-btn${energyIdx === i ? " sel" : ""}`}
+                        onClick={() => setEnergyIdx(i)}
+                      >
+                        <span className="mm-e-emoji">{emoji}</span>
+                        <span className="mm-e-label">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mm-note" style={{ marginTop: 8 }}>
+                    High energy: schedule deep work early. Low energy: start with admin. Honest self-assessment doubles
+                    follow-through.
+                  </div>
+                </div>
+              )}
+              {mmStep === 3 && (
+                <div className="mm-step active">
+                  <div className="mm-step-label">
+                    <span>3</span> One thing you are grateful for
+                  </div>
+                  <textarea
+                    className="mm-textarea"
+                    rows={3}
+                    placeholder="e.g. Good sleep last night. Eloissa's support. The PGPC relationship."
+                    value={gratitude}
+                    onChange={(e) => setGratitude(e.target.value)}
+                  />
+                  <div className="mm-note" style={{ marginTop: 6 }}>
+                    Gratitude reduces cortisol by up to 23% and primes the brain's reward circuits. Takes 20 seconds.
+                  </div>
+                </div>
+              )}
+              {mmStep === 4 && (
+                <div className="mm-step active">
+                  <div className="mm-step-label">
+                    <span>4</span> Today's intention
+                  </div>
+                  <div className="mm-intention">
+                    <strong>I will complete:</strong> MIT 1 — PGPC-081 quotation
+                    <br />
+                    <strong>I will start at:</strong> 9:00 AM at my desk
+                    <br />
+                    <strong>If distracted, I will:</strong> close all tabs and return to Mission Control
+                  </div>
+                  <div className="mm-note" style={{ marginTop: 6 }}>
+                    "I will do X at time Y in place Z" doubles follow-through vs. goal-setting alone. Pre-filled from
+                    last night's MITs.
+                  </div>
+                </div>
+              )}
+              {mmStep === 5 && (
+                <div className="mm-step active">
+                  <div className="mm-step-label">
+                    <span>5</span> What matters most this week
+                  </div>
+                  <div className="mm-prime">
+                    <div className="mm-prime-card">
+                      <div className="mm-prime-label">Crosshairs — today's target</div>
+                      <div className="mm-prime-val">{hottestTarget?.target_name ?? "No targets yet"}</div>
+                      {hottestTarget && (
+                        <div className="mm-prime-sub">
+                          {hottestTarget.priority}
+                          {hottestTarget.last_touchpoint_date
+                            ? ` · Last contact ${Math.max(
+                                0,
+                                Math.round((Date.now() - new Date(hottestTarget.last_touchpoint_date)) / 86400000)
+                              )} days ago`
+                            : " · No touchpoints logged yet"}
+                        </div>
+                      )}
+                    </div>
+                    <div className="mm-prime-card">
+                      <div className="mm-prime-label">OKR — SEO articles</div>
+                      <div className="mm-prime-val">
+                        {seoOkr ? `${seoOkr.current_count} of ${seoOkr.target_number} ${seoOkr.unit_label ?? ""}` : "No matching OKR yet"}
+                      </div>
+                      {seoOkr && (
+                        <>
+                          <div className="mm-prime-sub">
+                            {seoPct}% · {Math.max(0, seoOkr.target_number - seoOkr.current_count)} {seoOkr.unit_label} remaining
+                          </div>
+                          <div className="mm-bar-bg">
+                            <div className="mm-bar-fill" style={{ width: `${seoPct}%` }} />
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mm-note" style={{ marginTop: 6 }}>
+                    Visual priming makes you 3× more likely to act on a target today. Read it. Don't skip this step.
+                  </div>
+                </div>
+              )}
+              {mmStep === "done" && (
+                <div className="mm-step active">
+                  <div className="mm-done">
+                    <div className="mm-done-icon">✅</div>
+                    <div className="mm-done-title">You are ready, Khalil.</div>
+                    <div className="mm-done-sub">
+                      Ritual complete. Mind primed, intention set.
+                      <br />
+                      Go execute.
+                    </div>
+                    <button className="mm-unlock" onClick={unlockMorning}>
+                      Unlock Mission Control
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            {mmStep !== "done" && (
+              <div className="mm-foot">
+                <div className="mm-dots">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className={`mm-dot${i <= mmStep ? " on" : ""}`} />
+                  ))}
+                </div>
+                <button className="mm-skip" onClick={skipMorning}>
+                  Skip for now
+                </button>
+                <button className="mm-next" onClick={nextStep}>
+                  Continue →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* SIDEBAR */}
+      <div className="sb">
+        <div className="sb-head">
+          <div className="sb-logo">
+            <div className="sb-icon">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9" />
+                <line x1="12" y1="3" x2="12" y2="21" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </div>
+            <div className="sb-app">Mission Control</div>
+          </div>
+          <div className="sb-co">Ultra Power</div>
+          <div className="sb-role">Engineering Solutions Director</div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((w) => (
-            <div key={w} style={{ textAlign: "center", fontSize: 6, textTransform: "uppercase", color: COLOR.textMuted, paddingBottom: 3 }}>
-              {w}
-            </div>
-          ))}
+        <div className="sbi ab" onClick={() => navigate("/")}>
+          <svg viewBox="0 0 24 24">
+            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+          </svg>
+          Home
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 2 }}>
-          {cells.map((day, idx) => {
-            if (day === null) return <div key={`e-${idx}`} />;
-            const iso = isoOf(cursor.year, cursor.month, day);
-            const isToday = iso === todayISO;
-            const events = eventsByDate[iso] ?? [];
-            return (
-              <div key={iso} style={{ textAlign: "center", padding: "3px 0" }}>
-                {isToday ? (
+        <div className="sb-sec">Operations</div>
+        <div className="sbi" onClick={() => navigate("/pipeline")}>
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="18" />
+            <rect x="14" y="3" width="7" height="10" />
+          </svg>
+          Pipeline
+        </div>
+        <div className="sbi" onClick={() => navigate("/intake")}>
+          <svg viewBox="0 0 24 24">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+          Intake
+        </div>
+        <div className="sbi" onClick={() => navigate("/sourcing")}>
+          <svg viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          Sourcing
+        </div>
+        <div className="sbi" onClick={() => navigate("/quote-builder")}>
+          <svg viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+          </svg>
+          Quote Builder
+        </div>
+        <div className="sbi" onClick={() => navigate("/ledger")}>
+          <svg viewBox="0 0 24 24">
+            <line x1="12" y1="1" x2="12" y2="23" />
+            <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+          </svg>
+          Ledger
+        </div>
+        <div className="sb-sec">Growth</div>
+        <div className="sbi" onClick={() => navigate("/crosshairs")}>
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          Crosshairs
+        </div>
+        <div className="sbi" onClick={() => navigate("/wins")}>
+          <svg viewBox="0 0 24 24">
+            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
+          </svg>
+          Wins
+        </div>
+        <div className="sbi" onClick={() => navigate("/okrs")}>
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" />
+            <polyline points="12 6 12 12 16 14" />
+          </svg>
+          OKRs
+        </div>
+        <div className="sbi" onClick={() => navigate("/brewing")}>
+          <svg viewBox="0 0 24 24">
+            <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z" />
+          </svg>
+          Brewing
+        </div>
+        <div className="sbi" onClick={() => navigate("/content")}>
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          Content
+        </div>
+        <div className="sbi" onClick={() => navigate("/seo")}>
+          <svg viewBox="0 0 24 24">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+          SEO
+        </div>
+        <div className="sb-sec">Workspace</div>
+        <div className="sbi" onClick={() => navigate("/contacts")}>
+          <svg viewBox="0 0 24 24">
+            <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+          </svg>
+          Contacts
+        </div>
+        <div className="sbi" onClick={() => navigate("/learning-hub")}>
+          <svg viewBox="0 0 24 24">
+            <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
+            <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
+          </svg>
+          Learning Hub
+        </div>
+        <div className="sbi" onClick={() => navigate("/settings")}>
+          <svg viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.07 4.93l-1.41 1.41M5.34 17.66l-1.41 1.41M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 18.66l1.41 1.41M2 12h2M20 12h2" />
+          </svg>
+          Settings
+        </div>
+        <div className="sb-foot">
+          <div className="sb-user">
+            <svg style={{ width: 11, height: 11, stroke: "currentColor", fill: "none", strokeWidth: 2 }} viewBox="0 0 24 24">
+              <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+              <circle cx="12" cy="7" r="4" />
+            </svg>
+            {user?.email === "khalil@ultrapowerindustrialinc.com" ? "Khalil J. Banares" : user?.email ?? "—"}
+          </div>
+          <div className="sb-ci">
+            <div className="ci-dot" style={{ background: isComplete ? "var(--green)" : "var(--t4)" }} />
+            <span style={{ fontSize: 8, color: isComplete ? "var(--green)" : "var(--t3)" }}>
+              {isComplete ? "Ritual done" : "Ritual pending"}
+            </span>
+          </div>
+          <button
+            onClick={signOut}
+            style={{ marginTop: 4, fontSize: 8, color: "var(--t3)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+
+      {/* MAIN */}
+      <div className="main">
+        <div className="topbar">
+          <div className="tb-l">
+            <div className="tb-title">Good morning, Khalil.</div>
+            <div className="tb-brief">
+              <svg viewBox="0 0 24 24">
+                <path d="M12 2a5 5 0 015 5c0 3.5-5 13-5 13S7 10.5 7 7a5 5 0 015-5z" />
+              </svg>
+              3 RFQs unanswered · PGPC-081 closes today.
+            </div>
+          </div>
+          <div className="tb-r">
+            <div className="pill">On Full Send</div>
+            <button className="btn-s" onClick={() => window.location.reload()}>
+              Sync
+            </button>
+            <button className="btn-p" onClick={() => navigate("/intake")}>
+              + New RFQ
+            </button>
+          </div>
+        </div>
+
+        <div className="page">
+          {/* ZONE 1: BUSINESS PULSE */}
+          <div>
+            <div className="zlbl">Business pulse</div>
+            <div className="pulse">
+              <div className="stat" style={{ borderTop: "2px solid var(--blue)" }} onClick={() => navigate("/pipeline")}>
+                <div className="stat-lbl">RFQs unanswered</div>
+                <div className="stat-n" style={{ color: pulse.rfqs > 0 ? "var(--red)" : "var(--t1)" }}>
+                  {pulse.rfqs ?? "—"}
+                </div>
+                <div className="stat-lnk">↗ Pipeline</div>
+              </div>
+              <div className="stat" style={{ borderTop: "2px solid var(--blue)" }} onClick={() => navigate("/pipeline")}>
+                <div className="stat-lbl">POs undelivered</div>
+                <div className="stat-n" style={{ color: pulse.pos > 0 ? "var(--orange)" : "var(--t1)" }}>
+                  {pulse.pos ?? "—"}
+                </div>
+                <div className="stat-lnk">↗ Pipeline</div>
+              </div>
+              <div className="stat" style={{ borderTop: "2px solid var(--amber)" }} onClick={() => navigate("/ledger")}>
+                <div className="stat-lbl">Pending payment</div>
+                <div className="stat-n" style={{ color: "var(--amber)" }}>
+                  {pulse.pending === null ? "—" : formatPhp(pulse.pending)}
+                </div>
+                <div className="stat-lnk am">↗ Ledger</div>
+              </div>
+              <div className="stat" style={{ borderTop: "2px solid var(--green)" }} onClick={() => navigate("/wins")}>
+                <div className="stat-lbl">Completed this year</div>
+                <div className="stat-n" style={{ color: "var(--green)" }}>
+                  {pulse.completed ?? "—"}
+                </div>
+                <div className="stat-lnk gr">↗ History</div>
+              </div>
+            </div>
+          </div>
+
+          {/* ZONE 2: WEEKLY PLAN */}
+          <div>
+            <div className="zlbl">{weekLabel}</div>
+            {calendarError && (
+              <p style={{ fontSize: 9, color: "var(--orange)", marginBottom: 4 }}>{calendarError}</p>
+            )}
+            <div className="card">
+              <div className="week-grid">
+                {weekDays.map((d) => {
+                  const iso = isoDate(d);
+                  const isToday = iso === todayStr;
+                  const evs = mergedEventsFor(iso);
+                  return (
+                    <div
+                      key={iso}
+                      className="wday"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.add("drag-over-day");
+                      }}
+                      onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-day")}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        e.currentTarget.classList.remove("drag-over-day");
+                        dropOnDay(iso, e.dataTransfer.getData("text"));
+                      }}
+                    >
+                      <div className="wd-n">{DAYNAMES[d.getDay()]}</div>
+                      {isToday ? <div className="wd-tod">{d.getDate()}</div> : <div className="wd-d">{d.getDate()}</div>}
+                      {evs.length > 0 ? (
+                        evs.map((ev, i) => (
+                          <div key={i} className={`ev ${EVENT_CLASS[ev.t]}`}>
+                            {ev.l}
+                          </div>
+                        ))
+                      ) : (
+                        <>
+                          <div className="ev-emp" />
+                          <div className="ev-emp" />
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* NEW TASK BAR */}
+          <div className="new-task-bar">
+            <span style={{ fontSize: 11, fontWeight: 500, color: "var(--t2)", whiteSpace: "nowrap" }}>+ New task</span>
+            <input
+              type="text"
+              placeholder="What needs to get done? Enter adds to MITs (or Hitlist if full)…"
+              maxLength={100}
+              value={newTask}
+              onChange={(e) => setNewTask(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addNewTask();
+              }}
+            />
+            <span className="nt-hint">Drag to Hitlist ↓</span>
+            <button className="nt-btn" onClick={addNewTask}>
+              Add
+            </button>
+          </div>
+
+          {/* ZONE 3: FOCUS ENGINE */}
+          <div>
+            <div className="zlbl">Focus engine</div>
+            <div className="focus-grid">
+              <div className="focus-left">
+                {/* MITs */}
+                <div className="card">
+                  <div className="ch">
+                    <span className="ch-t">
+                      <svg viewBox="0 0 24 24">
+                        <line x1="8" y1="6" x2="21" y2="6" />
+                        <line x1="8" y1="12" x2="21" y2="12" />
+                        <line x1="8" y1="18" x2="21" y2="18" />
+                      </svg>
+                      MITs today <span style={{ color: "var(--t3)", fontWeight: 400 }}>({mits.length}/3)</span>
+                    </span>
+                    <span className="ch-a" style={{ fontSize: 8, color: "var(--t3)" }}>
+                      drag to schedule →
+                    </span>
+                  </div>
                   <div
-                    style={{
-                      width: 18,
-                      height: 18,
-                      borderRadius: "50%",
-                      background: COLOR.blue,
-                      color: "#fff",
-                      fontSize: 8,
-                      fontWeight: 500,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      margin: "0 auto",
+                    className="mit-drop"
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.currentTarget.classList.add("drag-over-list");
+                    }}
+                    onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-list")}
+                    onDrop={(e) => {
+                      e.currentTarget.classList.remove("drag-over-list");
+                      onMitDrop(e);
                     }}
                   >
-                    {day}
+                    {mits.length === 0 && <div className="mit-empty">No MITs yet. Use + New task above.</div>}
+                    {mits.map((m, i) => (
+                      <div key={i} className="mit-row" draggable onDragStart={(e) => dragMitStart(e, m)}>
+                        <div className="mit-n">{i + 1}</div>
+                        <div className="mit-t">{m}</div>
+                        <button className="mit-del" onClick={() => removeMIT(i)}>
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mit-foot">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M12 2a5 5 0 015 5c0 3.5-5 13-5 13S7 10.5 7 7a5 5 0 015-5z" />
+                    </svg>
+                    Drag MITs onto Time Blocks or the Weekly Plan to schedule them
+                  </div>
+                </div>
+
+                {/* Learning Hub */}
+                <div className="card">
+                  <div className="ch">
+                    <span className="ch-t">
+                      <svg viewBox="0 0 24 24">
+                        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
+                        <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
+                      </svg>
+                      Learning Hub
+                    </span>
+                    <span className="ch-a" onClick={() => navigate("/learning-hub")}>
+                      Continue
+                    </span>
+                  </div>
+                  <div className="hub-body">
+                    {topicLoading ? (
+                      <p style={{ fontSize: 10, color: "var(--t3)" }}>Loading…</p>
+                    ) : !topic ? (
+                      <p style={{ fontSize: 10, color: "var(--t3)" }}>No topics yet.</p>
+                    ) : topicDoneToday ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)", flexShrink: 0 }} />
+                        <span className="hub-title" style={{ marginBottom: 0 }}>
+                          {topic.title}
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="hub-title">{topic.title}</div>
+                        {topic.description && <div className="hub-quote">"{topic.description}"</div>}
+                        <div className="hub-bar-bg">
+                          <div className="hub-bar" style={{ width: `${topic.progress_percent ?? 0}%` }} />
+                        </div>
+                        <div className="hub-streak">🔥 {topic.current_streak ?? 0}-day streak</div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Time Blocks + Pomodoro + Shutdown */}
+              <div className="card" style={{ display: "flex", flexDirection: "column" }}>
+                <div className="ch">
+                  <span className="ch-t">
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 16 14" />
+                    </svg>
+                    Time blocks
+                  </span>
+                  <span className="ch-a">+ Add</span>
+                </div>
+                <div
+                  className="tb-area"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add("drag-over-list");
+                  }}
+                  onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-list")}
+                  onDrop={(e) => {
+                    e.currentTarget.classList.remove("drag-over-list");
+                    onTimeBlocksDrop(e);
+                  }}
+                >
+                  {blocks.length === 0 ? (
+                    <div className="tb-emp">Drop MITs or backlog tasks here, or use + Add below.</div>
+                  ) : (
+                    blocks.map((b, i) => {
+                      const now = getManilaDate();
+                      const nowMin = now.getHours() * 60 + now.getMinutes();
+                      const [h, m] = b.time.split(":").map(Number);
+                      const active = Math.abs(h * 60 + m - nowMin) < 60;
+                      return (
+                        <div key={i} className={`tb-row${active ? " act" : ""}`}>
+                          <span className="tb-tm">{b.time}</span>
+                          <span className="tb-nm">{b.label}</span>
+                          {active && <span className="tb-now">Now</span>}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+                <div className="tb-add">
+                  <input type="time" value={tbTime} onChange={(e) => setTbTime(e.target.value)} />
+                  <input
+                    type="text"
+                    placeholder="Block label…"
+                    value={tbLabel}
+                    onChange={(e) => setTbLabel(e.target.value)}
+                  />
+                  <button
+                    onClick={() => {
+                      addTimeBlock(tbTime, tbLabel.trim());
+                      setTbLabel("");
+                    }}
+                  >
+                    Add
+                  </button>
+                </div>
+
+                {/* Pomodoro */}
+                <div className="pom">
+                  <div className="pom-ring-wrap">
+                    <svg className="pom-ring-svg" viewBox="0 0 36 36">
+                      <circle className="pom-ring-bg" cx="18" cy="18" r="15.9" />
+                      <circle
+                        className="pom-ring-fg"
+                        cx="18"
+                        cy="18"
+                        r="15.9"
+                        strokeDasharray={`${pomCirc} ${pomCirc}`}
+                        strokeDashoffset={pomCirc - pomPct}
+                      />
+                    </svg>
+                    <div className="pom-time">
+                      {pomMin}:{pomSec}
+                    </div>
+                  </div>
+                  <div className="pom-info">
+                    <div className="pom-label">Pomodoro — Focus</div>
+                    <div className="pom-sub">{mits[0] ? `MIT 1 · ${mits[0]}` : "Select an MIT to link"}</div>
+                  </div>
+                  <div className="pom-btns">
+                    <button className={`pom-btn${pomRunning ? "" : " go"}`} onClick={togglePom}>
+                      {pomRunning ? "Pause" : "Start"}
+                    </button>
+                    <button className="pom-btn" onClick={resetPom}>
+                      Reset
+                    </button>
+                    <button className="pom-music" onClick={openLofi} title="Play Lofi music">
+                      🎵 Lofi
+                    </button>
+                  </div>
+                </div>
+
+                {/* Shutdown */}
+                {shutDone < 5 ? (
+                  <div className="shut">
+                    <div className="shut-hdr">
+                      Shutdown Ritual<span className="shut-count">{shutDone}/5</span>
+                    </div>
+                    {SHUT_ITEMS.map((item) => (
+                      <label key={item} className="shut-item">
+                        <input type="checkbox" checked={!!shutChecked[item]} onChange={() => toggleShut(item)} /> {item}
+                      </label>
+                    ))}
                   </div>
                 ) : (
-                  <span style={{ fontSize: 8, color: COLOR.textPrimary }}>{day}</span>
+                  <div className="shut-done" style={{ display: "block" }}>
+                    <div className="shut-done-text">🎉 Success! Enjoy the rest of your day, Khalil.</div>
+                    <div className="shut-done-sub">All checks complete. Work is closed.</div>
+                  </div>
                 )}
-                <div style={{ display: "flex", justifyContent: "center", gap: 1, marginTop: 2, height: 3 }}>
-                  {events.slice(0, 3).map((ev, i) => (
-                    <span
-                      key={i}
-                      title={ev.label}
-                      style={{ width: 3, height: 3, borderRadius: "50%", background: DOT_SOLID[ev.variant] ?? COLOR.blue }}
-                    />
+              </div>
+            </div>
+          </div>
+
+          {/* ZONE 4: GROWTH LAYER */}
+          <div>
+            <div className="zlbl pur">Pursuits, hitlist and brewing</div>
+            <div className="growth">
+              <div className="card">
+                <div className="ch">
+                  <span className="ch-t" style={{ color: "var(--purple)" }}>
+                    <svg viewBox="0 0 24 24">
+                      <circle cx="12" cy="12" r="10" />
+                      <circle cx="12" cy="12" r="3" />
+                      <line x1="12" y1="2" x2="12" y2="5" />
+                      <line x1="12" y1="19" x2="12" y2="22" />
+                      <line x1="2" y1="12" x2="5" y2="12" />
+                      <line x1="19" y1="12" x2="22" y2="12" />
+                    </svg>
+                    Crosshairs
+                  </span>
+                  <span className="ch-a pur" onClick={() => navigate("/crosshairs")}>
+                    + Add
+                  </span>
+                </div>
+                {crosshairs.length === 0 && <div style={{ padding: 10, fontSize: 10, color: "var(--t3)" }}>No targets yet.</div>}
+                {crosshairs.slice(0, 5).map((t) => (
+                  <div key={t.id} className="xh-row" onClick={() => navigate("/crosshairs")}>
+                    <div className="xh-dot" style={{ background: PRIORITY_DOT[t.priority] }} />
+                    <div className="xh-n">{t.target_name}</div>
+                    <span className={`bdg ${PRIORITY_BADGE[t.priority]}`}>{PRIORITY_LABEL[t.priority]}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Hitlist */}
+              <div className="card">
+                <div className="ch">
+                  <span className="ch-t">
+                    <svg viewBox="0 0 24 24">
+                      <line x1="8" y1="6" x2="21" y2="6" />
+                      <line x1="8" y1="12" x2="21" y2="12" />
+                      <line x1="8" y1="18" x2="21" y2="18" />
+                    </svg>
+                    Hitlist
+                  </span>
+                  <span className="bdg bdg-r" style={{ marginRight: 4 }}>
+                    {staleCount} stale
+                  </span>
+                  <a
+                    className="ch-a"
+                    href={`https://app.clickup.com/${CLICKUP_WORKSPACE_ID}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ textDecoration: "none" }}
+                  >
+                    ClickUp ↗
+                  </a>
+                </div>
+                <div
+                  className="bl-area"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add("drag-over-list");
+                  }}
+                  onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-list")}
+                  onDrop={(e) => {
+                    e.currentTarget.classList.remove("drag-over-list");
+                    onHitlistDrop(e);
+                  }}
+                >
+                  {hitlist.length === 0 && <div style={{ padding: 10, fontSize: 10, color: "var(--t3)" }}>No open tasks.</div>}
+                  {hitlist.map((t) => (
+                    <div key={t.key} className="bl-row" draggable onDragStart={(e) => dragHitlistStart(e, t.label)}>
+                      <div className="bl-dot" style={{ background: t.stale ? "var(--red)" : t.age > 7 ? "var(--orange)" : "var(--t4)" }} />
+                      <div className="bl-n">{t.label}</div>
+                      <span className="bl-age" style={{ color: t.stale ? "var(--red)" : t.age > 7 ? "var(--orange)" : "var(--t3)" }}>
+                        {t.age}d
+                      </span>
+                    </div>
                   ))}
                 </div>
               </div>
-            );
-          })}
-        </div>
 
-        <div style={{ display: "flex", gap: 10, marginTop: 6, paddingTop: 5, borderTop: `1px solid ${COLOR.headerLine}` }}>
-          {LEGEND.map((l) => (
-            <span key={l.label} style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 7, color: COLOR.textSecondary }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: l.color }} />
-              {l.label}
-            </span>
-          ))}
+              {/* Brewing */}
+              <div className="card">
+                <div className="ch">
+                  <span className="ch-t" style={{ color: "var(--purple)" }}>
+                    <svg viewBox="0 0 24 24">
+                      <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z" />
+                    </svg>
+                    Brewing
+                  </span>
+                  <span className="ch-a pur" onClick={() => navigate("/brewing")}>
+                    + Add
+                  </span>
+                </div>
+                {brewing.length === 0 && <div style={{ padding: 10, fontSize: 10, color: "var(--t3)" }}>Nothing here.</div>}
+                {brewing.map((item) => (
+                  <div key={item.id} className="br-row">
+                    <div className="br-dot" style={{ background: BREWING_DOT[item.status] ?? "var(--t4)" }} />
+                    <div className="br-n">{item.name}</div>
+                    <span className={`bdg ${BREWING_BADGE[item.status] ?? "bdg-gr"}`}>{item.status}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* ZONE 5: MONTH CALENDAR */}
+          <div>
+            <div className="zlbl">{calMonthLabel}</div>
+            <div className="card">
+              <div className="cal-wrap">
+                <div className="cal-hdr">
+                  <button className="cal-nav" onClick={() => shiftMonth(-1)}>
+                    ← {MONTHS[(calCursor.month + 11) % 12]}
+                  </button>
+                  <span className="cal-month">{calMonthLabel}</span>
+                  <button className="cal-nav" onClick={() => shiftMonth(1)}>
+                    {MONTHS[(calCursor.month + 1) % 12]} →
+                  </button>
+                </div>
+                <div className="cal-grid">
+                  {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                    <div key={d} className="cal-dow">
+                      {d}
+                    </div>
+                  ))}
+                  {Array.from({ length: calFirstWeekday }, (_, i) => (
+                    <div key={`e-${i}`} className="cal-d emp" />
+                  ))}
+                  {Array.from({ length: calDaysInMonth }, (_, i) => i + 1).map((d) => {
+                    const ds = `${calCursor.year}-${String(calCursor.month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                    const isToday = ds === todayStr;
+                    const dots = calDots[ds];
+                    return (
+                      <div key={ds} className={`cal-d${isToday ? " today" : ""}`}>
+                        {d}
+                        {dots &&
+                          !isToday &&
+                          dots.map((c, i) => <div key={i} className="cdot" style={{ background: `var(--${c})` }} />)}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="cal-leg">
+                  <div className="leg">
+                    <div className="leg-d" style={{ background: "var(--amber)" }} />
+                    RFQ closes
+                  </div>
+                  <div className="leg">
+                    <div className="leg-d" style={{ background: "var(--green)" }} />
+                    Delivery
+                  </div>
+                  <div className="leg">
+                    <div className="leg-d" style={{ background: "var(--blue)" }} />
+                    Invoice due
+                  </div>
+                  <div className="leg">
+                    <div className="leg-d" style={{ background: "var(--purple)" }} />
+                    Meetings
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </section>
+    </div>
   );
+}
+
+const PRIORITY_DOT = { Hot: "var(--red)", Medium: "var(--orange)", Low: "var(--t4)", Nurturing: "var(--t4)" };
+const PRIORITY_BADGE = { Hot: "bdg-r", Medium: "bdg-a", Low: "bdg-gr", Nurturing: "bdg-gr" };
+const PRIORITY_LABEL = { Hot: "Hot", Medium: "Med", Low: "Low", Nurturing: "Low" };
+const BREWING_DOT = {
+  Active: "var(--blue)",
+  Planning: "var(--purple)",
+  Draft: "var(--t3)",
+  Scheduled: "var(--green)",
+  Idea: "var(--t4)",
+};
+const BREWING_BADGE = { Active: "bdg-b", Planning: "bdg-p", Draft: "bdg-gr", Scheduled: "bdg-g", Idea: "bdg-gr" };
+
+const phpFmt = new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 });
+function formatPhp(amount) {
+  if (amount >= 1000) return `₱${Math.round(amount / 1000)}K`;
+  return phpFmt.format(amount);
+}
+
+async function getSystemsAreaId() {
+  try {
+    const { data, error } = await supabase.from("areas").select("id").eq("name", "Systems").maybeSingle();
+    if (error) throw error;
+    return data?.id ?? null;
+  } catch {
+    return null;
+  }
 }
