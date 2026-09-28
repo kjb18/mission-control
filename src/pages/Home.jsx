@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import homeCss from "./Home.css?raw";
 import { supabase } from "../lib/supabaseClient";
@@ -52,6 +52,38 @@ function getWeekDates() {
 
 const EVENT_CLASS = { rfq: "ev-rfq", del: "ev-del", mtg: "ev-mtg", adm: "ev-adm" };
 const POM_TOTAL = 25 * 60;
+
+// ---------------------------------------------------------------------------
+// Zone reorder — the five homepage zones can be dragged into any order.
+// The order is persisted to localStorage so it survives a reload.
+// ---------------------------------------------------------------------------
+const DEFAULT_ZONE_ORDER = ["pulse", "weekly", "focus", "growth", "calendar"];
+const ZONE_ORDER_KEY = "mc_zone_order";
+
+function loadZoneOrder() {
+  try {
+    const raw = localStorage.getItem(ZONE_ORDER_KEY);
+    if (!raw) return DEFAULT_ZONE_ORDER;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return DEFAULT_ZONE_ORDER;
+    const valid = parsed.filter((id) => DEFAULT_ZONE_ORDER.includes(id));
+    const missing = DEFAULT_ZONE_ORDER.filter((id) => !valid.includes(id));
+    return [...valid, ...missing];
+  } catch {
+    return DEFAULT_ZONE_ORDER;
+  }
+}
+
+const zoneHandle = (
+  <span className="zone-handle" aria-hidden="true">
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+    <span></span>
+  </span>
+);
 
 export default function Home() {
   return (
@@ -458,6 +490,512 @@ function HomeInner() {
 
   const seoPct = seoOkr?.target_number ? Math.round((Number(seoOkr.current_count) / Number(seoOkr.target_number)) * 100) : 0;
 
+  /* --------------------------- Zone reorder (drag & drop) --------------------------- */
+  const [zoneOrder, setZoneOrder] = useState(loadZoneOrder);
+  const [draggedZone, setDraggedZone] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+
+  function handleZoneDragStart(e, zoneId) {
+    setDraggedZone(zoneId);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", zoneId);
+  }
+  function handleZoneDragOver(e, index) {
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const before = e.clientY < rect.top + rect.height / 2;
+    setDragOverIndex(before ? index : index + 1);
+  }
+  function handleZoneDrop(e) {
+    e.preventDefault();
+    setZoneOrder((prev) => {
+      if (draggedZone == null || dragOverIndex == null) return prev;
+      const fromIndex = prev.indexOf(draggedZone);
+      if (fromIndex === -1) return prev;
+      const withoutDragged = prev.filter((id) => id !== draggedZone);
+      let insertAt = dragOverIndex;
+      if (fromIndex < dragOverIndex) insertAt -= 1;
+      const next = [...withoutDragged];
+      next.splice(insertAt, 0, draggedZone);
+      try {
+        localStorage.setItem(ZONE_ORDER_KEY, JSON.stringify(next));
+      } catch {
+        // best-effort persistence only
+      }
+      return next;
+    });
+    setDraggedZone(null);
+    setDragOverIndex(null);
+  }
+  function handleZoneDragEnd() {
+    setDraggedZone(null);
+    setDragOverIndex(null);
+  }
+
+  const zoneContent = {
+    pulse: (
+      <>
+        <div className="zlbl">
+          {zoneHandle}
+          Business pulse
+        </div>
+        <div className="pulse">
+          <div className="stat" style={{ borderTop: "2px solid var(--blue)" }} onClick={() => navigate("/pipeline")}>
+            <div className="stat-lbl">RFQs unanswered</div>
+            <div className="stat-n" style={{ color: pulse.rfqs > 0 ? "var(--red)" : "var(--t1)" }}>
+              {pulse.rfqs ?? "—"}
+            </div>
+            <div className="stat-lnk">↗ Pipeline</div>
+          </div>
+          <div className="stat" style={{ borderTop: "2px solid var(--blue)" }} onClick={() => navigate("/pipeline")}>
+            <div className="stat-lbl">POs undelivered</div>
+            <div className="stat-n" style={{ color: pulse.pos > 0 ? "var(--orange)" : "var(--t1)" }}>
+              {pulse.pos ?? "—"}
+            </div>
+            <div className="stat-lnk">↗ Pipeline</div>
+          </div>
+          <div className="stat" style={{ borderTop: "2px solid var(--amber)" }} onClick={() => navigate("/ledger")}>
+            <div className="stat-lbl">Pending payment</div>
+            <div className="stat-n" style={{ color: "var(--amber)" }}>
+              {pulse.pending === null ? "—" : formatPhp(pulse.pending)}
+            </div>
+            <div className="stat-lnk am">↗ Ledger</div>
+          </div>
+          <div className="stat" style={{ borderTop: "2px solid var(--green)" }} onClick={() => navigate("/wins")}>
+            <div className="stat-lbl">Completed this year</div>
+            <div className="stat-n" style={{ color: "var(--green)" }}>
+              {pulse.completed ?? "—"}
+            </div>
+            <div className="stat-lnk gr">↗ History</div>
+          </div>
+        </div>
+      </>
+    ),
+    weekly: (
+      <>
+        <div className="zlbl">
+          {zoneHandle}
+          {weekLabel}
+        </div>
+        {calendarError && <p style={{ fontSize: 9, color: "var(--orange)", marginBottom: 4 }}>{calendarError}</p>}
+        <div className="card">
+          <div className="week-grid">
+            {weekDays.map((d) => {
+              const iso = isoDate(d);
+              const isToday = iso === todayStr;
+              const evs = mergedEventsFor(iso);
+              return (
+                <div
+                  key={iso}
+                  className="wday"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.add("drag-over-day");
+                  }}
+                  onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-day")}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.currentTarget.classList.remove("drag-over-day");
+                    dropOnDay(iso, e.dataTransfer.getData("text"));
+                  }}
+                >
+                  <div className="wd-n">{DAYNAMES[d.getDay()]}</div>
+                  {isToday ? <div className="wd-tod">{d.getDate()}</div> : <div className="wd-d">{d.getDate()}</div>}
+                  {evs.length > 0 ? (
+                    evs.map((ev, i) => (
+                      <div key={i} className={`ev ${EVENT_CLASS[ev.t]}`}>
+                        {ev.l}
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      <div className="ev-emp" />
+                      <div className="ev-emp" />
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </>
+    ),
+    focus: (
+      <>
+        <div className="zlbl">
+          {zoneHandle}
+          Focus engine
+        </div>
+        <div className="focus-grid">
+          <div className="focus-left">
+            {/* MITs */}
+            <div className="card">
+              <div className="ch">
+                <span className="ch-t">
+                  <svg viewBox="0 0 24 24">
+                    <line x1="8" y1="6" x2="21" y2="6" />
+                    <line x1="8" y1="12" x2="21" y2="12" />
+                    <line x1="8" y1="18" x2="21" y2="18" />
+                  </svg>
+                  MITs today <span style={{ color: "var(--t3)", fontWeight: 400 }}>({mits.length}/3)</span>
+                </span>
+                <span className="ch-a" style={{ fontSize: 11, color: "var(--t3)" }}>
+                  drag to schedule →
+                </span>
+              </div>
+              <div
+                className="mit-drop"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.currentTarget.classList.add("drag-over-list");
+                }}
+                onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-list")}
+                onDrop={(e) => {
+                  e.currentTarget.classList.remove("drag-over-list");
+                  onMitDrop(e);
+                }}
+              >
+                {mits.length === 0 && <div className="mit-empty">No MITs yet. Use + New task above.</div>}
+                {mits.map((m, i) => (
+                  <div key={i} className="mit-row" draggable onDragStart={(e) => dragMitStart(e, m)}>
+                    <div className="mit-n">{i + 1}</div>
+                    <div className="mit-t">{m}</div>
+                    <button className="mit-del" onClick={() => removeMIT(i)}>
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="mit-foot">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 2a5 5 0 015 5c0 3.5-5 13-5 13S7 10.5 7 7a5 5 0 015-5z" />
+                </svg>
+                Drag MITs onto Time Blocks or the Weekly Plan to schedule them
+              </div>
+            </div>
+
+            {/* Learning Hub */}
+            <div className="card">
+              <div className="ch">
+                <span className="ch-t">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
+                    <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
+                  </svg>
+                  Learning Hub
+                </span>
+                <span className="ch-a" onClick={() => navigate("/learning-hub")}>
+                  Continue
+                </span>
+              </div>
+              <div className="hub-body">
+                {topicLoading ? (
+                  <p style={{ fontSize: 10, color: "var(--t3)" }}>Loading…</p>
+                ) : !topic ? (
+                  <p style={{ fontSize: 10, color: "var(--t3)" }}>No topics yet.</p>
+                ) : topicDoneToday ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)", flexShrink: 0 }} />
+                    <span className="hub-title" style={{ marginBottom: 0 }}>
+                      {topic.title}
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="hub-title">{topic.title}</div>
+                    <div className="hub-quote">"{topic.description || "Continue your learning streak"}"</div>
+                    <div className="hub-bar-bg">
+                      <div className="hub-bar" style={{ width: `${topic.progress_percent ?? 0}%` }} />
+                    </div>
+                    <div className="hub-streak">🔥 {topic.current_streak ?? 0}-day streak</div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Time Blocks + Pomodoro + Shutdown */}
+          <div className="card" style={{ display: "flex", flexDirection: "column" }}>
+            <div className="ch">
+              <span className="ch-t">
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                Time blocks
+              </span>
+              <span className="ch-a">+ Add</span>
+            </div>
+            <div
+              className="tb-area"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add("drag-over-list");
+              }}
+              onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-list")}
+              onDrop={(e) => {
+                e.currentTarget.classList.remove("drag-over-list");
+                onTimeBlocksDrop(e);
+              }}
+            >
+              {blocks.length === 0 ? (
+                <div className="tb-emp">Drop MITs or backlog tasks here, or use + Add below.</div>
+              ) : (
+                blocks.map((b, i) => {
+                  const now = getManilaDate();
+                  const nowMin = now.getHours() * 60 + now.getMinutes();
+                  const [h, m] = b.time.split(":").map(Number);
+                  const active = Math.abs(h * 60 + m - nowMin) < 60;
+                  return (
+                    <div key={i} className={`tb-row${active ? " act" : ""}`}>
+                      <span className="tb-tm">{b.time}</span>
+                      <span className="tb-nm">{b.label}</span>
+                      {active && <span className="tb-now">Now</span>}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div className="tb-add">
+              <input type="time" value={tbTime} onChange={(e) => setTbTime(e.target.value)} />
+              <input type="text" placeholder="Block label…" value={tbLabel} onChange={(e) => setTbLabel(e.target.value)} />
+              <button
+                onClick={() => {
+                  addTimeBlock(tbTime, tbLabel.trim());
+                  setTbLabel("");
+                }}
+              >
+                Add
+              </button>
+            </div>
+
+            {/* Pomodoro */}
+            <div className="pom">
+              <div className="pom-ring-wrap">
+                <svg className="pom-ring-svg" viewBox="0 0 36 36">
+                  <circle className="pom-ring-bg" cx="18" cy="18" r="15.9" />
+                  <circle
+                    className="pom-ring-fg"
+                    cx="18"
+                    cy="18"
+                    r="15.9"
+                    strokeDasharray={`${pomCirc} ${pomCirc}`}
+                    strokeDashoffset={pomCirc - pomPct}
+                  />
+                </svg>
+                <div className="pom-time">
+                  {pomMin}:{pomSec}
+                </div>
+              </div>
+              <div className="pom-info">
+                <div className="pom-label">Pomodoro — Focus</div>
+                <div className="pom-sub">{mits[0] ? `MIT 1 · ${mits[0]}` : "Select an MIT to link"}</div>
+              </div>
+              <div className="pom-btns">
+                <button className={`pom-btn${pomRunning ? "" : " go"}`} onClick={togglePom}>
+                  {pomRunning ? "Pause" : "Start"}
+                </button>
+                <button className="pom-btn" onClick={resetPom}>
+                  Reset
+                </button>
+                <button className="pom-music" onClick={openLofi} title="Play Lofi music">
+                  🎵 Lofi
+                </button>
+              </div>
+            </div>
+
+            {/* Shutdown */}
+            {shutDone < 5 ? (
+              <div className="shut">
+                <div className="shut-hdr">
+                  Shutdown Ritual<span className="shut-count">{shutDone}/5</span>
+                </div>
+                {SHUT_ITEMS.map((item) => (
+                  <label key={item} className="shut-item">
+                    <input type="checkbox" checked={!!shutChecked[item]} onChange={() => toggleShut(item)} /> {item}
+                  </label>
+                ))}
+              </div>
+            ) : (
+              <div className="shut-done" style={{ display: "block" }}>
+                <div className="shut-done-text">🎉 Success! Enjoy the rest of your day, Khalil.</div>
+                <div className="shut-done-sub">All checks complete. Work is closed.</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </>
+    ),
+    growth: (
+      <>
+        <div className="zlbl pur">
+          {zoneHandle}
+          Pursuits, hitlist and brewing
+        </div>
+        <div className="growth">
+          <div className="card">
+            <div className="ch">
+              <span className="ch-t" style={{ color: "var(--purple)" }}>
+                <svg viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                  <circle cx="12" cy="12" r="3" />
+                  <line x1="12" y1="2" x2="12" y2="5" />
+                  <line x1="12" y1="19" x2="12" y2="22" />
+                  <line x1="2" y1="12" x2="5" y2="12" />
+                  <line x1="19" y1="12" x2="22" y2="12" />
+                </svg>
+                Crosshairs
+              </span>
+              <span className="ch-a pur" onClick={() => navigate("/crosshairs")}>
+                + Add
+              </span>
+            </div>
+            {crosshairs.length === 0 && <div style={{ padding: 10, fontSize: 10, color: "var(--t3)" }}>No targets yet.</div>}
+            {crosshairs.slice(0, 5).map((t) => (
+              <div key={t.id} className="xh-row" onClick={() => navigate("/crosshairs")}>
+                <div className="xh-dot" style={{ background: PRIORITY_DOT[t.priority] }} />
+                <div className="xh-n">{t.target_name}</div>
+                <span className={`bdg ${PRIORITY_BADGE[t.priority]}`}>{PRIORITY_LABEL[t.priority]}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Hitlist */}
+          <div className="card">
+            <div className="ch">
+              <span className="ch-t">
+                <svg viewBox="0 0 24 24">
+                  <line x1="8" y1="6" x2="21" y2="6" />
+                  <line x1="8" y1="12" x2="21" y2="12" />
+                  <line x1="8" y1="18" x2="21" y2="18" />
+                </svg>
+                Hitlist
+              </span>
+              <span className="bdg bdg-r" style={{ marginRight: 4 }}>
+                {staleCount} stale
+              </span>
+              <a
+                className="ch-a"
+                href={`https://app.clickup.com/${CLICKUP_WORKSPACE_ID}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ textDecoration: "none" }}
+              >
+                ClickUp ↗
+              </a>
+            </div>
+            <div
+              className="bl-area"
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.currentTarget.classList.add("drag-over-list");
+              }}
+              onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-list")}
+              onDrop={(e) => {
+                e.currentTarget.classList.remove("drag-over-list");
+                onHitlistDrop(e);
+              }}
+            >
+              {hitlist.length === 0 && <div style={{ padding: 10, fontSize: 10, color: "var(--t3)" }}>No open tasks.</div>}
+              {hitlist.map((t) => (
+                <div key={t.key} className="bl-row" draggable onDragStart={(e) => dragHitlistStart(e, t.label)}>
+                  <div className="bl-dot" style={{ background: t.stale ? "var(--red)" : t.age > 7 ? "var(--orange)" : "var(--t4)" }} />
+                  <div className="bl-n">{t.label}</div>
+                  <span className="bl-age" style={{ color: t.stale ? "var(--red)" : t.age > 7 ? "var(--orange)" : "var(--t3)" }}>
+                    {t.age}d
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Brewing */}
+          <div className="card">
+            <div className="ch">
+              <span className="ch-t" style={{ color: "var(--purple)" }}>
+                <svg viewBox="0 0 24 24">
+                  <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z" />
+                </svg>
+                Brewing
+              </span>
+              <span className="ch-a pur" onClick={() => navigate("/brewing")}>
+                + Add
+              </span>
+            </div>
+            {brewing.length === 0 && <div style={{ padding: 10, fontSize: 10, color: "var(--t3)" }}>Nothing here.</div>}
+            {brewing.map((item) => (
+              <div key={item.id} className="br-row">
+                <div className="br-dot" style={{ background: BREWING_DOT[item.status] ?? "var(--t4)" }} />
+                <div className="br-n">{item.name}</div>
+                <span className={`bdg ${BREWING_BADGE[item.status] ?? "bdg-gr"}`}>{item.status}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </>
+    ),
+    calendar: (
+      <>
+        <div className="zlbl">
+          {zoneHandle}
+          {calMonthLabel}
+        </div>
+        <div className="card">
+          <div className="cal-wrap">
+            <div className="cal-hdr">
+              <button className="cal-nav" onClick={() => shiftMonth(-1)}>
+                ← {MONTHS[(calCursor.month + 11) % 12]}
+              </button>
+              <span className="cal-month">{calMonthLabel}</span>
+              <button className="cal-nav" onClick={() => shiftMonth(1)}>
+                {MONTHS[(calCursor.month + 1) % 12]} →
+              </button>
+            </div>
+            <div className="cal-grid">
+              {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
+                <div key={d} className="cal-dow">
+                  {d}
+                </div>
+              ))}
+              {Array.from({ length: calFirstWeekday }, (_, i) => (
+                <div key={`e-${i}`} className="cal-d emp" />
+              ))}
+              {Array.from({ length: calDaysInMonth }, (_, i) => i + 1).map((d) => {
+                const ds = `${calCursor.year}-${String(calCursor.month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+                const isToday = ds === todayStr;
+                const dots = calDots[ds];
+                return (
+                  <div key={ds} className={`cal-d${isToday ? " today" : ""}`}>
+                    {d}
+                    {dots && !isToday && dots.map((c, i) => <div key={i} className="cdot" style={{ background: `var(--${c})` }} />)}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="cal-leg">
+              <div className="leg">
+                <div className="leg-d" style={{ background: "var(--amber)" }} />
+                RFQ closes
+              </div>
+              <div className="leg">
+                <div className="leg-d" style={{ background: "var(--green)" }} />
+                Delivery
+              </div>
+              <div className="leg">
+                <div className="leg-d" style={{ background: "var(--blue)" }} />
+                Invoice due
+              </div>
+              <div className="leg">
+                <div className="leg-d" style={{ background: "var(--purple)" }} />
+                Meetings
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    ),
+  };
+
   return (
     <div className="shell">
       {showRitual && (
@@ -804,90 +1342,7 @@ function HomeInner() {
         </div>
 
         <div className="page">
-          {/* ZONE 1: BUSINESS PULSE */}
-          <div>
-            <div className="zlbl">Business pulse</div>
-            <div className="pulse">
-              <div className="stat" style={{ borderTop: "2px solid var(--blue)" }} onClick={() => navigate("/pipeline")}>
-                <div className="stat-lbl">RFQs unanswered</div>
-                <div className="stat-n" style={{ color: pulse.rfqs > 0 ? "var(--red)" : "var(--t1)" }}>
-                  {pulse.rfqs ?? "—"}
-                </div>
-                <div className="stat-lnk">↗ Pipeline</div>
-              </div>
-              <div className="stat" style={{ borderTop: "2px solid var(--blue)" }} onClick={() => navigate("/pipeline")}>
-                <div className="stat-lbl">POs undelivered</div>
-                <div className="stat-n" style={{ color: pulse.pos > 0 ? "var(--orange)" : "var(--t1)" }}>
-                  {pulse.pos ?? "—"}
-                </div>
-                <div className="stat-lnk">↗ Pipeline</div>
-              </div>
-              <div className="stat" style={{ borderTop: "2px solid var(--amber)" }} onClick={() => navigate("/ledger")}>
-                <div className="stat-lbl">Pending payment</div>
-                <div className="stat-n" style={{ color: "var(--amber)" }}>
-                  {pulse.pending === null ? "—" : formatPhp(pulse.pending)}
-                </div>
-                <div className="stat-lnk am">↗ Ledger</div>
-              </div>
-              <div className="stat" style={{ borderTop: "2px solid var(--green)" }} onClick={() => navigate("/wins")}>
-                <div className="stat-lbl">Completed this year</div>
-                <div className="stat-n" style={{ color: "var(--green)" }}>
-                  {pulse.completed ?? "—"}
-                </div>
-                <div className="stat-lnk gr">↗ History</div>
-              </div>
-            </div>
-          </div>
-
-          {/* ZONE 2: WEEKLY PLAN */}
-          <div>
-            <div className="zlbl">{weekLabel}</div>
-            {calendarError && (
-              <p style={{ fontSize: 9, color: "var(--orange)", marginBottom: 4 }}>{calendarError}</p>
-            )}
-            <div className="card">
-              <div className="week-grid">
-                {weekDays.map((d) => {
-                  const iso = isoDate(d);
-                  const isToday = iso === todayStr;
-                  const evs = mergedEventsFor(iso);
-                  return (
-                    <div
-                      key={iso}
-                      className="wday"
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        e.currentTarget.classList.add("drag-over-day");
-                      }}
-                      onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-day")}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        e.currentTarget.classList.remove("drag-over-day");
-                        dropOnDay(iso, e.dataTransfer.getData("text"));
-                      }}
-                    >
-                      <div className="wd-n">{DAYNAMES[d.getDay()]}</div>
-                      {isToday ? <div className="wd-tod">{d.getDate()}</div> : <div className="wd-d">{d.getDate()}</div>}
-                      {evs.length > 0 ? (
-                        evs.map((ev, i) => (
-                          <div key={i} className={`ev ${EVENT_CLASS[ev.t]}`}>
-                            {ev.l}
-                          </div>
-                        ))
-                      ) : (
-                        <>
-                          <div className="ev-emp" />
-                          <div className="ev-emp" />
-                        </>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          {/* NEW TASK BAR */}
+          {/* NEW TASK BAR — fixed above the reorderable zones; not itself a zone */}
           <div className="new-task-bar">
             <span style={{ fontSize: 11, fontWeight: 500, color: "var(--t2)", whiteSpace: "nowrap" }}>+ New task</span>
             <input
@@ -906,377 +1361,23 @@ function HomeInner() {
             </button>
           </div>
 
-          {/* ZONE 3: FOCUS ENGINE */}
-          <div>
-            <div className="zlbl">Focus engine</div>
-            <div className="focus-grid">
-              <div className="focus-left">
-                {/* MITs */}
-                <div className="card">
-                  <div className="ch">
-                    <span className="ch-t">
-                      <svg viewBox="0 0 24 24">
-                        <line x1="8" y1="6" x2="21" y2="6" />
-                        <line x1="8" y1="12" x2="21" y2="12" />
-                        <line x1="8" y1="18" x2="21" y2="18" />
-                      </svg>
-                      MITs today <span style={{ color: "var(--t3)", fontWeight: 400 }}>({mits.length}/3)</span>
-                    </span>
-                    <span className="ch-a" style={{ fontSize: 10, color: "var(--t3)" }}>
-                      drag to schedule →
-                    </span>
-                  </div>
-                  <div
-                    className="mit-drop"
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.currentTarget.classList.add("drag-over-list");
-                    }}
-                    onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-list")}
-                    onDrop={(e) => {
-                      e.currentTarget.classList.remove("drag-over-list");
-                      onMitDrop(e);
-                    }}
-                  >
-                    {mits.length === 0 && <div className="mit-empty">No MITs yet. Use + New task above.</div>}
-                    {mits.map((m, i) => (
-                      <div key={i} className="mit-row" draggable onDragStart={(e) => dragMitStart(e, m)}>
-                        <div className="mit-n">{i + 1}</div>
-                        <div className="mit-t">{m}</div>
-                        <button className="mit-del" onClick={() => removeMIT(i)}>
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mit-foot">
-                    <svg viewBox="0 0 24 24">
-                      <path d="M12 2a5 5 0 015 5c0 3.5-5 13-5 13S7 10.5 7 7a5 5 0 015-5z" />
-                    </svg>
-                    Drag MITs onto Time Blocks or the Weekly Plan to schedule them
-                  </div>
-                </div>
-
-                {/* Learning Hub */}
-                <div className="card">
-                  <div className="ch">
-                    <span className="ch-t">
-                      <svg viewBox="0 0 24 24">
-                        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" />
-                        <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" />
-                      </svg>
-                      Learning Hub
-                    </span>
-                    <span className="ch-a" onClick={() => navigate("/learning-hub")}>
-                      Continue
-                    </span>
-                  </div>
-                  <div className="hub-body">
-                    {topicLoading ? (
-                      <p style={{ fontSize: 10, color: "var(--t3)" }}>Loading…</p>
-                    ) : !topic ? (
-                      <p style={{ fontSize: 10, color: "var(--t3)" }}>No topics yet.</p>
-                    ) : topicDoneToday ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--green)", flexShrink: 0 }} />
-                        <span className="hub-title" style={{ marginBottom: 0 }}>
-                          {topic.title}
-                        </span>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="hub-title">{topic.title}</div>
-                        <div className="hub-quote">"{topic.description || "Continue your learning streak"}"</div>
-                        <div className="hub-bar-bg">
-                          <div className="hub-bar" style={{ width: `${topic.progress_percent ?? 0}%` }} />
-                        </div>
-                        <div className="hub-streak">🔥 {topic.current_streak ?? 0}-day streak</div>
-                      </>
-                    )}
-                  </div>
-                </div>
+          {zoneOrder.map((id, index) => (
+            <Fragment key={id}>
+              {draggedZone && dragOverIndex === index && <div className="zone-drop-indicator" />}
+              <div
+                className={`zone-wrap${draggedZone === id ? " dragging" : ""}`}
+                data-zone-id={id}
+                draggable
+                onDragStart={(e) => handleZoneDragStart(e, id)}
+                onDragOver={(e) => handleZoneDragOver(e, index)}
+                onDrop={handleZoneDrop}
+                onDragEnd={handleZoneDragEnd}
+              >
+                {zoneContent[id]}
               </div>
-
-              {/* Time Blocks + Pomodoro + Shutdown */}
-              <div className="card" style={{ display: "flex", flexDirection: "column" }}>
-                <div className="ch">
-                  <span className="ch-t">
-                    <svg viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    Time blocks
-                  </span>
-                  <span className="ch-a">+ Add</span>
-                </div>
-                <div
-                  className="tb-area"
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.currentTarget.classList.add("drag-over-list");
-                  }}
-                  onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-list")}
-                  onDrop={(e) => {
-                    e.currentTarget.classList.remove("drag-over-list");
-                    onTimeBlocksDrop(e);
-                  }}
-                >
-                  {blocks.length === 0 ? (
-                    <div className="tb-emp">Drop MITs or backlog tasks here, or use + Add below.</div>
-                  ) : (
-                    blocks.map((b, i) => {
-                      const now = getManilaDate();
-                      const nowMin = now.getHours() * 60 + now.getMinutes();
-                      const [h, m] = b.time.split(":").map(Number);
-                      const active = Math.abs(h * 60 + m - nowMin) < 60;
-                      return (
-                        <div key={i} className={`tb-row${active ? " act" : ""}`}>
-                          <span className="tb-tm">{b.time}</span>
-                          <span className="tb-nm">{b.label}</span>
-                          {active && <span className="tb-now">Now</span>}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-                <div className="tb-add">
-                  <input type="time" value={tbTime} onChange={(e) => setTbTime(e.target.value)} />
-                  <input
-                    type="text"
-                    placeholder="Block label…"
-                    value={tbLabel}
-                    onChange={(e) => setTbLabel(e.target.value)}
-                  />
-                  <button
-                    onClick={() => {
-                      addTimeBlock(tbTime, tbLabel.trim());
-                      setTbLabel("");
-                    }}
-                  >
-                    Add
-                  </button>
-                </div>
-
-                {/* Pomodoro */}
-                <div className="pom">
-                  <div className="pom-ring-wrap">
-                    <svg className="pom-ring-svg" viewBox="0 0 36 36">
-                      <circle className="pom-ring-bg" cx="18" cy="18" r="15.9" />
-                      <circle
-                        className="pom-ring-fg"
-                        cx="18"
-                        cy="18"
-                        r="15.9"
-                        strokeDasharray={`${pomCirc} ${pomCirc}`}
-                        strokeDashoffset={pomCirc - pomPct}
-                      />
-                    </svg>
-                    <div className="pom-time">
-                      {pomMin}:{pomSec}
-                    </div>
-                  </div>
-                  <div className="pom-info">
-                    <div className="pom-label">Pomodoro — Focus</div>
-                    <div className="pom-sub">{mits[0] ? `MIT 1 · ${mits[0]}` : "Select an MIT to link"}</div>
-                  </div>
-                  <div className="pom-btns">
-                    <button className={`pom-btn${pomRunning ? "" : " go"}`} onClick={togglePom}>
-                      {pomRunning ? "Pause" : "Start"}
-                    </button>
-                    <button className="pom-btn" onClick={resetPom}>
-                      Reset
-                    </button>
-                    <button className="pom-music" onClick={openLofi} title="Play Lofi music">
-                      🎵 Lofi
-                    </button>
-                  </div>
-                </div>
-
-                {/* Shutdown */}
-                {shutDone < 5 ? (
-                  <div className="shut">
-                    <div className="shut-hdr">
-                      Shutdown Ritual<span className="shut-count">{shutDone}/5</span>
-                    </div>
-                    {SHUT_ITEMS.map((item) => (
-                      <label key={item} className="shut-item">
-                        <input type="checkbox" checked={!!shutChecked[item]} onChange={() => toggleShut(item)} /> {item}
-                      </label>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="shut-done" style={{ display: "block" }}>
-                    <div className="shut-done-text">🎉 Success! Enjoy the rest of your day, Khalil.</div>
-                    <div className="shut-done-sub">All checks complete. Work is closed.</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* ZONE 4: GROWTH LAYER */}
-          <div>
-            <div className="zlbl pur">Pursuits, hitlist and brewing</div>
-            <div className="growth">
-              <div className="card">
-                <div className="ch">
-                  <span className="ch-t" style={{ color: "var(--purple)" }}>
-                    <svg viewBox="0 0 24 24">
-                      <circle cx="12" cy="12" r="10" />
-                      <circle cx="12" cy="12" r="3" />
-                      <line x1="12" y1="2" x2="12" y2="5" />
-                      <line x1="12" y1="19" x2="12" y2="22" />
-                      <line x1="2" y1="12" x2="5" y2="12" />
-                      <line x1="19" y1="12" x2="22" y2="12" />
-                    </svg>
-                    Crosshairs
-                  </span>
-                  <span className="ch-a pur" onClick={() => navigate("/crosshairs")}>
-                    + Add
-                  </span>
-                </div>
-                {crosshairs.length === 0 && <div style={{ padding: 10, fontSize: 10, color: "var(--t3)" }}>No targets yet.</div>}
-                {crosshairs.slice(0, 5).map((t) => (
-                  <div key={t.id} className="xh-row" onClick={() => navigate("/crosshairs")}>
-                    <div className="xh-dot" style={{ background: PRIORITY_DOT[t.priority] }} />
-                    <div className="xh-n">{t.target_name}</div>
-                    <span className={`bdg ${PRIORITY_BADGE[t.priority]}`}>{PRIORITY_LABEL[t.priority]}</span>
-                  </div>
-                ))}
-              </div>
-
-              {/* Hitlist */}
-              <div className="card">
-                <div className="ch">
-                  <span className="ch-t">
-                    <svg viewBox="0 0 24 24">
-                      <line x1="8" y1="6" x2="21" y2="6" />
-                      <line x1="8" y1="12" x2="21" y2="12" />
-                      <line x1="8" y1="18" x2="21" y2="18" />
-                    </svg>
-                    Hitlist
-                  </span>
-                  <span className="bdg bdg-r" style={{ marginRight: 4 }}>
-                    {staleCount} stale
-                  </span>
-                  <a
-                    className="ch-a"
-                    href={`https://app.clickup.com/${CLICKUP_WORKSPACE_ID}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ textDecoration: "none" }}
-                  >
-                    ClickUp ↗
-                  </a>
-                </div>
-                <div
-                  className="bl-area"
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.currentTarget.classList.add("drag-over-list");
-                  }}
-                  onDragLeave={(e) => e.currentTarget.classList.remove("drag-over-list")}
-                  onDrop={(e) => {
-                    e.currentTarget.classList.remove("drag-over-list");
-                    onHitlistDrop(e);
-                  }}
-                >
-                  {hitlist.length === 0 && <div style={{ padding: 10, fontSize: 10, color: "var(--t3)" }}>No open tasks.</div>}
-                  {hitlist.map((t) => (
-                    <div key={t.key} className="bl-row" draggable onDragStart={(e) => dragHitlistStart(e, t.label)}>
-                      <div className="bl-dot" style={{ background: t.stale ? "var(--red)" : t.age > 7 ? "var(--orange)" : "var(--t4)" }} />
-                      <div className="bl-n">{t.label}</div>
-                      <span className="bl-age" style={{ color: t.stale ? "var(--red)" : t.age > 7 ? "var(--orange)" : "var(--t3)" }}>
-                        {t.age}d
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Brewing */}
-              <div className="card">
-                <div className="ch">
-                  <span className="ch-t" style={{ color: "var(--purple)" }}>
-                    <svg viewBox="0 0 24 24">
-                      <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z" />
-                    </svg>
-                    Brewing
-                  </span>
-                  <span className="ch-a pur" onClick={() => navigate("/brewing")}>
-                    + Add
-                  </span>
-                </div>
-                {brewing.length === 0 && <div style={{ padding: 10, fontSize: 10, color: "var(--t3)" }}>Nothing here.</div>}
-                {brewing.map((item) => (
-                  <div key={item.id} className="br-row">
-                    <div className="br-dot" style={{ background: BREWING_DOT[item.status] ?? "var(--t4)" }} />
-                    <div className="br-n">{item.name}</div>
-                    <span className={`bdg ${BREWING_BADGE[item.status] ?? "bdg-gr"}`}>{item.status}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* ZONE 5: MONTH CALENDAR */}
-          <div>
-            <div className="zlbl">{calMonthLabel}</div>
-            <div className="card">
-              <div className="cal-wrap">
-                <div className="cal-hdr">
-                  <button className="cal-nav" onClick={() => shiftMonth(-1)}>
-                    ← {MONTHS[(calCursor.month + 11) % 12]}
-                  </button>
-                  <span className="cal-month">{calMonthLabel}</span>
-                  <button className="cal-nav" onClick={() => shiftMonth(1)}>
-                    {MONTHS[(calCursor.month + 1) % 12]} →
-                  </button>
-                </div>
-                <div className="cal-grid">
-                  {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-                    <div key={d} className="cal-dow">
-                      {d}
-                    </div>
-                  ))}
-                  {Array.from({ length: calFirstWeekday }, (_, i) => (
-                    <div key={`e-${i}`} className="cal-d emp" />
-                  ))}
-                  {Array.from({ length: calDaysInMonth }, (_, i) => i + 1).map((d) => {
-                    const ds = `${calCursor.year}-${String(calCursor.month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-                    const isToday = ds === todayStr;
-                    const dots = calDots[ds];
-                    return (
-                      <div key={ds} className={`cal-d${isToday ? " today" : ""}`}>
-                        {d}
-                        {dots &&
-                          !isToday &&
-                          dots.map((c, i) => <div key={i} className="cdot" style={{ background: `var(--${c})` }} />)}
-                      </div>
-                    );
-                  })}
-                </div>
-                <div className="cal-leg">
-                  <div className="leg">
-                    <div className="leg-d" style={{ background: "var(--amber)" }} />
-                    RFQ closes
-                  </div>
-                  <div className="leg">
-                    <div className="leg-d" style={{ background: "var(--green)" }} />
-                    Delivery
-                  </div>
-                  <div className="leg">
-                    <div className="leg-d" style={{ background: "var(--blue)" }} />
-                    Invoice due
-                  </div>
-                  <div className="leg">
-                    <div className="leg-d" style={{ background: "var(--purple)" }} />
-                    Meetings
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            </Fragment>
+          ))}
+          {draggedZone && dragOverIndex === zoneOrder.length && <div className="zone-drop-indicator" />}
         </div>
       </div>
     </div>
