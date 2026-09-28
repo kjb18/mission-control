@@ -40,13 +40,12 @@ function isoDate(d) {
 }
 function getWeekDates() {
   const d = getManilaDate();
-  const day = d.getDay();
-  const skip = day === 0 ? 1 : day === 6 ? 2 : -(day - 1);
-  const mon = new Date(d);
-  mon.setDate(d.getDate() + skip);
-  return Array.from({ length: 5 }, (_, i) => {
-    const dd = new Date(mon);
-    dd.setDate(mon.getDate() + i);
+  const day = d.getDay(); // 0=Sun..6=Sat
+  const sun = new Date(d);
+  sun.setDate(d.getDate() - day);
+  return Array.from({ length: 7 }, (_, i) => {
+    const dd = new Date(sun);
+    dd.setDate(sun.getDate() + i);
     return dd;
   });
 }
@@ -159,7 +158,8 @@ function HomeInner() {
   useEffect(() => {
     fetchLearningTopics()
       .then((rows) => {
-        const mostRecent = [...rows].sort(
+        const active = rows.filter((r) => r.status === "active");
+        const mostRecent = [...active].sort(
           (a, b) => new Date(b.created_at ?? 0) - new Date(a.created_at ?? 0)
         )[0];
         setTopic(mostRecent ?? null);
@@ -252,7 +252,7 @@ function HomeInner() {
   /* --------------------------- Weekly plan + real events --------------------------- */
   const weekDays = useMemo(() => getWeekDates(), []);
   const weekStartISO = isoDate(weekDays[0]);
-  const weekEndISO = isoDate(weekDays[4]);
+  const weekEndISO = isoDate(weekDays[6]);
   const [weekEvents, setWeekEvents] = useState({}); // { iso: [{t,l}] } from real Supabase + Google Calendar
   const [localWeekEvents, setLocalWeekEvents] = useState({}); // drag-drop additions, client-only
   const [calendarError, setCalendarError] = useState(null);
@@ -308,8 +308,8 @@ function HomeInner() {
     setLocalWeekEvents((prev) => ({ ...prev, [iso]: [...(prev[iso] ?? []), { t: "adm", l: label }] }));
   }
 
-  const weekLabel = `Weekly plan — ${weekDays[0].getDate()} ${MONTHS[weekDays[0].getMonth()]} to ${weekDays[4].getDate()} ${
-    MONTHS[weekDays[4].getMonth()]
+  const weekLabel = `Weekly plan — ${weekDays[0].getDate()} ${MONTHS[weekDays[0].getMonth()]} to ${weekDays[6].getDate()} ${
+    MONTHS[weekDays[6].getMonth()]
   }`;
 
   /* --------------------------- Month calendar --------------------------- */
@@ -922,7 +922,7 @@ function HomeInner() {
                       </svg>
                       MITs today <span style={{ color: "var(--t3)", fontWeight: 400 }}>({mits.length}/3)</span>
                     </span>
-                    <span className="ch-a" style={{ fontSize: 8, color: "var(--t3)" }}>
+                    <span className="ch-a" style={{ fontSize: 10, color: "var(--t3)" }}>
                       drag to schedule →
                     </span>
                   </div>
@@ -986,7 +986,7 @@ function HomeInner() {
                     ) : (
                       <>
                         <div className="hub-title">{topic.title}</div>
-                        {topic.description && <div className="hub-quote">"{topic.description}"</div>}
+                        <div className="hub-quote">"{topic.description || "Continue your learning streak"}"</div>
                         <div className="hub-bar-bg">
                           <div className="hub-bar" style={{ width: `${topic.progress_percent ?? 0}%` }} />
                         </div>
