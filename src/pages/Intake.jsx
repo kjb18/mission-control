@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import { parseRfqText, parseRfqFile, matchOnly } from "../lib/parseRfq";
+import { parseRfqText, parseRfqFile, matchOnly, RFQ_FILE_TYPES, rfqFileType } from "../lib/parseRfq";
 import { confirmRfq } from "../lib/rfqIntake";
 import { PageHeader, Card, Button, EmptyState } from "../components/ui";
+import FileDropOverlay, { useFileDrop } from "../components/FileDropOverlay";
+import Toast, { useToast } from "../components/Toast";
 
 const TABS = [
   { key: "paste", label: "Paste Email" },
@@ -17,6 +19,8 @@ export default function Intake() {
   const [error, setError] = useState(null);
   const [review, setReview] = useState(null); // { rfq, lines, queueId? }
   const [pendingQueue, setPendingQueue] = useState([]);
+  const [parsingName, setParsingName] = useState(null);
+  const [toast, showToast] = useToast();
 
   useEffect(() => {
     if (tab === "webhook") loadPendingQueue();
@@ -59,11 +63,10 @@ export default function Intake() {
     }
   }
 
-  async function handleFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function parseFile(file) {
     setBusy(true);
     setError(null);
+    setParsingName(file.name);
     try {
       const result = await parseRfqFile(file);
       startReview(result);
@@ -71,9 +74,33 @@ export default function Intake() {
       setError(err.message);
     } finally {
       setBusy(false);
-      e.target.value = "";
+      setParsingName(null);
     }
   }
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    await parseFile(file);
+    e.target.value = "";
+  }
+
+  const dragging = useFileDrop((files) => {
+    const file = files[0];
+    if (!RFQ_FILE_TYPES.includes(rfqFileType(file))) {
+      showToast(`Unsupported file type${file.name ? ` (${file.name})` : ""}. Drop a JPEG, PNG, WebP, HEIC image or a PDF.`, "error");
+      return;
+    }
+    if (busy) {
+      showToast("Still parsing the previous file — try again in a moment.", "error");
+      return;
+    }
+    if (review) {
+      showToast("Confirm or cancel the RFQ under review before dropping another file.", "error");
+      return;
+    }
+    parseFile(file);
+  });
 
   async function handleReviewQueueItem(row) {
     setBusy(true);
@@ -122,6 +149,16 @@ export default function Intake() {
         subtitle="Paste an email, upload a PDF or image, or receive one from the iOS Shortcut webhook."
       />
 
+      <FileDropOverlay show={dragging} text="Drop your RFQ image or PDF here" />
+      <Toast toast={toast} />
+
+      {parsingName && (
+        <div className="flex items-center gap-3 rounded-[10px] border border-line bg-base-900 px-4 py-3 text-sm text-ink-secondary">
+          <div className="w-4 h-4 border-2 border-line border-t-accent rounded-full animate-spin" />
+          Parsing {parsingName} with Claude…
+        </div>
+      )}
+
       {!review && (
         <>
           <div className="flex gap-1 border-b border-line">
@@ -165,13 +202,13 @@ export default function Intake() {
             <div className="rounded-[10px] border border-dashed border-line-strong bg-base-900 p-10 text-center">
               <input
                 type="file"
-                accept="application/pdf,image/png,image/jpeg,image/webp"
+                accept="application/pdf,image/png,image/jpeg,image/webp,image/heic,.heic"
                 onChange={handleFile}
                 disabled={busy}
                 className="block mx-auto text-sm text-ink-secondary"
               />
               <p className="text-xs text-ink-muted mt-3">
-                {busy ? "Parsing…" : "PDF or image of an RFQ — Claude reads it directly."}
+                {busy ? "Parsing…" : "PDF or image of an RFQ — or drag one anywhere onto this page."}
               </p>
             </div>
           )}

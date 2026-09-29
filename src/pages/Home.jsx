@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { useCheckIn } from "../lib/CheckInContext";
 import { fetchAdminBacklogTasks, CLICKUP_WORKSPACE_ID } from "../lib/clickup";
-import { listEvents } from "../lib/googleCalendar";
+import { listEvents, createEvent, isGoogleCalendarConfigured } from "../lib/googleCalendar";
 
 /* =============================================================================
    Self-contained homepage — a direct port of the approved reference artifact
@@ -70,6 +70,7 @@ const CIRC = 2 * Math.PI * 19;
 const LOFI_URL = "https://www.youtube.com/watch?v=jfKfPfyJRdk";
 const RITUAL_KEY = "mc_morning_dismissed";
 const ZONE_ORDER_KEY = "mc_zone_order";
+const WEEKLY_DROPS_KEY = "mc_weekly_drops";
 const DEFAULT_ZONE_ORDER = ["pulse", "weekly", "focus", "growth", "calendar"];
 const GROWTH_ROWS = 6;
 
@@ -107,6 +108,25 @@ function loadZoneOrder() {
     return [...valid, ...DEFAULT_ZONE_ORDER.filter((id) => !valid.includes(id))];
   } catch {
     return DEFAULT_ZONE_ORDER;
+  }
+}
+
+// Weekly plan drops saved while Google Calendar isn't connected: { "yyyy-MM-dd": ["label", …] }
+function loadWeeklyDrops() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WEEKLY_DROPS_KEY));
+    return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+  } catch {
+    return {};
+  }
+}
+function saveWeeklyDrop(ds, label) {
+  const drops = loadWeeklyDrops();
+  drops[ds] = [...(drops[ds] ?? []), label];
+  try {
+    localStorage.setItem(WEEKLY_DROPS_KEY, JSON.stringify(drops));
+  } catch {
+    /* storage unavailable — chip lasts for this session only */
   }
 }
 
@@ -442,15 +462,9 @@ export default function Home() {
     (deliveries.data ?? []).forEach((d) => push(d.delivery_date, { t: "del", l: d.purchase_orders?.po_number ? `${d.purchase_orders.po_number} delivery` : "Delivery" }));
     (invoices.data ?? []).forEach((i) => push(i.due_date, { t: "adm", l: i.invoice_number ? `${i.invoice_number} due` : "Invoice due" }));
     (cal.events ?? []).forEach((ev) => ev.start && push(isoDate(toManila(ev.start)), { t: "mtg", l: ev.title }));
-    setWeekEvents((prev) => {
-      // Keep chips dropped onto the plan this session.
-      const next = { ...map };
-      Object.entries(prev).forEach(([ds, evs]) => {
-        const local = evs.filter((e) => e.local);
-        if (local.length) next[ds] = [...(next[ds] ?? []), ...local];
-      });
-      return next;
-    });
+    const drops = loadWeeklyDrops();
+    days.forEach((d) => (drops[isoDate(d)] ?? []).forEach((l) => push(isoDate(d), { t: "adm", l })));
+    setWeekEvents(map);
   }, []);
 
   const loadMonth = useCallback(async ({ y, m }) => {
@@ -625,12 +639,29 @@ export default function Home() {
   const [dragOverDay, setDragOverDay] = useState(null);
   const weekDays = getWeekDates();
   const weekLabel = `Week of ${weekDays[0].getDate()} ${MONTHS[weekDays[0].getMonth()]} – ${weekDays[6].getDate()} ${MONTHS[weekDays[6].getMonth()]}`;
-  const dropOnDay = (e, ds) => {
+  const dropOnDay = async (e, ds) => {
     e.preventDefault();
     setDragOverDay(null);
     const lb = e.dataTransfer.getData("text");
     if (!lb) return;
-    setWeekEvents((prev) => ({ ...prev, [ds]: [...(prev[ds] ?? []), { t: "adm", l: lb, local: true }] }));
+    setWeekEvents((prev) => ({ ...prev, [ds]: [...(prev[ds] ?? []), { t: "adm", l: lb }] }));
+    // Push to Google Calendar as 09:00–09:30 Manila; the next load shows it
+    // as a meeting chip. Without an OAuth connection, keep it in localStorage.
+    let pushed = false;
+    if (isGoogleCalendarConfigured()) {
+      try {
+        const res = await createEvent({
+          title: lb,
+          start: manilaInstant(ds, "09:00:00"),
+          end: manilaInstant(ds, "09:30:00"),
+          reminderMinutes: 10,
+        });
+        pushed = !res?.skipped;
+      } catch (err) {
+        console.warn("[Home] Google Calendar push failed — saving the drop locally:", err.message);
+      }
+    }
+    if (!pushed) saveWeeklyDrop(ds, lb);
   };
 
   // ---- MITs / hitlist / time blocks drag & drop ---------------------------------------
