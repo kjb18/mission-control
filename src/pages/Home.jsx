@@ -138,11 +138,10 @@ function topicCoverUrl(topic) {
   return typeof url === "string" && url.trim() ? url : null;
 }
 
-function TopicCover({ topic }) {
-  const url = topicCoverUrl(topic);
-  const [failed, setFailed] = useState(false);
-  if (url && !failed) return <img className="hub-cover" src={url} alt="" onError={() => setFailed(true)} />;
-  return <div className="hub-cover hub-cover-ph">{(topic.title ?? "?").trim().charAt(0).toUpperCase()}</div>;
+// "One. Two. Three." → first `n` sentences.
+function firstSentences(text, n) {
+  const parts = (text ?? "").trim().match(/[^.!?]+(?:[.!?]+|$)/g) ?? [];
+  return parts.slice(0, n).join("").trim();
 }
 const POM_TOTAL = 25 * 60;
 const CIRC = 2 * Math.PI * 19;
@@ -150,7 +149,9 @@ const LOFI_URL = "https://www.youtube.com/watch?v=jfKfPfyJRdk";
 const RITUAL_KEY = "mc_morning_dismissed";
 const ZONE_ORDER_KEY = "mc_zone_order";
 const WEEKLY_DROPS_KEY = "mc_weekly_drops";
-const DEFAULT_ZONE_ORDER = ["pulse", "weekly", "focus", "growth", "calendar"];
+const DEFAULT_ZONE_ORDER = ["pulse", "weekly", "focus", "crosshairs", "hitlist", "brewing", "calendar"];
+// These three sit side by side when adjacent; alone they grow to full width.
+const THIRD_ZONES = ["crosshairs", "hitlist", "brewing"];
 // The weekly plan is frozen in the second slot; only the other zones reorder.
 const FIXED_ZONE = "weekly";
 const FIXED_ZONE_INDEX = 1;
@@ -191,7 +192,9 @@ function loadZoneOrder() {
   try {
     const saved = JSON.parse(localStorage.getItem(ZONE_ORDER_KEY));
     if (!Array.isArray(saved)) return DEFAULT_ZONE_ORDER;
-    const valid = saved.filter((id) => DEFAULT_ZONE_ORDER.includes(id));
+    // The old combined "growth" zone becomes its three cards, in place.
+    const expanded = saved.flatMap((id) => (id === "growth" ? THIRD_ZONES : [id]));
+    const valid = [...new Set(expanded)].filter((id) => DEFAULT_ZONE_ORDER.includes(id));
     return withFixedZone([...valid, ...DEFAULT_ZONE_ORDER.filter((id) => !valid.includes(id))]);
   } catch {
     return DEFAULT_ZONE_ORDER;
@@ -1557,7 +1560,7 @@ export default function Home() {
   const zoneProps = (id) => ({
     "data-zone-id": id,
     draggable: true,
-    className: `zone-wrap${draggingZone === id ? " dragging" : ""}`,
+    className: `zone-wrap${THIRD_ZONES.includes(id) ? " zone-third" : ""}${draggingZone === id ? " dragging" : ""}`,
     onMouseEnter: () => setHoverZone(id),
     onMouseLeave: () => setHoverZone((z) => (z === id ? null : z)),
     onDragStart: (e) => {
@@ -1610,7 +1613,7 @@ export default function Home() {
       <div className="zlbl zlbl-fixed">{label}</div>
     ) : (
       <>
-        <div className={`drop-indicator${indicatorZone === id ? " show" : ""}`}></div>
+        <div id={`di-${id}`} className={`drop-indicator${indicatorZone === id ? " show" : ""}`}></div>
         <div className={`zlbl${purple ? " pur" : ""}`}>
           <DragHandle visible={hoverZone === id} />
           {label}
@@ -1635,9 +1638,28 @@ export default function Home() {
   }, [pulse.rfqs, soonestRfq]);
 
   // ---- Learning hub -------------------------------------------------------------------
-  const hubQuote = topic
-    ? topic.description?.trim() || `"${(topic.title + " ").repeat(Math.ceil(120 / (topic.title.length + 1))).slice(0, 120).trim()}"`
-    : "";
+  // Today's generated module, or the active learning_topics row as a fallback
+  // (description as the takeaway, no application line).
+  const hubCard = learnModule
+    ? {
+        title: learnModule.book_title,
+        author: learnModule.book_author,
+        color: learnModule.cover_color || "#3b82f6",
+        initial: (learnModule.cover_initial || learnModule.book_title || "?").charAt(0).toUpperCase(),
+        takeaway: firstSentences(learnModule.key_takeaway || learnModule.description, 2),
+        application: firstSentences(learnModule.application, 1),
+      }
+    : topic
+      ? {
+          title: topic.title,
+          author: topic.category ?? "",
+          color: "#3b82f6",
+          initial: (topic.title ?? "?").trim().charAt(0).toUpperCase(),
+          coverUrl: topicCoverUrl(topic),
+          takeaway: firstSentences(topic.description, 2),
+          application: "",
+        }
+      : null;
 
   // ---- Month calendar -----------------------------------------------------------------
   const calCells = useMemo(() => {
@@ -1788,27 +1810,25 @@ export default function Home() {
                   <span className="fp-title"><Icon>{ICONS.book}</Icon>Learning Hub</span>
                   <span className="fp-action" onClick={() => navigate("/learning-hub")}>Continue →</span>
                 </div>
-                <div className={`hub-body${learnModule ? " hub-module" : ""}`}>
-                  {learnModule ? (
+                <div className="hub-body hub2">
+                  {hubCard ? (
                     <>
-                      <div className="hub-cover hub-cover-mod" style={{ background: learnModule.cover_color || "#3b82f6" }}>
-                        {(learnModule.cover_initial || learnModule.book_title || "?").charAt(0).toUpperCase()}
+                      <div className="hub2-head">
+                        {hubCard.coverUrl ? (
+                          <img className="hub2-cover" src={hubCard.coverUrl} alt="" />
+                        ) : (
+                          <div className="hub2-cover" style={{ background: hubCard.color }}>{hubCard.initial}</div>
+                        )}
+                        <div className="hub2-titles">
+                          <div className="hub2-title">{hubCard.title}</div>
+                          {hubCard.author && <div className="hub2-author">{hubCard.author}</div>}
+                        </div>
                       </div>
-                      <div className="hub-main">
-                        <div className="hub-book">{learnModule.book_title}</div>
-                        <div className="hub-quote">{learnModule.quote}</div>
-                        <div className="hub-bar-bg"><div className="hub-bar-fill" style={{ width: `${topic?.progress_percent ?? 0}%` }}></div></div>
-                        <div className="hub-streak">🔥 {topic?.current_streak ?? 0}-day streak</div>
-                      </div>
-                    </>
-                  ) : topic ? (
-                    <>
-                      <TopicCover key={topic.id} topic={topic} />
-                      <div className="hub-main">
-                        <div className="hub-book">{topic.title}</div>
-                        <div className="hub-quote">{hubQuote}</div>
-                        <div className="hub-bar-bg"><div className="hub-bar-fill" style={{ width: `${topic.progress_percent ?? 0}%` }}></div></div>
-                        <div className="hub-streak">🔥 {topic.current_streak ?? 0}-day streak</div>
+                      {hubCard.takeaway && <div className="hub2-takeaway">{hubCard.takeaway}</div>}
+                      {hubCard.application && <div className="hub2-app">{hubCard.application}</div>}
+                      <div className="hub2-foot">
+                        <div className="hub2-bar"><div className="hub2-fill" style={{ width: `${topic?.progress_percent ?? 0}%` }}></div></div>
+                        <span className="hub2-streak">🔥 {topic?.current_streak ?? 0}-day streak</span>
                       </div>
                     </>
                   ) : (
@@ -1906,73 +1926,83 @@ export default function Home() {
       </div>
     ),
 
-    growth: (
-      <div key="growth" {...zoneProps("growth")}>
-        {zoneHead("growth", "Pursuits, hitlist and brewing", true)}
-        <div className="growth">
-          <div className="card">
-            <div className="ch">
-              <span className="ch-t" style={{ color: "var(--purple)" }}><Icon>{ICONS.target}</Icon>Crosshairs</span>
-              <span className="ch-a pur" onClick={() => navigate("/crosshairs")}>+ Add</span>
-            </div>
-            {targets.length === 0 && <div className="mit-empty">No targets yet.</div>}
-            {targets.slice(0, GROWTH_ROWS).map((t) => {
-              const s = PRIORITY_STYLE[t.priority] ?? PRIORITY_STYLE.Low;
+    crosshairs: (
+      <div key="crosshairs" {...zoneProps("crosshairs")}>
+        {zoneHead("crosshairs", "Crosshairs", true)}
+        <div className="card">
+          <div className="ch">
+            <span className="ch-t" style={{ color: "var(--purple)" }}><Icon>{ICONS.target}</Icon>Crosshairs</span>
+            <span className="ch-a pur" onClick={() => navigate("/crosshairs")}>+ Add</span>
+          </div>
+          {targets.length === 0 && <div className="mit-empty">No targets yet.</div>}
+          {targets.slice(0, GROWTH_ROWS).map((t) => {
+            const s = PRIORITY_STYLE[t.priority] ?? PRIORITY_STYLE.Low;
+            return (
+              <div key={t.id} className="xh-row" onClick={() => openCrosshairsPanel(t)}>
+                <div className="xh-dot" style={{ background: s.dot }}></div>
+                <div className="xh-n">{t.target_name}</div>
+                <span className={`bdg ${s.bdg}`}>{s.label}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ),
+
+    hitlist: (
+      <div key="hitlist" {...zoneProps("hitlist")}>
+        {zoneHead("hitlist", "Hitlist")}
+        <div className="card">
+          <div className="ch">
+            <span className="ch-t"><Icon>{ICONS.list}</Icon>Hitlist</span>
+            <span className="bdg bdg-r" style={{ marginRight: 6 }}>{staleCount} stale</span>
+            <span className="ch-a" onClick={() => window.open(`https://app.clickup.com/${CLICKUP_WORKSPACE_ID}/home`, "_blank", "noopener")}>ClickUp ↗</span>
+          </div>
+          <div className={`bl-area${overList === "hitlist" ? " drag-over-list" : ""}`} {...listDragProps("hitlist", dropOnHitlist)}>
+            {hitlist.length === 0 && <div className="mit-empty">{hitlistError ? "ClickUp unavailable." : "Nothing on the hitlist."}</div>}
+            {hitlist.slice(0, GROWTH_ROWS).map((t) => {
+              const color = t.age > 14 ? "var(--red)" : t.age >= 7 ? "var(--orange)" : "var(--t4)";
               return (
-                <div key={t.id} className="xh-row" onClick={() => openCrosshairsPanel(t)}>
-                  <div className="xh-dot" style={{ background: s.dot }}></div>
-                  <div className="xh-n">{t.target_name}</div>
-                  <span className={`bdg ${s.bdg}`}>{s.label}</span>
+                <div
+                  key={t.id}
+                  className={`bl-row${hitlistMeta[t.id]?.done ? " bl-done" : ""}`}
+                  onClick={() => openHitlistPanel(t)}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", hitlistMeta[t.id]?.label ?? t.label);
+                    e.dataTransfer.setData("source", "hitlist");
+                  }}
+                >
+                  <div className="bl-dot" style={{ background: color }}></div>
+                  <div className="bl-n">{hitlistMeta[t.id]?.label ?? t.label}</div>
+                  <span className="bl-age" style={{ color: color === "var(--t4)" ? "var(--t3)" : color }}>{t.age}d</span>
                 </div>
               );
             })}
           </div>
-          <div className="card">
-            <div className="ch">
-              <span className="ch-t"><Icon>{ICONS.list}</Icon>Hitlist</span>
-              <span className="bdg bdg-r" style={{ marginRight: 6 }}>{staleCount} stale</span>
-              <span className="ch-a" onClick={() => window.open(`https://app.clickup.com/${CLICKUP_WORKSPACE_ID}/home`, "_blank", "noopener")}>ClickUp ↗</span>
-            </div>
-            <div className={`bl-area${overList === "hitlist" ? " drag-over-list" : ""}`} {...listDragProps("hitlist", dropOnHitlist)}>
-              {hitlist.length === 0 && <div className="mit-empty">{hitlistError ? "ClickUp unavailable." : "Nothing on the hitlist."}</div>}
-              {hitlist.slice(0, GROWTH_ROWS).map((t) => {
-                const color = t.age > 14 ? "var(--red)" : t.age >= 7 ? "var(--orange)" : "var(--t4)";
-                return (
-                  <div
-                    key={t.id}
-                    className={`bl-row${hitlistMeta[t.id]?.done ? " bl-done" : ""}`}
-                    onClick={() => openHitlistPanel(t)}
-                    draggable
-                    onDragStart={(e) => {
-                      e.dataTransfer.setData("text/plain", hitlistMeta[t.id]?.label ?? t.label);
-                      e.dataTransfer.setData("source", "hitlist");
-                    }}
-                  >
-                    <div className="bl-dot" style={{ background: color }}></div>
-                    <div className="bl-n">{hitlistMeta[t.id]?.label ?? t.label}</div>
-                    <span className="bl-age" style={{ color: color === "var(--t4)" ? "var(--t3)" : color }}>{t.age}d</span>
-                  </div>
-                );
-              })}
-            </div>
+        </div>
+      </div>
+    ),
+
+    brewing: (
+      <div key="brewing" {...zoneProps("brewing")}>
+        {zoneHead("brewing", "Brewing", true)}
+        <div className="card">
+          <div className="ch">
+            <span className="ch-t" style={{ color: "var(--purple)" }}><Icon>{ICONS.flame}</Icon>Brewing</span>
+            <span className="ch-a pur" onClick={() => navigate("/brewing")}>+ Add</span>
           </div>
-          <div className="card">
-            <div className="ch">
-              <span className="ch-t" style={{ color: "var(--purple)" }}><Icon>{ICONS.flame}</Icon>Brewing</span>
-              <span className="ch-a pur" onClick={() => navigate("/brewing")}>+ Add</span>
-            </div>
-            {brewing.length === 0 && <div className="mit-empty">Nothing brewing.</div>}
-            {brewing.slice(0, GROWTH_ROWS).map((b) => {
-              const s = BREWING_STYLE[b.status] ?? BREWING_STYLE.Idea;
-              return (
-                <div key={b.id} className="br-row" onClick={() => openBrewingPanel(b)}>
-                  <div className="br-dot" style={{ background: s.dot }}></div>
-                  <div className="br-n">{b.name}</div>
-                  <span className={`bdg ${s.bdg}`}>{b.status}</span>
-                </div>
-              );
-            })}
-          </div>
+          {brewing.length === 0 && <div className="mit-empty">Nothing brewing.</div>}
+          {brewing.slice(0, GROWTH_ROWS).map((b) => {
+            const s = BREWING_STYLE[b.status] ?? BREWING_STYLE.Idea;
+            return (
+              <div key={b.id} className="br-row" onClick={() => openBrewingPanel(b)}>
+                <div className="br-dot" style={{ background: s.dot }}></div>
+                <div className="br-n">{b.name}</div>
+                <span className={`bdg ${s.bdg}`}>{b.status}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     ),
