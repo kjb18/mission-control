@@ -5,6 +5,7 @@ import {
   hasConnectedBefore,
   requestAccessToken,
   disconnectGoogleCalendar,
+  needsReconnect,
 } from "../lib/googleAuth";
 import { fetchFxRate, updateFxRate, DEFAULT_FX_RATE } from "../lib/settings";
 import { fetchBlacklistedSuppliers, addSupplierToBlacklist, removeSupplierFromBlacklist } from "../lib/sourcing";
@@ -13,6 +14,7 @@ import { PageHeader, Card, CardHeader, Badge, Button } from "../components/ui";
 export default function Settings() {
   const { user } = useAuth();
   const [connected, setConnected] = useState(hasConnectedBefore());
+  const [expired, setExpired] = useState(needsReconnect());
   const [status, setStatus] = useState(null);
   const [connecting, setConnecting] = useState(false);
   const [fxRateInput, setFxRateInput] = useState(String(DEFAULT_FX_RATE));
@@ -84,6 +86,7 @@ export default function Settings() {
     try {
       await requestAccessToken({ interactive: true });
       setConnected(true);
+      setExpired(false);
       setStatus({ type: "success", message: "Google Calendar connected." });
     } catch (err) {
       setStatus({ type: "error", message: err.message ?? "Couldn't connect Google Calendar." });
@@ -95,6 +98,7 @@ export default function Settings() {
   function handleDisconnect() {
     disconnectGoogleCalendar();
     setConnected(false);
+    setExpired(false);
     setStatus({ type: "success", message: "Google Calendar disconnected." });
   }
 
@@ -141,7 +145,11 @@ export default function Settings() {
       <Card noPadding>
         <CardHeader
           title="Google Calendar"
-          action={<Badge variant={connected ? "green" : "gray"}>{connected ? "Connected" : "Not connected"}</Badge>}
+          action={
+            <Badge variant={expired ? "amber" : connected ? "green" : "gray"}>
+              {expired ? "Session expired" : connected ? "Connected" : "Not connected"}
+            </Badge>
+          }
         />
         <div className="px-5 py-4">
           <p className="text-sm text-ink-secondary mb-4">
@@ -155,9 +163,24 @@ export default function Settings() {
               VITE_GOOGLE_CLIENT_ID is not set.
             </p>
           ) : connected ? (
-            <Button variant="secondary" onClick={handleDisconnect}>
-              Disconnect Google Calendar
-            </Button>
+            <div className="space-y-3">
+              {expired && (
+                <p className="text-xs text-ink-secondary">
+                  Google access lasts about an hour. Reconnect to resume pushing events and reading
+                  private calendar events.
+                </p>
+              )}
+              <div className="flex gap-2">
+                {expired && (
+                  <Button variant="primary" onClick={handleConnect} disabled={connecting}>
+                    {connecting ? "Reconnecting…" : "Reconnect Google Calendar"}
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={handleDisconnect}>
+                  Disconnect Google Calendar
+                </Button>
+              </div>
+            </div>
           ) : (
             <Button variant="primary" onClick={handleConnect} disabled={connecting}>
               {connecting ? "Connecting…" : "Connect Google Calendar"}

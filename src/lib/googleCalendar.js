@@ -110,7 +110,7 @@ export async function createEvent(options) {
   if (!accessToken) {
     return {
       skipped: true,
-      reason: "Google Calendar isn't connected — connect it in Settings to enable push.",
+      reason: "Google Calendar isn't connected or its session expired — reconnect it in Settings to enable push.",
     };
   }
 
@@ -138,7 +138,7 @@ export async function updateEvent(eventId, options) {
   if (!accessToken) {
     return {
       skipped: true,
-      reason: "Google Calendar isn't connected — connect it in Settings to enable push.",
+      reason: "Google Calendar isn't connected or its session expired — reconnect it in Settings to enable push.",
     };
   }
 

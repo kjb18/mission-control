@@ -26,9 +26,9 @@ const DAYNAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const pad = (n) => String(n).padStart(2, "0");
 
-// listEvents' silent token renewal opens a Google popup; outside a click the
-// browser blocks it and the promise may never settle. Cap the wait so the
-// weekly plan and calendar still render from Supabase and localStorage.
+// Cap the wait on Google so a slow or failing Calendar request can't hold
+// back the weekly plan and calendar, which also render Supabase and
+// localStorage data.
 function listEventsWithTimeout(range, ms = 8000) {
   return Promise.race([
     listEvents(range),
@@ -699,9 +699,8 @@ export default function Home() {
     if (!lb || !lb.trim()) return;
     setWeekEvents((prev) => ({ ...prev, [ds]: [...(prev[ds] ?? []), { t: "adm", l: lb }] }));
     // Push to Google Calendar as 09:00–09:30 Manila; the next load shows it
-    // as a meeting chip. Only a token already held this session counts as
-    // connected — getOrRenewAccessToken() would open Google's sign-in popup,
-    // and a drop is a user gesture so the browser lets that popup through.
+    // as a meeting chip. Only an unexpired token counts as connected; nothing
+    // here may open Google's sign-in popup.
     let pushed = false;
     if (!isGoogleCalendarConfigured() || !getAccessToken()) {
       console.log("Google Calendar not connected, falling back to localStorage for weekly plan drop");

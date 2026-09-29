@@ -13,17 +13,33 @@
 //
 // Trade-off: tokens from this flow are short-lived (~1 hour) and there is
 // no refresh token (refresh tokens only come from the server-side
-// Authorization Code flow). That's fine here — pushes happen while the
-// user is actively using the app, not in the background — and this code
-// silently re-requests a token when needed.
+// Authorization Code flow). There is also no truly silent renewal: even
+// prompt: "" opens Google's popup. So the token is kept in localStorage to
+// survive page refreshes for its lifetime, and nothing except the Settings
+// "Connect" button ever opens the popup. Once it expires, reads fall back
+// to the API-key proxy and pushes are skipped until the user reconnects.
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const SCOPE = "https://www.googleapis.com/auth/calendar.events";
 const STORAGE_KEY = "mc:google:connected";
+const TOKEN_KEY = "mc:google:token";
 
 let tokenClient = null;
 let accessToken = null;
 let tokenExpiresAt = 0;
+
+function restoreToken() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(TOKEN_KEY));
+    if (saved?.token && Date.now() < saved.expiresAt) {
+      accessToken = saved.token;
+      tokenExpiresAt = saved.expiresAt;
+    }
+  } catch {
+    /* ignore */
+  }
+}
+restoreToken();
 
 function ensureTokenClient() {
   if (tokenClient) return tokenClient;
@@ -77,6 +93,7 @@ export function requestAccessToken({ interactive } = { interactive: true }) {
         accessToken = response.access_token;
         tokenExpiresAt = Date.now() + (Number(response.expires_in) || 3600) * 1000 - 30_000;
         localStorage.setItem(STORAGE_KEY, "true");
+        localStorage.setItem(TOKEN_KEY, JSON.stringify({ token: accessToken, expiresAt: tokenExpiresAt }));
         resolve(accessToken);
       };
       client.requestAccessToken({ prompt: interactive ? "consent" : "" });
@@ -90,12 +107,18 @@ export function requestAccessToken({ interactive } = { interactive: true }) {
   });
 }
 
-/** Access token for API calls, silently renewing if the cached one expired. */
+/**
+ * Access token for API calls, or null when there is no unexpired token.
+ * Never renews on its own: a "silent" renewal still opens Google's popup,
+ * which showed up as a surprise sign-in prompt on unrelated clicks.
+ */
 export async function getOrRenewAccessToken() {
-  const cached = getAccessToken();
-  if (cached) return cached;
-  if (!hasConnectedBefore()) return null;
-  return requestAccessToken({ interactive: false });
+  return getAccessToken();
+}
+
+/** Connected before, but the token has expired — Settings offers Reconnect. */
+export function needsReconnect() {
+  return hasConnectedBefore() && !getAccessToken();
 }
 
 export function disconnectGoogleCalendar() {
@@ -105,4 +128,5 @@ export function disconnectGoogleCalendar() {
   accessToken = null;
   tokenExpiresAt = 0;
   localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(TOKEN_KEY);
 }
