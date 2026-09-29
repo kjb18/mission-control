@@ -6,6 +6,7 @@ import { useAuth } from "../lib/AuthContext";
 import { useCheckIn } from "../lib/CheckInContext";
 import { fetchAdminBacklogTasks, CLICKUP_WORKSPACE_ID } from "../lib/clickup";
 import { listEvents, createEvent, isGoogleCalendarConfigured } from "../lib/googleCalendar";
+import { getAccessToken } from "../lib/googleAuth";
 
 /* =============================================================================
    Self-contained homepage — a direct port of the approved reference artifact
@@ -24,6 +25,16 @@ const MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "Ju
 const DAYNAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const pad = (n) => String(n).padStart(2, "0");
+
+// listEvents' silent token renewal opens a Google popup; outside a click the
+// browser blocks it and the promise may never settle. Cap the wait so the
+// weekly plan and calendar still render from Supabase and localStorage.
+function listEventsWithTimeout(range, ms = 8000) {
+  return Promise.race([
+    listEvents(range),
+    new Promise((resolve) => setTimeout(() => resolve({ events: [], error: "Google Calendar timed out" }), ms)),
+  ]);
+}
 
 function getManilaDate() {
   return new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
@@ -111,18 +122,30 @@ function loadZoneOrder() {
   }
 }
 
-// Weekly plan drops saved while Google Calendar isn't connected: { "yyyy-MM-dd": ["label", …] }
+// Weekly plan drops saved while Google Calendar isn't connected:
+// { "yyyy-MM-dd": [{ t: "adm", l: "task label" }, …] }
 function loadWeeklyDrops() {
   try {
     const saved = JSON.parse(localStorage.getItem(WEEKLY_DROPS_KEY));
-    return saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) return {};
+    const drops = {};
+    Object.entries(saved).forEach(([ds, items]) => {
+      if (!Array.isArray(items)) return;
+      // Earlier builds stored plain label strings; read both shapes.
+      const chips = items
+        .map((item) => (typeof item === "string" ? item : item?.l))
+        .filter((l) => typeof l === "string" && l.trim() !== "")
+        .map((l) => ({ t: "adm", l }));
+      if (chips.length) drops[ds] = chips;
+    });
+    return drops;
   } catch {
     return {};
   }
 }
 function saveWeeklyDrop(ds, label) {
   const drops = loadWeeklyDrops();
-  drops[ds] = [...(drops[ds] ?? []), label];
+  drops[ds] = [...(drops[ds] ?? []), { t: "adm", l: label }];
   try {
     localStorage.setItem(WEEKLY_DROPS_KEY, JSON.stringify(drops));
   } catch {
@@ -409,6 +432,7 @@ export default function Home() {
   const [seoOkr, setSeoOkr] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const schema = useRef({ mitColumns: false, timeBlocks: false });
+  const savedMitCount = useRef(0);
 
   const [showRitual, setShowRitual] = useState(() => !ritualDismissed());
   const [ritualDone, setRitualDone] = useState(false);
@@ -453,7 +477,7 @@ export default function Home() {
       supabase.from("rfqs").select("rfq_number, title, closing_date").gte("closing_date", startISO).lte("closing_date", endISO),
       supabase.from("deliveries").select("delivery_date, purchase_orders(po_number)").gte("delivery_date", startISO).lte("delivery_date", endISO),
       supabase.from("invoices").select("invoice_number, due_date").neq("status", "paid").gte("due_date", startISO).lte("due_date", endISO),
-      listEvents({ timeMin: manilaInstant(startISO), timeMax: manilaInstant(endISO, "23:59:59") }),
+      listEventsWithTimeout({ timeMin: manilaInstant(startISO), timeMax: manilaInstant(endISO, "23:59:59") }),
     ]);
     if (cal.error) console.warn("[Home] Google Calendar:", cal.error);
     const map = {};
@@ -463,7 +487,7 @@ export default function Home() {
     (invoices.data ?? []).forEach((i) => push(i.due_date, { t: "adm", l: i.invoice_number ? `${i.invoice_number} due` : "Invoice due" }));
     (cal.events ?? []).forEach((ev) => ev.start && push(isoDate(toManila(ev.start)), { t: "mtg", l: ev.title }));
     const drops = loadWeeklyDrops();
-    days.forEach((d) => (drops[isoDate(d)] ?? []).forEach((l) => push(isoDate(d), { t: "adm", l })));
+    days.forEach((d) => (drops[isoDate(d)] ?? []).forEach((chip) => push(isoDate(d), chip)));
     setWeekEvents(map);
   }, []);
 
@@ -475,7 +499,7 @@ export default function Home() {
       supabase.from("deliveries").select("delivery_date").gte("delivery_date", startISO).lte("delivery_date", endISO),
       supabase.from("purchase_orders").select("expected_delivery_date").neq("status", "delivered").gte("expected_delivery_date", startISO).lte("expected_delivery_date", endISO),
       supabase.from("invoices").select("due_date").gte("due_date", startISO).lte("due_date", endISO),
-      listEvents({ timeMin: manilaInstant(startISO), timeMax: manilaInstant(endISO, "23:59:59") }),
+      listEventsWithTimeout({ timeMin: manilaInstant(startISO), timeMax: manilaInstant(endISO, "23:59:59") }),
     ]);
     const dots = {};
     const add = (ds, c) => {
@@ -501,10 +525,14 @@ export default function Home() {
     if (!mitColumns) console.warn("[Home] daily_logs has no mit_1/mit_2/mit_3 columns — using the mits jsonb array.");
     if (!timeBlocks) console.warn("[Home] daily_logs has no time_blocks column — time blocks stay in this browser.");
 
-    const { data: row, error } = await supabase.from("daily_logs").select("*").eq("log_date", today).maybeSingle();
+    const response = await supabase.from("daily_logs").select("*").eq("log_date", today).maybeSingle();
+    console.log("Loaded MITs from daily_logs:", response);
+    const { data: row, error } = response;
     if (error) console.warn("[Home] daily_logs read failed:", error.message);
     const list = mitColumns ? [row?.mit_1, row?.mit_2, row?.mit_3] : row?.mits ?? [];
-    setMits(list.filter(Boolean).slice(0, 3));
+    const loaded = list.filter((v) => typeof v === "string" && v.trim() !== "").slice(0, 3);
+    savedMitCount.current = loaded.length;
+    setMits(loaded);
 
     if (timeBlocks) {
       setBlocks(Array.isArray(row?.time_blocks) ? row.time_blocks : []);
@@ -569,11 +597,35 @@ export default function Home() {
   const persistMits = useCallback(async (next) => {
     setMits(next);
     const today = isoDate(getManilaDate());
-    const payload = schema.current.mitColumns
-      ? { log_date: today, mit_1: next[0] ?? null, mit_2: next[1] ?? null, mit_3: next[2] ?? null }
-      : { log_date: today, mits: next };
-    const { error } = await supabase.from("daily_logs").upsert(payload, { onConflict: "log_date" });
-    if (error) console.warn("[Home] saving MITs to daily_logs failed:", error.message);
+    let payload;
+    if (schema.current.mitColumns) {
+      payload = { log_date: today };
+      next.forEach((label, i) => {
+        if (label) payload[`mit_${i + 1}`] = label;
+      });
+      // Slots that held a MIT at the last save and are now empty must be
+      // cleared explicitly, or a merge upsert leaves the deleted MIT in place.
+      for (let i = next.length; i < savedMitCount.current; i++) payload[`mit_${i + 1}`] = null;
+    } else {
+      payload = { log_date: today, mits: next };
+    }
+    console.log("Saving MITs to daily_logs:", JSON.stringify(payload));
+    // Direct PostgREST call so the Prefer header is exactly
+    // resolution=merge-duplicates,return=minimal (supabase-js omits return=minimal).
+    const { data: auth } = await supabase.auth.getSession();
+    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/daily_logs?on_conflict=log_date`, {
+      method: "POST",
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${auth.session?.access_token ?? anonKey}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) console.warn("[Home] saving MITs to daily_logs failed:", res.status, await res.text());
+    else savedMitCount.current = next.length;
   }, []);
 
   const persistBlocks = useCallback(async (next) => {
@@ -642,13 +694,18 @@ export default function Home() {
   const dropOnDay = async (e, ds) => {
     e.preventDefault();
     setDragOverDay(null);
-    const lb = e.dataTransfer.getData("text");
-    if (!lb) return;
+    const lb = e.dataTransfer.getData("text/plain");
+    console.log(`Weekly plan drop on ${ds}: ${lb}`);
+    if (!lb || !lb.trim()) return;
     setWeekEvents((prev) => ({ ...prev, [ds]: [...(prev[ds] ?? []), { t: "adm", l: lb }] }));
     // Push to Google Calendar as 09:00–09:30 Manila; the next load shows it
-    // as a meeting chip. Without an OAuth connection, keep it in localStorage.
+    // as a meeting chip. Only a token already held this session counts as
+    // connected — getOrRenewAccessToken() would open Google's sign-in popup,
+    // and a drop is a user gesture so the browser lets that popup through.
     let pushed = false;
-    if (isGoogleCalendarConfigured()) {
+    if (!isGoogleCalendarConfigured() || !getAccessToken()) {
+      console.log("Google Calendar not connected, falling back to localStorage for weekly plan drop");
+    } else {
       try {
         const res = await createEvent({
           title: lb,
@@ -677,7 +734,7 @@ export default function Home() {
       if (isZoneDrag(e)) return;
       e.preventDefault();
       setOverList(null);
-      onDrop(e.dataTransfer.getData("text"), e.dataTransfer.getData("source"));
+      onDrop(e.dataTransfer.getData("text/plain"), e.dataTransfer.getData("source"));
     },
   });
 
@@ -934,7 +991,7 @@ export default function Home() {
                         className="mit-row"
                         draggable
                         onDragStart={(e) => {
-                          e.dataTransfer.setData("text", m);
+                          e.dataTransfer.setData("text/plain", m);
                           e.dataTransfer.setData("source", "mit");
                         }}
                       >
@@ -1091,7 +1148,7 @@ export default function Home() {
                     className="bl-row"
                     draggable
                     onDragStart={(e) => {
-                      e.dataTransfer.setData("text", t.label);
+                      e.dataTransfer.setData("text/plain", t.label);
                       e.dataTransfer.setData("source", "hitlist");
                     }}
                   >
