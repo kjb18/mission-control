@@ -186,7 +186,7 @@ function loadWeeklyDrops() {
       const chips = items
         .map((item) => (typeof item === "string" ? item : item?.l))
         .filter((l) => typeof l === "string" && l.trim() !== "")
-        .map((l) => ({ t: "adm", l }));
+        .map((l) => ({ t: "adm", l, local: true }));
       if (chips.length) drops[ds] = chips;
     });
     return drops;
@@ -447,6 +447,223 @@ function MorningRitual({ firstName, mit1, hotTarget, seoOkr, onClose, onComplete
 }
 
 // ---------------------------------------------------------------------------
+// Task properties — shared by every task surface on the page.
+// ---------------------------------------------------------------------------
+const TASK_PROPS_KEY = "mc_task_props";
+const WEEKLY_DONE_KEY = "mc_weekly_done";
+const TASK_STATUSES = ["Open", "In Progress", "Done", "Dropped"];
+const TASK_TYPES = ["Task", "Mission", "Project"];
+const TASK_PRIORITIES = ["Hot", "Medium", "Low"];
+const DEFAULT_TASK_FIELDS = {
+  area: "Systems",
+  project: "",
+  mission: "",
+  type: "Task",
+  status: "Open",
+  due_date: "",
+  priority: "Medium",
+  notes: "",
+};
+const PRIORITY_DOT = { Hot: "var(--red)", Medium: "var(--orange)", Low: "var(--t4)", Nurturing: "var(--purple)" };
+const EMPTY_MIT_STATE = { done: false, meta: {} };
+
+function readJson(key) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key));
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  } catch {
+    return {};
+  }
+}
+function writeJson(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* storage unavailable */
+  }
+}
+// Properties for weekly chips and time blocks, keyed by task label.
+const loadTaskProps = (key) => readJson(TASK_PROPS_KEY)[key] ?? {};
+function saveTaskProps(key, props, oldKey) {
+  const all = readJson(TASK_PROPS_KEY);
+  if (oldKey && oldKey !== key) delete all[oldKey];
+  all[key] = props;
+  writeJson(TASK_PROPS_KEY, all);
+}
+function deleteTaskProps(key) {
+  const all = readJson(TASK_PROPS_KEY);
+  delete all[key];
+  writeJson(TASK_PROPS_KEY, all);
+}
+const pickFields = (obj) =>
+  Object.fromEntries(Object.keys(DEFAULT_TASK_FIELDS).filter((k) => obj?.[k] != null).map((k) => [k, obj[k]]));
+
+// Single click opens the panel, double click toggles done. The single-click
+// action waits briefly so a double click doesn't also open the panel.
+function useClickOrDouble() {
+  const timer = useRef(null);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  return (onSingle, onDouble) => ({
+    onClick: (e) => {
+      if (e.detail > 1) return;
+      clearTimeout(timer.current);
+      timer.current = setTimeout(onSingle, 220);
+    },
+    onDoubleClick: () => {
+      clearTimeout(timer.current);
+      onDouble();
+    },
+  });
+}
+
+/**
+ * task: { uid, title, source, fields, statusOptions, priorityOptions,
+ *         canDelete, deleteNote, confirmDelete }
+ */
+function TaskPanel({ open, task, areas, onClose, onSave, onDelete }) {
+  const panelRef = useRef(null);
+  const [title, setTitle] = useState("");
+  const [fields, setFields] = useState(DEFAULT_TASK_FIELDS);
+  const [confirming, setConfirming] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!task) return;
+    setTitle(task.title);
+    setFields({ ...DEFAULT_TASK_FIELDS, ...task.fields });
+    setConfirming(false);
+    setSaving(false);
+  }, [task]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
+    };
+    const onKey = (e) => e.key === "Escape" && onClose();
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
+  const set = (k) => (e) => setFields((f) => ({ ...f, [k]: e.target.value }));
+  const statusOptions = task?.statusOptions ?? TASK_STATUSES;
+  const priorityOptions = task?.priorityOptions ?? TASK_PRIORITIES;
+  const areaOptions = areas && [...new Set([fields.area, ...areas.map((a) => a.name)].filter(Boolean))];
+
+  const save = async () => {
+    if (!title.trim()) return;
+    setSaving(true);
+    await onSave({ title: title.trim(), fields });
+    setSaving(false);
+  };
+  const del = () => {
+    if (task.confirmDelete && !confirming) {
+      setConfirming(true);
+      return;
+    }
+    onDelete();
+  };
+
+  return (
+    <>
+      <div className={`tp-overlay${open ? " open" : ""}`}></div>
+      <div ref={panelRef} className={`tp-panel${open ? " open" : ""}`} role="dialog" aria-label="Task properties" aria-hidden={!open}>
+        {task && (
+          <>
+            <div className="tp-head">
+              <input
+                className="tp-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && save()}
+                aria-label="Task title"
+              />
+              <button className="tp-close" onClick={onClose} aria-label="Close">✕</button>
+            </div>
+            <div className="tp-body">
+              <div className="tp-src">{task.source}</div>
+              <div>
+                <div className="tp-sec-label">Hierarchy</div>
+                <div className="tp-row">
+                  <span className="tp-label">
+                    <span className="tp-dot" style={{ background: PRIORITY_DOT[fields.priority] ?? "var(--t4)" }}></span>Area
+                  </span>
+                  {areaOptions ? (
+                    <select className="tp-input" value={fields.area} onChange={set("area")}>
+                      {areaOptions.map((a) => (
+                        <option key={a}>{a}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input className="tp-input" value={fields.area} onChange={set("area")} />
+                  )}
+                </div>
+                <div className="tp-row">
+                  <span className="tp-label">Project</span>
+                  <input className="tp-input" value={fields.project} onChange={set("project")} placeholder="Optional" />
+                </div>
+                <div className="tp-row">
+                  <span className="tp-label">Mission</span>
+                  <input className="tp-input" value={fields.mission} onChange={set("mission")} placeholder="Optional" />
+                </div>
+                <div className="tp-row">
+                  <span className="tp-label">Type</span>
+                  <select className="tp-input" value={fields.type} onChange={set("type")}>
+                    {TASK_TYPES.map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <div className="tp-sec-label">Details</div>
+                <div className="tp-row">
+                  <span className="tp-label">Status</span>
+                  <select className="tp-input" value={fields.status} onChange={set("status")}>
+                    {[...new Set([fields.status, ...statusOptions])].map((o) => (
+                      <option key={o}>{o}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="tp-row">
+                  <span className="tp-label">Due date</span>
+                  <input className="tp-input" type="date" value={fields.due_date} onChange={set("due_date")} />
+                </div>
+                <div className="tp-row">
+                  <span className="tp-label">Priority</span>
+                  <select className="tp-input" value={fields.priority} onChange={set("priority")}>
+                    {[...new Set([fields.priority, ...priorityOptions])].map((o) => (
+                      <option key={o}>{o}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <div className="tp-sec-label">Notes</div>
+                <textarea className="tp-notes" value={fields.notes} onChange={set("notes")} placeholder="Notes…"></textarea>
+              </div>
+              {task.deleteNote && <div className="tp-hint">{task.deleteNote}</div>}
+            </div>
+            <div className="tp-foot">
+              <button className="tp-del" onClick={del} disabled={!task.canDelete}>
+                {confirming ? "Click again to delete" : "Delete"}
+              </button>
+              <button className="tp-save" onClick={save} disabled={saving || !title.trim()}>
+                {saving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
 export default function Home() {
@@ -474,15 +691,26 @@ export default function Home() {
   });
   const [monthDots, setMonthDots] = useState({});
   const [mits, setMits] = useState([]);
+  // Parallel to mits: [{ done, meta }] where meta is the slot's mit_meta entry.
+  const [mitState, setMitState] = useState([]);
+  const mitsRef = useRef([]);
+  const mitStateRef = useRef([]);
+  mitsRef.current = mits;
+  mitStateRef.current = mitState;
   const [blocks, setBlocks] = useState([]);
+  const [weeklyDone, setWeeklyDone] = useState(() => readJson(WEEKLY_DONE_KEY));
+  const [areas, setAreas] = useState(null);
   const [hitlist, setHitlist] = useState([]);
   const [hitlistError, setHitlistError] = useState(null);
+  // Hitlist edits made in the panel: { [id]: { done, label, props } }. ClickUp
+  // tasks aren't written back, so these live in component state.
+  const [hitlistMeta, setHitlistMeta] = useState({});
   const [targets, setTargets] = useState([]);
   const [brewing, setBrewing] = useState([]);
   const [topic, setTopic] = useState(null);
   const [seoOkr, setSeoOkr] = useState(null);
   const [syncing, setSyncing] = useState(false);
-  const schema = useRef({ mitColumns: false, timeBlocks: false });
+  const schema = useRef({ mitColumns: false, timeBlocks: false, mitDone: false, mitMeta: false });
   const savedMitCount = useRef(0);
 
   const [showRitual, setShowRitual] = useState(() => !ritualDismissed());
@@ -569,11 +797,15 @@ export default function Home() {
 
   const loadDailyLog = useCallback(async () => {
     const today = isoDate(getManilaDate());
-    const [mitColumns, timeBlocks] = await Promise.all([
+    const [mitColumns, timeBlocks, mitDone, mitMeta] = await Promise.all([
       dailyLogsHasColumns("mit_1,mit_2,mit_3"),
       dailyLogsHasColumns("time_blocks"),
+      dailyLogsHasColumns("mit_1_done,mit_2_done,mit_3_done"),
+      dailyLogsHasColumns("mit_meta"),
     ]);
-    schema.current = { mitColumns, timeBlocks };
+    schema.current = { mitColumns, timeBlocks, mitDone, mitMeta };
+    if (!mitDone) console.warn("[Home] daily_logs has no mit_N_done columns — MIT cross-outs won't persist until migration 0011 runs.");
+    if (!mitMeta) console.warn("[Home] daily_logs has no mit_meta column — MIT properties won't persist until migration 0012 runs.");
     if (!mitColumns) console.warn("[Home] daily_logs has no mit_1/mit_2/mit_3 columns — using the mits jsonb array.");
     if (!timeBlocks) console.warn("[Home] daily_logs has no time_blocks column — time blocks stay in this browser.");
 
@@ -581,10 +813,17 @@ export default function Home() {
     console.log("Loaded MITs from daily_logs:", response);
     const { data: row, error } = response;
     if (error) console.warn("[Home] daily_logs read failed:", error.message);
-    const list = mitColumns ? [row?.mit_1, row?.mit_2, row?.mit_3] : row?.mits ?? [];
-    const loaded = list.filter((v) => typeof v === "string" && v.trim() !== "").slice(0, 3);
+    const isLabel = (v) => typeof v === "string" && v.trim() !== "";
+    const slots = mitColumns
+      ? [1, 2, 3].map((n) => ({
+          label: row?.[`mit_${n}`],
+          state: { done: Boolean(row?.[`mit_${n}_done`]), meta: row?.mit_meta?.[n] ?? {} },
+        }))
+      : (row?.mits ?? []).map((label) => ({ label, state: EMPTY_MIT_STATE }));
+    const loaded = slots.filter((s) => isLabel(s.label)).slice(0, 3);
     savedMitCount.current = loaded.length;
-    setMits(loaded);
+    setMits(loaded.map((s) => s.label));
+    setMitState(loaded.map((s) => s.state));
 
     if (timeBlocks) {
       setBlocks(Array.isArray(row?.time_blocks) ? row.time_blocks : []);
@@ -631,11 +870,17 @@ export default function Home() {
     }
   }, []);
 
+  const loadAreas = useCallback(async () => {
+    const { data, error } = await supabase.from("areas").select("id, name").order("name");
+    // No areas table in this project → the panel shows a text input instead.
+    setAreas(error ? null : data ?? []);
+  }, []);
+
   const loadAll = useCallback(async () => {
     setSyncing(true);
-    await Promise.allSettled([loadPulse(), loadWeek(), loadDailyLog(), loadGrowth(), loadHitlist()]);
+    await Promise.allSettled([loadPulse(), loadWeek(), loadDailyLog(), loadGrowth(), loadHitlist(), loadAreas()]);
     setSyncing(false);
-  }, [loadPulse, loadWeek, loadDailyLog, loadGrowth, loadHitlist]);
+  }, [loadPulse, loadWeek, loadDailyLog, loadGrowth, loadHitlist, loadAreas]);
 
   useEffect(() => {
     loadAll();
@@ -646,18 +891,33 @@ export default function Home() {
   }, [calMonth, loadMonth]);
 
   // ---- Writers ------------------------------------------------------------------
-  const persistMits = useCallback(async (next) => {
+  // next: MIT labels in order. nextState: matching [{ done, meta }]; when
+  // omitted, each label keeps the state it already had, so done flags and
+  // properties follow a MIT when the list is reordered or compacted.
+  const persistMits = useCallback(async (next, nextStateArg) => {
+    const byLabel = new Map(mitsRef.current.map((l, i) => [l, mitStateRef.current[i]]));
+    const nextState = nextStateArg ?? next.map((l) => byLabel.get(l) ?? EMPTY_MIT_STATE);
+    mitsRef.current = next;
+    mitStateRef.current = nextState;
     setMits(next);
+    setMitState(nextState);
     const today = isoDate(getManilaDate());
+    const { mitDone, mitMeta } = schema.current;
     let payload;
     if (schema.current.mitColumns) {
       payload = { log_date: today };
       next.forEach((label, i) => {
-        if (label) payload[`mit_${i + 1}`] = label;
+        if (!label) return;
+        payload[`mit_${i + 1}`] = label;
+        if (mitDone) payload[`mit_${i + 1}_done`] = Boolean(nextState[i]?.done);
       });
       // Slots that held a MIT at the last save and are now empty must be
       // cleared explicitly, or a merge upsert leaves the deleted MIT in place.
-      for (let i = next.length; i < savedMitCount.current; i++) payload[`mit_${i + 1}`] = null;
+      for (let i = next.length; i < savedMitCount.current; i++) {
+        payload[`mit_${i + 1}`] = null;
+        if (mitDone) payload[`mit_${i + 1}_done`] = false;
+      }
+      if (mitMeta) payload.mit_meta = Object.fromEntries(next.map((_, i) => [i + 1, nextState[i]?.meta ?? {}]));
     } else {
       payload = { log_date: today, mits: next };
     }
@@ -705,6 +965,196 @@ export default function Home() {
     if (error) console.warn("[Home] work_items unavailable — hitlist task kept in local state only:", error.message);
   }, []);
 
+
+  // ---- Cross-out (double click) --------------------------------------------------------
+  const clickOrDouble = useClickOrDouble();
+
+  const toggleMitDone = (i) => {
+    const nextState = mitStateRef.current.map((st, j) =>
+      j === i ? { done: !st.done, meta: { ...st.meta, status: !st.done ? "Done" : "Open" } } : st
+    );
+    persistMits(mitsRef.current, nextState);
+  };
+  const toggleBlockDone = (i) => persistBlocks(blocks.map((b, j) => (j === i ? { ...b, done: !b.done } : b)));
+  const setWeeklyDoneFor = (ds, label, done) => {
+    setWeeklyDone((prev) => {
+      const day = { ...(prev[ds] ?? {}) };
+      if (done) day[label] = true;
+      else delete day[label];
+      const next = { ...prev, [ds]: day };
+      if (!Object.keys(day).length) delete next[ds];
+      writeJson(WEEKLY_DONE_KEY, next);
+      return next;
+    });
+  };
+  const isWeeklyDone = (ds, label) => Boolean(weeklyDone[ds]?.[label]);
+
+  // ---- Task properties panel ---------------------------------------------------------
+  const [panelTask, setPanelTask] = useState(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const closePanel = useCallback(() => setPanelOpen(false), []);
+  const openPanel = (task) => {
+    setPanelTask({ uid: `${task.kind}:${Date.now()}`, canDelete: true, ...task });
+    setPanelOpen(true);
+  };
+
+  const openMitPanel = (i) => {
+    const st = mitState[i] ?? EMPTY_MIT_STATE;
+    openPanel({
+      kind: "mit",
+      index: i,
+      title: mits[i],
+      source: `MIT ${i + 1} · saved to today's daily log`,
+      fields: { ...pickFields(st.meta), status: st.meta.status ?? (st.done ? "Done" : "Open") },
+    });
+  };
+  const openWeekPanel = (ds, chip, idx) => {
+    const done = isWeeklyDone(ds, chip.l);
+    const props = loadTaskProps(chip.l);
+    openPanel({
+      kind: "week",
+      ds,
+      idx,
+      chip,
+      title: chip.l,
+      source: `Weekly plan · ${ds}`,
+      fields: { ...pickFields(props), status: props.status ?? (done ? "Done" : "Open") },
+      canDelete: Boolean(chip.local),
+      deleteNote: chip.local ? null : "This chip comes from Supabase or Google Calendar — remove it at its source.",
+    });
+  };
+  const openBlockPanel = (i) => {
+    const b = blocks[i];
+    const props = loadTaskProps(b.label);
+    openPanel({
+      kind: "block",
+      index: i,
+      title: b.label,
+      source: `Time block · ${b.time}`,
+      fields: { ...pickFields(props), status: props.status ?? (b.done ? "Done" : "Open") },
+    });
+  };
+  const openHitlistPanel = (t) => {
+    const meta = hitlistMeta[t.id] ?? {};
+    openPanel({
+      kind: "hitlist",
+      id: t.id,
+      local: t.local,
+      title: meta.label ?? t.label,
+      source: t.local ? "Hitlist · added here" : "Hitlist · ClickUp task",
+      fields: { ...pickFields(meta.props), status: meta.props?.status ?? (meta.done ? "Done" : "Open") },
+      canDelete: Boolean(t.local),
+      deleteNote: t.local ? null : "ClickUp tasks are removed in ClickUp.",
+    });
+  };
+  const openCrosshairsPanel = (t) => {
+    const extra = loadTaskProps(`crosshairs:${t.id}`);
+    openPanel({
+      kind: "crosshairs",
+      id: t.id,
+      title: t.target_name,
+      source: "Crosshairs target",
+      fields: { ...pickFields(extra), priority: t.priority, notes: t.notes ?? "" },
+      priorityOptions: ["Hot", "Medium", "Low", "Nurturing"],
+      confirmDelete: true,
+    });
+  };
+  const openBrewingPanel = (b) => {
+    const extra = loadTaskProps(`brewing:${b.id}`);
+    openPanel({
+      kind: "brewing",
+      id: b.id,
+      title: b.name,
+      source: "Brewing item",
+      fields: { ...pickFields(extra), status: b.status, notes: b.notes ?? "" },
+      // brewing_items.status is limited to these by a check constraint.
+      statusOptions: ["Active", "Planning", "Draft", "Scheduled", "Idea"],
+      confirmDelete: true,
+    });
+  };
+
+  const savePanel = async ({ title, fields }) => {
+    const t = panelTask;
+    const done = fields.status === "Done";
+    const { status, notes, priority, ...rest } = fields;
+    if (t.kind === "mit") {
+      const next = mitsRef.current.map((l, i) => (i === t.index ? title : l));
+      const nextState = mitStateRef.current.map((st, i) => (i === t.index ? { done, meta: { ...fields } } : st));
+      await persistMits(next, nextState);
+    } else if (t.kind === "week") {
+      const rename = (l) => (l === t.chip.l ? title : l);
+      setWeekEvents((prev) => ({
+        ...prev,
+        [t.ds]: (prev[t.ds] ?? []).map((c, i) => (i === t.idx ? { ...c, l: title } : c)),
+      }));
+      if (t.chip.local) {
+        const drops = readJson(WEEKLY_DROPS_KEY);
+        if (Array.isArray(drops[t.ds])) {
+          drops[t.ds] = drops[t.ds].map((d) => (typeof d === "string" ? { t: "adm", l: rename(d) } : { ...d, l: rename(d.l) }));
+          writeJson(WEEKLY_DROPS_KEY, drops);
+        }
+      }
+      if (title !== t.chip.l) setWeeklyDoneFor(t.ds, t.chip.l, false);
+      setWeeklyDoneFor(t.ds, title, done);
+      saveTaskProps(title, fields, t.chip.l);
+    } else if (t.kind === "block") {
+      const old = blocks[t.index];
+      await persistBlocks(blocks.map((b, i) => (i === t.index ? { ...b, label: title, done } : b)));
+      saveTaskProps(title, fields, old?.label);
+    } else if (t.kind === "hitlist") {
+      setHitlistMeta((prev) => ({ ...prev, [t.id]: { label: title, done, props: fields } }));
+      const probe = await supabase.from("work_items").select("id", { head: true }).limit(1);
+      if (probe.error) {
+        console.warn("[Home] work_items table not found — hitlist task properties kept in component state only.");
+      } else {
+        const { error } = await supabase.from("work_items").insert({ title, type: "task", status: status.toLowerCase(), notes, priority, due_date: fields.due_date || null });
+        if (error) console.warn("[Home] saving hitlist task to work_items failed:", error.message);
+      }
+    } else if (t.kind === "crosshairs") {
+      const { error } = await supabase.from("crosshairs_targets").update({ target_name: title, priority, notes: notes || null }).eq("id", t.id);
+      if (error) console.warn("[Home] updating crosshairs target failed:", error.message);
+      else setTargets((prev) => prev.map((x) => (x.id === t.id ? { ...x, target_name: title, priority, notes } : x)));
+      saveTaskProps(`crosshairs:${t.id}`, rest);
+    } else if (t.kind === "brewing") {
+      const { error } = await supabase.from("brewing_items").update({ name: title, status, notes: notes || null }).eq("id", t.id);
+      if (error) console.warn("[Home] updating brewing item failed:", error.message);
+      else setBrewing((prev) => prev.map((x) => (x.id === t.id ? { ...x, name: title, status, notes } : x)));
+      saveTaskProps(`brewing:${t.id}`, { ...rest, priority });
+    }
+    closePanel();
+  };
+
+  const deletePanelTask = async () => {
+    const t = panelTask;
+    if (t.kind === "mit") {
+      persistMits(mitsRef.current.filter((_, i) => i !== t.index));
+    } else if (t.kind === "week") {
+      setWeekEvents((prev) => ({ ...prev, [t.ds]: (prev[t.ds] ?? []).filter((_, i) => i !== t.idx) }));
+      const drops = readJson(WEEKLY_DROPS_KEY);
+      if (Array.isArray(drops[t.ds])) {
+        const at = drops[t.ds].findIndex((d) => (typeof d === "string" ? d : d?.l) === t.chip.l);
+        if (at > -1) drops[t.ds].splice(at, 1);
+        if (!drops[t.ds].length) delete drops[t.ds];
+        writeJson(WEEKLY_DROPS_KEY, drops);
+      }
+      setWeeklyDoneFor(t.ds, t.chip.l, false);
+      deleteTaskProps(t.chip.l);
+    } else if (t.kind === "block") {
+      persistBlocks(blocks.filter((_, i) => i !== t.index));
+    } else if (t.kind === "hitlist") {
+      setHitlist((prev) => prev.filter((x) => x.id !== t.id));
+    } else if (t.kind === "crosshairs") {
+      const { error } = await supabase.from("crosshairs_targets").delete().eq("id", t.id);
+      if (error) console.warn("[Home] deleting crosshairs target failed:", error.message);
+      else setTargets((prev) => prev.filter((x) => x.id !== t.id));
+    } else if (t.kind === "brewing") {
+      const { error } = await supabase.from("brewing_items").delete().eq("id", t.id);
+      if (error) console.warn("[Home] deleting brewing item failed:", error.message);
+      else setBrewing((prev) => prev.filter((x) => x.id !== t.id));
+    }
+    closePanel();
+  };
+
   // ---- Morning ritual ---------------------------------------------------------
   const dismissRitual = () => {
     try {
@@ -749,7 +1199,7 @@ export default function Home() {
     const lb = e.dataTransfer.getData("text/plain");
     console.log(`Weekly plan drop on ${ds}: ${lb}`);
     if (!lb || !lb.trim()) return;
-    setWeekEvents((prev) => ({ ...prev, [ds]: [...(prev[ds] ?? []), { t: "adm", l: lb }] }));
+    setWeekEvents((prev) => ({ ...prev, [ds]: [...(prev[ds] ?? []), { t: "adm", l: lb, local: true }] }));
     // A MIT scheduled onto a day leaves the MIT list, so it can't come back
     // on the next load as both a MIT and a chip. persistMits() compacts the
     // list and nulls the freed mit_N column in today's daily_logs row.
@@ -1007,7 +1457,14 @@ export default function Home() {
                   {ds === todayISO ? <div className="wd-tod">{d.getDate()}</div> : <div className="wd-d">{d.getDate()}</div>}
                   {evs.length ? (
                     evs.map((ev, i) => (
-                      <div key={i} className={`ev ev-${ev.t}`} title={ev.l}>{ev.l}</div>
+                      <div
+                        key={i}
+                        className={`ev ev-${ev.t}${isWeeklyDone(ds, ev.l) ? " ev-done" : ""}`}
+                        title={ev.l}
+                        {...clickOrDouble(() => openWeekPanel(ds, ev, i), () => setWeeklyDoneFor(ds, ev.l, !isWeeklyDone(ds, ev.l)))}
+                      >
+                        {ev.l}
+                      </div>
                     ))
                   ) : (
                     <>
@@ -1043,7 +1500,8 @@ export default function Home() {
                     mits.map((m, i) => (
                       <div
                         key={`${i}-${m}`}
-                        className="mit-row"
+                        className={`mit-row${mitState[i]?.done ? " mit-done" : ""}`}
+                        {...clickOrDouble(() => openMitPanel(i), () => toggleMitDone(i))}
                         draggable
                         onDragStart={(e) => {
                           e.dataTransfer.setData("text/plain", m);
@@ -1052,7 +1510,16 @@ export default function Home() {
                       >
                         <div className="mit-n">{i + 1}</div>
                         <div className="mit-t">{m}</div>
-                        <button className="mit-del" onClick={() => persistMits(mits.filter((_, idx) => idx !== i))}>✕</button>
+                        <button
+                          className="mit-del"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            persistMits(mits.filter((_, idx) => idx !== i));
+                          }}
+                          onDoubleClick={(e) => e.stopPropagation()}
+                        >
+                          ✕
+                        </button>
                       </div>
                     ))
                   )}
@@ -1095,7 +1562,11 @@ export default function Home() {
                     const [h, m] = b.time.split(":").map(Number);
                     const act = Math.abs(h * 60 + m - nowMin) < 60;
                     return (
-                      <div key={i} className={`tb-row${act ? " act" : ""}`}>
+                      <div
+                        key={i}
+                        className={`tb-row${act ? " act" : ""}${b.done ? " tb-done" : ""}`}
+                        {...clickOrDouble(() => openBlockPanel(i), () => toggleBlockDone(i))}
+                      >
                         <span className="tb-tm">{b.time}</span>
                         <span className="tb-nm">{b.label}</span>
                         {act && <span className="tb-now">Now</span>}
@@ -1179,7 +1650,7 @@ export default function Home() {
             {targets.slice(0, GROWTH_ROWS).map((t) => {
               const s = PRIORITY_STYLE[t.priority] ?? PRIORITY_STYLE.Low;
               return (
-                <div key={t.id} className="xh-row" onClick={() => navigate("/crosshairs")}>
+                <div key={t.id} className="xh-row" onClick={() => openCrosshairsPanel(t)}>
                   <div className="xh-dot" style={{ background: s.dot }}></div>
                   <div className="xh-n">{t.target_name}</div>
                   <span className={`bdg ${s.bdg}`}>{s.label}</span>
@@ -1200,15 +1671,16 @@ export default function Home() {
                 return (
                   <div
                     key={t.id}
-                    className="bl-row"
+                    className={`bl-row${hitlistMeta[t.id]?.done ? " bl-done" : ""}`}
+                    onClick={() => openHitlistPanel(t)}
                     draggable
                     onDragStart={(e) => {
-                      e.dataTransfer.setData("text/plain", t.label);
+                      e.dataTransfer.setData("text/plain", hitlistMeta[t.id]?.label ?? t.label);
                       e.dataTransfer.setData("source", "hitlist");
                     }}
                   >
                     <div className="bl-dot" style={{ background: color }}></div>
-                    <div className="bl-n">{t.label}</div>
+                    <div className="bl-n">{hitlistMeta[t.id]?.label ?? t.label}</div>
                     <span className="bl-age" style={{ color: color === "var(--t4)" ? "var(--t3)" : color }}>{t.age}d</span>
                   </div>
                 );
@@ -1224,7 +1696,7 @@ export default function Home() {
             {brewing.slice(0, GROWTH_ROWS).map((b) => {
               const s = BREWING_STYLE[b.status] ?? BREWING_STYLE.Idea;
               return (
-                <div key={b.id} className="br-row">
+                <div key={b.id} className="br-row" onClick={() => openBrewingPanel(b)}>
                   <div className="br-dot" style={{ background: s.dot }}></div>
                   <div className="br-n">{b.name}</div>
                   <span className={`bdg ${s.bdg}`}>{b.status}</span>
@@ -1314,6 +1786,15 @@ export default function Home() {
           onComplete={completeRitual}
         />
       )}
+
+      <TaskPanel
+        open={panelOpen}
+        task={panelTask}
+        areas={areas}
+        onClose={closePanel}
+        onSave={savePanel}
+        onDelete={deletePanelTask}
+      />
 
       <div className="shell">
         <Sidebar fullName={fullName} ritualDone={ritualDone || checkIn.isComplete} />
