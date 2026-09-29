@@ -7,6 +7,7 @@ import { useCheckIn } from "../lib/CheckInContext";
 import { fetchAdminBacklogTasks, CLICKUP_WORKSPACE_ID } from "../lib/clickup";
 import { createEvent, isGoogleCalendarConfigured } from "../lib/googleCalendar";
 import { getAccessToken } from "../lib/googleAuth";
+import { fetchTodayModule } from "../lib/learningModules";
 
 /* =============================================================================
    Self-contained homepage — a direct port of the approved reference artifact
@@ -842,6 +843,8 @@ export default function Home() {
   const [targets, setTargets] = useState([]);
   const [brewing, setBrewing] = useState([]);
   const [topic, setTopic] = useState(null);
+  // Today's generated learning module; null → the card falls back to learning_topics.
+  const [learnModule, setLearnModule] = useState(null);
   const [seoOkr, setSeoOkr] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const schema = useRef({ mitColumns: false, timeBlocks: false, mitDone: false, mitMeta: false });
@@ -1060,11 +1063,20 @@ export default function Home() {
     create: createHierarchyItem,
   };
 
+  const loadModule = useCallback(async () => {
+    try {
+      setLearnModule(await fetchTodayModule());
+    } catch (e) {
+      console.warn("[Home] generate-learning-module unavailable — using learning_topics:", e.message);
+      setLearnModule(null);
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
     setSyncing(true);
-    await Promise.allSettled([loadPulse(), loadWeek(), loadDailyLog(), loadGrowth(), loadHitlist(), loadAreas(), loadWorkItems()]);
+    await Promise.allSettled([loadPulse(), loadWeek(), loadDailyLog(), loadGrowth(), loadHitlist(), loadAreas(), loadWorkItems(), loadModule()]);
     setSyncing(false);
-  }, [loadPulse, loadWeek, loadDailyLog, loadGrowth, loadHitlist, loadAreas, loadWorkItems]);
+  }, [loadPulse, loadWeek, loadDailyLog, loadGrowth, loadHitlist, loadAreas, loadWorkItems, loadModule]);
 
   useEffect(() => {
     loadAll();
@@ -1776,8 +1788,20 @@ export default function Home() {
                   <span className="fp-title"><Icon>{ICONS.book}</Icon>Learning Hub</span>
                   <span className="fp-action" onClick={() => navigate("/learning-hub")}>Continue →</span>
                 </div>
-                <div className="hub-body">
-                  {topic ? (
+                <div className={`hub-body${learnModule ? " hub-module" : ""}`}>
+                  {learnModule ? (
+                    <>
+                      <div className="hub-cover hub-cover-mod" style={{ background: learnModule.cover_color || "#3b82f6" }}>
+                        {(learnModule.cover_initial || learnModule.book_title || "?").charAt(0).toUpperCase()}
+                      </div>
+                      <div className="hub-main">
+                        <div className="hub-book">{learnModule.book_title}</div>
+                        <div className="hub-quote">{learnModule.quote}</div>
+                        <div className="hub-bar-bg"><div className="hub-bar-fill" style={{ width: `${topic?.progress_percent ?? 0}%` }}></div></div>
+                        <div className="hub-streak">🔥 {topic?.current_streak ?? 0}-day streak</div>
+                      </div>
+                    </>
+                  ) : topic ? (
                     <>
                       <TopicCover key={topic.id} topic={topic} />
                       <div className="hub-main">
