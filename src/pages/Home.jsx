@@ -127,6 +127,22 @@ function formatPeso(n) {
 }
 
 const UNANSWERED_STATUSES = ["intake_confirmed", "sourced"];
+
+// learning_topics has no cover column today; pick one up if it's ever added.
+const COVER_FIELDS = ["cover_image_url", "image_url", "cover_url"];
+function topicCoverUrl(topic) {
+  if (!topic) return null;
+  const key = COVER_FIELDS.find((k) => k in topic) ?? Object.keys(topic).find((k) => /image|cover/i.test(k));
+  const url = key ? topic[key] : null;
+  return typeof url === "string" && url.trim() ? url : null;
+}
+
+function TopicCover({ topic }) {
+  const url = topicCoverUrl(topic);
+  const [failed, setFailed] = useState(false);
+  if (url && !failed) return <img className="hub-cover" src={url} alt="" onError={() => setFailed(true)} />;
+  return <div className="hub-cover hub-cover-ph">{(topic.title ?? "?").trim().charAt(0).toUpperCase()}</div>;
+}
 const POM_TOTAL = 25 * 60;
 const CIRC = 2 * Math.PI * 19;
 const LOFI_URL = "https://www.youtube.com/watch?v=jfKfPfyJRdk";
@@ -134,6 +150,14 @@ const RITUAL_KEY = "mc_morning_dismissed";
 const ZONE_ORDER_KEY = "mc_zone_order";
 const WEEKLY_DROPS_KEY = "mc_weekly_drops";
 const DEFAULT_ZONE_ORDER = ["pulse", "weekly", "focus", "growth", "calendar"];
+// The weekly plan is frozen in the second slot; only the other zones reorder.
+const FIXED_ZONE = "weekly";
+const FIXED_ZONE_INDEX = 1;
+function withFixedZone(movable) {
+  const order = movable.filter((id) => id !== FIXED_ZONE);
+  order.splice(FIXED_ZONE_INDEX, 0, FIXED_ZONE);
+  return order;
+}
 const GROWTH_ROWS = 6;
 
 const PRIORITY_RANK = { Hot: 0, Medium: 1, Low: 2, Nurturing: 3 };
@@ -167,7 +191,7 @@ function loadZoneOrder() {
     const saved = JSON.parse(localStorage.getItem(ZONE_ORDER_KEY));
     if (!Array.isArray(saved)) return DEFAULT_ZONE_ORDER;
     const valid = saved.filter((id) => DEFAULT_ZONE_ORDER.includes(id));
-    return [...valid, ...DEFAULT_ZONE_ORDER.filter((id) => !valid.includes(id))];
+    return withFixedZone([...valid, ...DEFAULT_ZONE_ORDER.filter((id) => !valid.includes(id))]);
   } catch {
     return DEFAULT_ZONE_ORDER;
   }
@@ -194,14 +218,29 @@ function loadWeeklyDrops() {
     return {};
   }
 }
-function saveWeeklyDrop(ds, label) {
-  const drops = loadWeeklyDrops();
-  drops[ds] = [...(drops[ds] ?? []), { t: "adm", l: label }];
+// Stored shape is exactly { t: "adm", l } — the in-memory `local` flag stays out.
+function writeWeeklyDrops(drops) {
+  const clean = {};
+  Object.entries(drops).forEach(([ds, chips]) => {
+    if (chips.length) clean[ds] = chips.map((c) => ({ t: "adm", l: c.l }));
+  });
   try {
-    localStorage.setItem(WEEKLY_DROPS_KEY, JSON.stringify(drops));
+    localStorage.setItem(WEEKLY_DROPS_KEY, JSON.stringify(clean));
   } catch {
     /* storage unavailable — chip lasts for this session only */
   }
+}
+function removeWeeklyDrop(label) {
+  const drops = loadWeeklyDrops();
+  Object.keys(drops).forEach((ds) => {
+    drops[ds] = drops[ds].filter((d) => d.l !== label);
+  });
+  writeWeeklyDrops(drops);
+}
+function saveWeeklyDrop(ds, label) {
+  const drops = loadWeeklyDrops();
+  drops[ds] = [...(drops[ds] ?? []), { t: "adm", l: label }];
+  writeWeeklyDrops(drops);
 }
 
 function ritualDismissed() {
@@ -451,6 +490,8 @@ function MorningRitual({ firstName, mit1, hotTarget, seoOkr, onClose, onComplete
 // ---------------------------------------------------------------------------
 const TASK_PROPS_KEY = "mc_task_props";
 const WEEKLY_DONE_KEY = "mc_weekly_done";
+// Tasks due outside the current week: { "yyyy-MM-dd": ["task label", …] }
+const CALENDAR_DOTS_KEY = "mc_calendar_dots";
 const TASK_STATUSES = ["Open", "In Progress", "Done", "Dropped"];
 const TASK_TYPES = ["Task", "Mission", "Project"];
 const TASK_PRIORITIES = ["Hot", "Medium", "Low"];
@@ -473,6 +514,13 @@ function readJson(key) {
     return v && typeof v === "object" && !Array.isArray(v) ? v : {};
   } catch {
     return {};
+  }
+}
+function writeJsonArray(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* storage unavailable */
   }
 }
 function writeJson(key, value) {
@@ -516,11 +564,91 @@ function useClickOrDouble() {
   });
 }
 
+const SEED_AREAS = ["Sales", "Sourcing", "Marketing", "Finance", "Systems", "Personal"];
+
+/**
+ * Dropdown listing existing records, with an optional inline "+ Create new"
+ * row. Closes on an outside click.
+ */
+function SmartSelect({ value, options, onChange, placeholder = "None", allowNone = false, createLabel, onCreate }) {
+  const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState("");
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
+        setOpen(false);
+        setCreating(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const choose = (v) => {
+    onChange(v);
+    setOpen(false);
+    setCreating(false);
+  };
+  const create = async () => {
+    const name = draft.trim();
+    if (!name) return;
+    await onCreate(name);
+    setDraft("");
+    choose(name);
+  };
+  const list = [...new Set([value, ...options].filter(Boolean))];
+
+  return (
+    <div className="ss-wrap" ref={wrapRef}>
+      <button type="button" className="tp-input ss-btn" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}>
+        <span className={value ? "" : "ss-ph"}>{value || placeholder}</span>
+        <svg className="ss-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
+      </button>
+      {open && (
+        <div className="ss-list" role="listbox">
+          {allowNone && (
+            <div className={`ss-opt ss-none${!value ? " sel" : ""}`} onClick={() => choose("")}>{placeholder}</div>
+          )}
+          {list.map((o) => (
+            <div key={o} role="option" aria-selected={o === value} className={`ss-opt${o === value ? " sel" : ""}`} onClick={() => choose(o)}>
+              {o}
+            </div>
+          ))}
+          {onCreate &&
+            (creating ? (
+              <div className="ss-new">
+                <input
+                  autoFocus
+                  value={draft}
+                  placeholder="Name, then Enter"
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") create();
+                    if (e.key === "Escape") {
+                      e.stopPropagation();
+                      setCreating(false);
+                    }
+                  }}
+                />
+              </div>
+            ) : (
+              <div className="ss-opt ss-create" onClick={() => setCreating(true)}>+ {createLabel}</div>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * task: { uid, title, source, fields, statusOptions, priorityOptions,
  *         canDelete, deleteNote, confirmDelete }
  */
-function TaskPanel({ open, task, areas, onClose, onSave, onDelete }) {
+function TaskPanel({ open, task, hierarchy, onClose, onSave, onDelete }) {
   const panelRef = useRef(null);
   const [title, setTitle] = useState("");
   const [fields, setFields] = useState(DEFAULT_TASK_FIELDS);
@@ -550,9 +678,9 @@ function TaskPanel({ open, task, areas, onClose, onSave, onDelete }) {
   }, [open, onClose]);
 
   const set = (k) => (e) => setFields((f) => ({ ...f, [k]: e.target.value }));
+  const setValue = (k) => (v) => setFields((f) => ({ ...f, [k]: v }));
   const statusOptions = task?.statusOptions ?? TASK_STATUSES;
   const priorityOptions = task?.priorityOptions ?? TASK_PRIORITIES;
-  const areaOptions = areas && [...new Set([fields.area, ...areas.map((a) => a.name)].filter(Boolean))];
 
   const save = async () => {
     if (!title.trim()) return;
@@ -592,23 +720,29 @@ function TaskPanel({ open, task, areas, onClose, onSave, onDelete }) {
                   <span className="tp-label">
                     <span className="tp-dot" style={{ background: PRIORITY_DOT[fields.priority] ?? "var(--t4)" }}></span>Area
                   </span>
-                  {areaOptions ? (
-                    <select className="tp-input" value={fields.area} onChange={set("area")}>
-                      {areaOptions.map((a) => (
-                        <option key={a}>{a}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input className="tp-input" value={fields.area} onChange={set("area")} />
-                  )}
+                  <SmartSelect value={fields.area} options={hierarchy.areas} onChange={setValue("area")} placeholder="Choose area" />
                 </div>
                 <div className="tp-row">
                   <span className="tp-label">Project</span>
-                  <input className="tp-input" value={fields.project} onChange={set("project")} placeholder="Optional" />
+                  <SmartSelect
+                    value={fields.project}
+                    options={hierarchy.projects}
+                    onChange={setValue("project")}
+                    allowNone
+                    createLabel="Create new project"
+                    onCreate={(name) => hierarchy.create("project", name, fields.area)}
+                  />
                 </div>
                 <div className="tp-row">
                   <span className="tp-label">Mission</span>
-                  <input className="tp-input" value={fields.mission} onChange={set("mission")} placeholder="Optional" />
+                  <SmartSelect
+                    value={fields.mission}
+                    options={hierarchy.missions}
+                    onChange={setValue("mission")}
+                    allowNone
+                    createLabel="Create new mission"
+                    onCreate={(name) => hierarchy.create("mission", name, fields.area)}
+                  />
                 </div>
                 <div className="tp-row">
                   <span className="tp-label">Type</span>
@@ -872,15 +1006,65 @@ export default function Home() {
 
   const loadAreas = useCallback(async () => {
     const { data, error } = await supabase.from("areas").select("id, name").order("name");
-    // No areas table in this project → the panel shows a text input instead.
+    // No areas table in this project → the six seed areas.
     setAreas(error ? null : data ?? []);
   }, []);
 
+  // Projects and missions: open work_items rows, or localStorage lists when
+  // the work_items table doesn't exist.
+  const [projects, setProjects] = useState([]);
+  const [missions, setMissions] = useState([]);
+  const workItemsExists = useRef(false);
+  const loadWorkItems = useCallback(async () => {
+    const { data, error } = await supabase.from("work_items").select("title, type").in("type", ["project", "mission"]).eq("status", "open");
+    workItemsExists.current = !error;
+    if (error) {
+      console.warn("[Home] work_items table not found — projects and missions come from localStorage.");
+      const list = (key) => {
+        try {
+          const v = JSON.parse(localStorage.getItem(key));
+          return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
+        } catch {
+          return [];
+        }
+      };
+      setProjects(list("mc_projects"));
+      setMissions(list("mc_missions"));
+      return;
+    }
+    setProjects(data.filter((r) => r.type === "project").map((r) => r.title));
+    setMissions(data.filter((r) => r.type === "mission").map((r) => r.title));
+  }, []);
+  const createHierarchyItem = async (type, name, areaName) => {
+    const setList = type === "project" ? setProjects : setMissions;
+    if (workItemsExists.current) {
+      const areaId = areas?.find((a) => a.name === areaName)?.id ?? null;
+      const { error } = await supabase.from("work_items").insert({ title: name, type, status: "open", area_id: areaId });
+      if (error) console.warn(`[Home] creating ${type} in work_items failed:`, error.message);
+    } else {
+      const key = type === "project" ? "mc_projects" : "mc_missions";
+      let list = [];
+      try {
+        list = JSON.parse(localStorage.getItem(key)) ?? [];
+      } catch {
+        /* start fresh */
+      }
+      if (!list.includes(name)) writeJsonArray(key, [...list, name]);
+    }
+    setList((prev) => (prev.includes(name) ? prev : [...prev, name]));
+  };
+  const hierarchy = {
+    areas: areas?.length ? areas.map((a) => a.name) : SEED_AREAS,
+    projects,
+    missions,
+    create: createHierarchyItem,
+  };
+
   const loadAll = useCallback(async () => {
     setSyncing(true);
-    await Promise.allSettled([loadPulse(), loadWeek(), loadDailyLog(), loadGrowth(), loadHitlist(), loadAreas()]);
+    await Promise.allSettled([loadPulse(), loadWeek(), loadDailyLog(), loadGrowth(), loadHitlist(), loadAreas(), loadWorkItems()]);
     setSyncing(false);
-  }, [loadPulse, loadWeek, loadDailyLog, loadGrowth, loadHitlist, loadAreas]);
+  }, [loadPulse, loadWeek, loadDailyLog, loadGrowth, loadHitlist, loadAreas, loadWorkItems]);
 
   useEffect(() => {
     loadAll();
@@ -1121,6 +1305,9 @@ export default function Home() {
       else setBrewing((prev) => prev.map((x) => (x.id === t.id ? { ...x, name: title, status, notes } : x)));
       saveTaskProps(`brewing:${t.id}`, { ...rest, priority });
     }
+    // Due date → a chip on that day this week, or a blue dot on the month calendar.
+    const oldLabel = t.kind === "week" ? t.chip.l : t.kind === "block" ? blocks[t.index]?.label : t.title;
+    applyDueDate(title, fields.due_date, oldLabel);
     closePanel();
   };
 
@@ -1199,7 +1386,7 @@ export default function Home() {
     const lb = e.dataTransfer.getData("text/plain");
     console.log(`Weekly plan drop on ${ds}: ${lb}`);
     if (!lb || !lb.trim()) return;
-    setWeekEvents((prev) => ({ ...prev, [ds]: [...(prev[ds] ?? []), { t: "adm", l: lb, local: true }] }));
+    placeChipOnDay(lb, ds, { saveLocally: false });
     // A MIT scheduled onto a day leaves the MIT list, so it can't come back
     // on the next load as both a MIT and a chip. persistMits() compacts the
     // list and nulls the freed mit_N column in today's daily_logs row.
@@ -1224,6 +1411,55 @@ export default function Home() {
       }
     }
     if (!pushed) saveWeeklyDrop(ds, lb);
+  };
+
+  // A task sits on exactly one day: drop its local chip (and saved drop) from
+  // every day, then add it to `ds`. Chips from Supabase or Google stay put.
+  const placeChipOnDay = (label, ds, { saveLocally = true } = {}) => {
+    const moveDone = Object.values(weeklyDone).some((day) => day?.[label]);
+    setWeekEvents((prev) => {
+      const next = {};
+      Object.entries(prev).forEach(([d, evs]) => {
+        next[d] = evs.filter((c) => !(c.local && c.l === label));
+      });
+      next[ds] = [...(next[ds] ?? []), { t: "adm", l: label, local: true }];
+      return next;
+    });
+    removeWeeklyDrop(label);
+    if (saveLocally) saveWeeklyDrop(ds, label);
+    if (moveDone) {
+      Object.keys(weeklyDone).forEach((d) => d !== ds && setWeeklyDoneFor(d, label, false));
+      setWeeklyDoneFor(ds, label, true);
+    }
+  };
+  const removeLocalChip = (label) => {
+    setWeekEvents((prev) =>
+      Object.fromEntries(Object.entries(prev).map(([d, evs]) => [d, evs.filter((c) => !(c.local && c.l === label))]))
+    );
+    removeWeeklyDrop(label);
+  };
+
+  // ---- Due dates → weekly plan / month calendar ----------------------------------------
+  const [taskDots, setTaskDots] = useState(() => readJson(CALENDAR_DOTS_KEY));
+  const applyDueDate = (label, dueDate, oldLabel) => {
+    // Clear any earlier placement of this task (under either name).
+    const dots = readJson(CALENDAR_DOTS_KEY);
+    Object.keys(dots).forEach((d) => {
+      dots[d] = (dots[d] ?? []).filter((l) => l !== label && l !== oldLabel);
+      if (!dots[d].length) delete dots[d];
+    });
+    if (oldLabel && oldLabel !== label) removeLocalChip(oldLabel);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate ?? "")) {
+      const weekISO = getWeekDates().map(isoDate);
+      if (weekISO.includes(dueDate)) {
+        placeChipOnDay(label, dueDate);
+      } else {
+        removeLocalChip(label);
+        dots[dueDate] = [...(dots[dueDate] ?? []), label];
+      }
+    }
+    writeJson(CALENDAR_DOTS_KEY, dots);
+    setTaskDots(dots);
   };
 
   // ---- MITs / hitlist / time blocks drag & drop ---------------------------------------
@@ -1339,11 +1575,14 @@ export default function Home() {
       const from = dragZoneRef.current;
       if (!from || from === id) return;
       setZoneOrder((order) => {
-        const fromIdx = order.indexOf(from);
-        const toIdx = order.indexOf(id);
-        const next = order.filter((z) => z !== from);
-        const at = next.indexOf(id);
-        next.splice(fromIdx < toIdx ? at + 1 : at, 0, from);
+        // Reorder among the movable zones, then put the weekly plan back in its slot.
+        const movable = order.filter((z) => z !== FIXED_ZONE);
+        const fromIdx = movable.indexOf(from);
+        const toIdx = movable.indexOf(id);
+        const rest = movable.filter((z) => z !== from);
+        const at = rest.indexOf(id);
+        rest.splice(fromIdx < toIdx ? at + 1 : at, 0, from);
+        const next = withFixedZone(rest);
         try {
           localStorage.setItem(ZONE_ORDER_KEY, JSON.stringify(next));
         } catch {
@@ -1354,15 +1593,18 @@ export default function Home() {
     },
   });
 
-  const zoneHead = (id, label, purple = false) => (
-    <>
-      <div className={`drop-indicator${indicatorZone === id ? " show" : ""}`}></div>
-      <div className={`zlbl${purple ? " pur" : ""}`}>
-        <DragHandle visible={hoverZone === id} />
-        {label}
-      </div>
-    </>
-  );
+  const zoneHead = (id, label, purple = false) =>
+    id === FIXED_ZONE ? (
+      <div className="zlbl zlbl-fixed">{label}</div>
+    ) : (
+      <>
+        <div className={`drop-indicator${indicatorZone === id ? " show" : ""}`}></div>
+        <div className={`zlbl${purple ? " pur" : ""}`}>
+          <DragHandle visible={hoverZone === id} />
+          {label}
+        </div>
+      </>
+    );
 
   // ---- Topbar brief -------------------------------------------------------------------
   const brief = useMemo(() => {
@@ -1434,7 +1676,7 @@ export default function Home() {
     ),
 
     weekly: (
-      <div key="weekly" {...zoneProps("weekly")}>
+      <div key="weekly" data-zone-id="weekly" className="zone-wrap">
         {zoneHead("weekly", <span>{weekLabel}</span>)}
         <div className="card">
           <div className="week-grid">
@@ -1537,10 +1779,13 @@ export default function Home() {
                 <div className="hub-body">
                   {topic ? (
                     <>
-                      <div className="hub-book">{topic.title}</div>
-                      <div className="hub-quote">{hubQuote}</div>
-                      <div className="hub-bar-bg"><div className="hub-bar-fill" style={{ width: `${topic.progress_percent ?? 0}%` }}></div></div>
-                      <div className="hub-streak">🔥 {topic.current_streak ?? 0}-day streak</div>
+                      <TopicCover key={topic.id} topic={topic} />
+                      <div className="hub-main">
+                        <div className="hub-book">{topic.title}</div>
+                        <div className="hub-quote">{hubQuote}</div>
+                        <div className="hub-bar-bg"><div className="hub-bar-fill" style={{ width: `${topic.progress_percent ?? 0}%` }}></div></div>
+                        <div className="hub-streak">🔥 {topic.current_streak ?? 0}-day streak</div>
+                      </div>
                     </>
                   ) : (
                     <div className="hub-book">No active learning topic.</div>
@@ -1729,7 +1974,8 @@ export default function Home() {
                 const d = i + 1;
                 const ds = `${calMonth.y}-${pad(calMonth.m + 1)}-${pad(d)}`;
                 const isToday = ds === todayISO;
-                const dots = isToday ? [] : monthDots[ds] ?? [];
+                const base = monthDots[ds] ?? [];
+                const dots = isToday ? [] : taskDots[ds]?.length && !base.includes("blue") ? [...base, "blue"] : base;
                 return (
                   <div key={ds} className={`cal-d${isToday ? " today" : ""}`}>
                     {d}
@@ -1790,7 +2036,7 @@ export default function Home() {
       <TaskPanel
         open={panelOpen}
         task={panelTask}
-        areas={areas}
+        hierarchy={hierarchy}
         onClose={closePanel}
         onSave={savePanel}
         onDelete={deletePanelTask}
@@ -1813,11 +2059,11 @@ export default function Home() {
           </div>
 
           <div className="page">
-            {zoneOrder.map((id, i) => (
+            {zoneOrder.map((id) => (
               <Fragment key={id}>
                 {zones[id]}
-                {/* The task bar is pinned in the second slot, below the Weekly Plan by default. */}
-                {i === 1 && newTaskBar}
+                {/* The task bar is pinned directly below the (fixed) Weekly Plan. */}
+                {id === FIXED_ZONE && newTaskBar}
               </Fragment>
             ))}
           </div>
