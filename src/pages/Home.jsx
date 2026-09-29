@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { useCheckIn } from "../lib/CheckInContext";
 import { fetchAdminBacklogTasks, CLICKUP_WORKSPACE_ID } from "../lib/clickup";
-import { listEvents, createEvent, isGoogleCalendarConfigured } from "../lib/googleCalendar";
+import { createEvent, isGoogleCalendarConfigured } from "../lib/googleCalendar";
 import { getAccessToken } from "../lib/googleAuth";
 
 /* =============================================================================
@@ -26,13 +26,64 @@ const DAYNAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const pad = (n) => String(n).padStart(2, "0");
 
+// ---------------------------------------------------------------------------
+// Google Calendar reads. Uses the OAuth token when one is held, otherwise the
+// google-calendar-proxy Edge Function (API key — public calendars only). Raw
+// events are mapped here so their fields can be inspected in DevTools.
+// ---------------------------------------------------------------------------
+const CALENDAR_ID = import.meta.env.VITE_GOOGLE_CALENDAR_ID;
+
+async function fetchCalendarRaw({ timeMin, timeMax }) {
+  const token = getAccessToken();
+  if (token) {
+    const params = new URLSearchParams({
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      singleEvents: "true",
+      orderBy: "startTime",
+      maxResults: "250",
+    });
+    const res = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?${params}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    return res.json().catch(() => ({ ok: false, error: `Google Calendar API ${res.status}` }));
+  }
+  const { data, error } = await supabase.functions.invoke("google-calendar-proxy", {
+    body: { calendarId: CALENDAR_ID, timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString() },
+  });
+  return data ?? { ok: false, error: error?.message ?? "google-calendar-proxy failed" };
+}
+
+// Returns [{ title, start }]. title is null when Google sent no name — the
+// usual cause is a calendar shared publicly as "free/busy only", which
+// strips summaries from API-key reads.
+async function fetchCalendarEvents(range) {
+  if (!CALENDAR_ID) return [];
+  const raw = await fetchCalendarRaw(range);
+  console.log("Google Calendar proxy response keys:", Object.keys(raw ?? {}));
+  const items =
+    [raw?.items, raw?.events, raw?.data?.items].find((a) => Array.isArray(a) && a.length > 0) ?? [];
+  if (!items.length && raw?.error) console.warn("[Home] Google Calendar:", raw.error?.message ?? raw.error);
+  if (items.length) console.log("Google Calendar event fields:", JSON.stringify(items[0]));
+  return items
+    .map((ev) => {
+      const startRaw = ev.start?.dateTime ?? ev.start?.date;
+      return { title: ev.summary || ev.title || ev.name || null, start: startRaw ? new Date(startRaw) : null };
+    })
+    .filter((ev) => ev.start);
+}
+
 // Cap the wait on Google so a slow or failing Calendar request can't hold
 // back the weekly plan and calendar, which also render Supabase and
 // localStorage data.
-function listEventsWithTimeout(range, ms = 8000) {
+function fetchCalendarEventsWithTimeout(range, ms = 8000) {
   return Promise.race([
-    listEvents(range),
-    new Promise((resolve) => setTimeout(() => resolve({ events: [], error: "Google Calendar timed out" }), ms)),
+    fetchCalendarEvents(range).catch((err) => {
+      console.warn("[Home] Google Calendar:", err.message);
+      return [];
+    }),
+    new Promise((resolve) => setTimeout(() => resolve([]), ms)),
   ]);
 }
 
@@ -477,15 +528,15 @@ export default function Home() {
       supabase.from("rfqs").select("rfq_number, title, closing_date").gte("closing_date", startISO).lte("closing_date", endISO),
       supabase.from("deliveries").select("delivery_date, purchase_orders(po_number)").gte("delivery_date", startISO).lte("delivery_date", endISO),
       supabase.from("invoices").select("invoice_number, due_date").neq("status", "paid").gte("due_date", startISO).lte("due_date", endISO),
-      listEventsWithTimeout({ timeMin: manilaInstant(startISO), timeMax: manilaInstant(endISO, "23:59:59") }),
+      fetchCalendarEventsWithTimeout({ timeMin: manilaInstant(startISO), timeMax: manilaInstant(endISO, "23:59:59") }),
     ]);
-    if (cal.error) console.warn("[Home] Google Calendar:", cal.error);
     const map = {};
     const push = (ds, ev) => ds && (map[ds] = [...(map[ds] ?? []), ev]);
     (rfqs.data ?? []).forEach((r) => push(r.closing_date, { t: "rfq", l: `${r.rfq_number || r.title} close` }));
     (deliveries.data ?? []).forEach((d) => push(d.delivery_date, { t: "del", l: d.purchase_orders?.po_number ? `${d.purchase_orders.po_number} delivery` : "Delivery" }));
     (invoices.data ?? []).forEach((i) => push(i.due_date, { t: "adm", l: i.invoice_number ? `${i.invoice_number} due` : "Invoice due" }));
-    (cal.events ?? []).forEach((ev) => ev.start && push(isoDate(toManila(ev.start)), { t: "mtg", l: ev.title }));
+    // Nameless events are skipped rather than shown as "untitled" chips.
+    cal.forEach((ev) => ev.title && push(isoDate(toManila(ev.start)), { t: "mtg", l: ev.title }));
     const drops = loadWeeklyDrops();
     days.forEach((d) => (drops[isoDate(d)] ?? []).forEach((chip) => push(isoDate(d), chip)));
     setWeekEvents(map);
@@ -499,7 +550,7 @@ export default function Home() {
       supabase.from("deliveries").select("delivery_date").gte("delivery_date", startISO).lte("delivery_date", endISO),
       supabase.from("purchase_orders").select("expected_delivery_date").neq("status", "delivered").gte("expected_delivery_date", startISO).lte("expected_delivery_date", endISO),
       supabase.from("invoices").select("due_date").gte("due_date", startISO).lte("due_date", endISO),
-      listEventsWithTimeout({ timeMin: manilaInstant(startISO), timeMax: manilaInstant(endISO, "23:59:59") }),
+      fetchCalendarEventsWithTimeout({ timeMin: manilaInstant(startISO), timeMax: manilaInstant(endISO, "23:59:59") }),
     ]);
     const dots = {};
     const add = (ds, c) => {
@@ -511,7 +562,8 @@ export default function Home() {
     (deliveries.data ?? []).forEach((d) => add(d.delivery_date, "green"));
     (poDue.data ?? []).forEach((p) => add(p.expected_delivery_date, "green"));
     (invoices.data ?? []).forEach((i) => add(i.due_date, "blue"));
-    (cal.events ?? []).forEach((ev) => ev.start && add(isoDate(toManila(ev.start)), "purple"));
+    // A busy block is still a meeting, so month dots keep nameless events.
+    cal.forEach((ev) => add(isoDate(toManila(ev.start)), "purple"));
     setMonthDots(dots);
   }, []);
 
@@ -698,6 +750,10 @@ export default function Home() {
     console.log(`Weekly plan drop on ${ds}: ${lb}`);
     if (!lb || !lb.trim()) return;
     setWeekEvents((prev) => ({ ...prev, [ds]: [...(prev[ds] ?? []), { t: "adm", l: lb }] }));
+    // A MIT scheduled onto a day leaves the MIT list, so it can't come back
+    // on the next load as both a MIT and a chip. persistMits() compacts the
+    // list and nulls the freed mit_N column in today's daily_logs row.
+    if (mits.includes(lb)) persistMits(mits.filter((m) => m !== lb));
     // Push to Google Calendar as 09:00–09:30 Manila; the next load shows it
     // as a meeting chip. Only an unexpired token counts as connected; nothing
     // here may open Google's sign-in popup.
