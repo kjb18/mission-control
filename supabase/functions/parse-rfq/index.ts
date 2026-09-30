@@ -9,6 +9,9 @@
 //      Skips Claude entirely and just runs part-signature matching. Used for
 //      the iOS Shortcut webhook path, which already hands over parsed JSON.
 //   3. Draft outreach — { mode: "draft_outreach", description, quantity?, unit? }
+//   4. Morning brief — { mode: "morning_brief", data: string }
+//      Three-sentence operational summary for the homepage topbar, built
+//      from the RFQ / invoice / Crosshairs figures the client sends in data.
 //      Drafts a supplier outreach email for one line item. Deliberately
 //      never receives client_name/rfq_reference/closing_date at all — the
 //      "must not mention" requirement is enforced by never handing Claude
@@ -125,6 +128,25 @@ function extractJson(text: string) {
   return JSON.parse(cleaned);
 }
 
+const MORNING_BRIEF_SYSTEM_PROMPT =
+  "You are the morning brief generator for Khalil Joseph Banares, Engineering Solutions Director at Ultra Power Industrial Resources in the Philippines. Generate exactly 3 sentences summarizing his operational status for today. Sentence 1: most urgent RFQ or deadline. Sentence 2: financial status or overdue items. Sentence 3: one action recommendation. Be specific, use the actual data provided, be concise. Return only the 3 sentences with no labels or formatting.";
+
+async function morningBrief(body: any) {
+  const data = typeof body.data === "string" ? body.data.trim() : "";
+  if (!data) throw new Error("morning_brief requires a non-empty data string.");
+  const anthropic = anthropicClient();
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 200,
+    system: MORNING_BRIEF_SYSTEM_PROMPT,
+    messages: [{ role: "user", content: data }],
+  });
+  if ((message.stop_reason as string) === "refusal") throw new Error("Claude declined to write the brief.");
+  const textBlock = message.content.find((b: any) => b.type === "text");
+  if (!textBlock) throw new Error("Claude returned no text content.");
+  return { summary: (textBlock as any).text.trim() };
+}
+
 async function draftOutreachEmail(body: any) {
   const anthropic = anthropicClient();
   const quantityLine = body.quantity ? `Quantity: ${body.quantity} ${body.unit ?? ""}`.trim() : "";
@@ -223,6 +245,13 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json();
+
+    if (body.mode === "morning_brief") {
+      const brief = await morningBrief(body);
+      return new Response(JSON.stringify(brief), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (body.mode === "draft_outreach") {
       const draft = await draftOutreachEmail(body);

@@ -128,6 +128,28 @@ function formatPeso(n) {
 }
 
 const UNANSWERED_STATUSES = ["intake_confirmed", "sourced"];
+const BRIEF_DATE_KEY = "mc_morning_brief_date";
+const BRIEF_TEXT_KEY = "mc_morning_brief_text";
+const TASK_DOT_COLOR = "#0d9488";
+const pesoFull = (n) =>
+  `₱${Number(n ?? 0).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+function dayOfYear(d) {
+  return Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(d.getFullYear(), 0, 0)) / 86400000);
+}
+function readSession(key) {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function writeSession(key, value) {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+}
 
 // learning_topics has no cover column today; pick one up if it's ever added.
 const COVER_FIELDS = ["cover_image_url", "image_url", "cover_url"];
@@ -283,6 +305,8 @@ const ICONS = {
   settings: (<><circle cx="12" cy="12" r="3" /><path d="M19.07 4.93l-1.41 1.41M5.34 17.66l-1.41 1.41M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 18.66l1.41 1.41M2 12h2M20 12h2" /></>),
   list: (<><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /></>),
   pin: <path d="M12 2a5 5 0 015 5c0 3.5-5 13-5 13S7 10.5 7 7a5 5 0 015-5z" />,
+  sparkle: <path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z" />,
+  compass: (<><circle cx="12" cy="12" r="10" /><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" /></>),
 };
 
 const NAV = [
@@ -888,6 +912,63 @@ export default function Home() {
     setSoonestRfq(soonest.data ?? null);
   }, []);
 
+  // ---- AI morning brief: generated once per Manila day, cached in sessionStorage.
+  const [aiBrief, setAiBrief] = useState(null);
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      const today = isoDate(getManilaDate());
+      const cached = readSession(BRIEF_TEXT_KEY);
+      if (readSession(BRIEF_DATE_KEY) === today && cached) {
+        setAiBrief(cached);
+        return;
+      }
+      const [count, soonest, overdue, xh] = await Promise.all([
+        supabase.from("rfqs").select("id", { count: "exact", head: true }).in("status", UNANSWERED_STATUSES),
+        supabase
+          .from("rfqs")
+          .select("rfq_number, title, closing_date")
+          .in("status", UNANSWERED_STATUSES)
+          .not("closing_date", "is", null)
+          .order("closing_date", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+        // Invoices are stored unpaid/paid — overdue means unpaid and past due
+        // (or explicitly marked overdue).
+        supabase
+          .from("invoices")
+          .select("id", { count: "exact", head: true })
+          .or(`status.eq.overdue,and(status.neq.paid,due_date.lt.${today})`),
+        supabase.from("crosshairs_targets").select("target_name, priority, next_suggested_action"),
+      ]);
+      const top = [...(xh.data ?? [])].sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9))[0];
+      const rfqCount = count.count ?? 0;
+      const urgent = soonest.data;
+      const data = [
+        `Open RFQs: ${rfqCount}.`,
+        `Most urgent: ${urgent ? `${urgent.rfq_number || urgent.title} closing ${urgent.closing_date}` : "none"}.`,
+        `Overdue invoices: ${overdue.count ?? 0}.`,
+        `Top Crosshairs target: ${top ? `${top.target_name} (${top.priority})${top.next_suggested_action ? ` — next: ${top.next_suggested_action}` : ""}` : "none"}.`,
+      ].join(" ");
+      let text;
+      try {
+        const { data: res, error } = await supabase.functions.invoke("parse-rfq", { body: { mode: "morning_brief", data } });
+        if (error || !res?.summary) throw new Error(error?.message ?? res?.error ?? "no summary");
+        text = res.summary;
+        writeSession(BRIEF_TEXT_KEY, text);
+        writeSession(BRIEF_DATE_KEY, today);
+      } catch (e) {
+        console.warn("[Home] morning brief unavailable — using the plain summary:", e.message);
+        text = `${rfqCount} RFQs need attention.${urgent ? ` Most urgent closes ${urgent.closing_date}.` : ""}`;
+      }
+      if (!cancelled) setAiBrief(text);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const loadWeek = useCallback(async () => {
     const days = getWeekDates();
     const startISO = isoDate(days[0]);
@@ -1357,6 +1438,76 @@ export default function Home() {
     closePanel();
   };
 
+  // ---- Crosshairs daily pick --------------------------------------------------
+  // Hot targets rotate by day of year; with no Hot targets, Medium ones do.
+  const featuredTarget = useMemo(() => {
+    const hot = targets.filter((t) => t.priority === "Hot");
+    const pool = hot.length ? hot : targets.filter((t) => t.priority === "Medium");
+    if (!pool.length) return null;
+    return pool[dayOfYear(getManilaDate()) % pool.length];
+  }, [targets]);
+  const [touchOpen, setTouchOpen] = useState(false);
+  const [touchNote, setTouchNote] = useState("");
+  const [touchSaving, setTouchSaving] = useState(false);
+  const [touchLogged, setTouchLogged] = useState(false);
+  const saveTouchpoint = async () => {
+    const t = featuredTarget;
+    if (!t) return;
+    setTouchSaving(true);
+    const today = isoDate(getManilaDate());
+    const ins = await supabase
+      .from("crosshairs_touchpoints")
+      .insert({ target_id: t.id, note: touchNote.trim() || null, touchpoint_date: today });
+    if (ins.error) console.warn("[Home] crosshairs_touchpoints unavailable — updating last_touchpoint_date only:", ins.error.message);
+    const upd = await supabase.from("crosshairs_targets").update({ last_touchpoint_date: today }).eq("id", t.id);
+    setTouchSaving(false);
+    if (ins.error && upd.error) {
+      console.warn("[Home] logging touchpoint failed:", upd.error.message);
+      return;
+    }
+    setTargets((prev) => prev.map((x) => (x.id === t.id ? { ...x, last_touchpoint_date: today } : x)));
+    setTouchNote("");
+    setTouchOpen(false);
+    setTouchLogged(true);
+  };
+
+  // ---- Pending invoices drawer ---------------------------------------------------
+  const [payOpen, setPayOpen] = useState(false);
+  const [payInvoices, setPayInvoices] = useState(null);
+  const [payFading, setPayFading] = useState({});
+  const openPayDrawer = async () => {
+    setPayOpen(true);
+    setPayInvoices(null);
+    const { data, error } = await supabase
+      .from("invoices")
+      .select("id, invoice_number, amount, due_date, status, clients(name)")
+      .neq("status", "paid")
+      .not("status", "is", null)
+      .order("due_date", { ascending: true, nullsFirst: false });
+    if (error) console.warn("[Home] loading invoices failed:", error.message);
+    setPayInvoices(data ?? []);
+  };
+  useEffect(() => {
+    if (!payOpen) return;
+    const onKey = (e) => e.key === "Escape" && setPayOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [payOpen]);
+  const markPaid = async (inv) => {
+    const { error } = await supabase
+      .from("invoices")
+      .update({ status: "paid", paid_date: isoDate(getManilaDate()) })
+      .eq("id", inv.id);
+    if (error) {
+      console.warn("[Home] marking invoice paid failed:", error.message);
+      return;
+    }
+    setPayFading((f) => ({ ...f, [inv.id]: true }));
+    setPulse((p) => ({ ...p, pending: p.pending == null ? p.pending : Math.max(0, p.pending - Number(inv.amount ?? 0)) }));
+    setTimeout(() => setPayInvoices((list) => (list ?? []).filter((x) => x.id !== inv.id)), 300);
+  };
+  const payTotal = (payInvoices ?? []).filter((i) => !payFading[i.id]).reduce((sum, i) => sum + Number(i.amount ?? 0), 0);
+
   // ---- Morning ritual ---------------------------------------------------------
   const dismissRitual = () => {
     try {
@@ -1695,10 +1846,18 @@ export default function Home() {
             <div className="stat-lbl">POs undelivered</div>
             <div className="stat-lnk">↗ Pipeline</div>
           </div>
-          <div className="stat amber" onClick={() => navigate("/ledger")}>
+          <div className="stat amber" onClick={openPayDrawer}>
             <div className="stat-n" style={{ color: "var(--amber)" }}>{formatPeso(pulse.pending)}</div>
             <div className="stat-lbl">Pending payment</div>
-            <div className="stat-lnk am">↗ Ledger</div>
+            <div
+              className="stat-lnk am"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate("/ledger");
+              }}
+            >
+              ↗ Ledger
+            </div>
           </div>
           <div className="stat green" onClick={() => navigate("/pipeline")}>
             <div className="stat-n" style={{ color: "var(--green)" }}>{pulse.completed ?? "—"}</div>
@@ -1935,7 +2094,51 @@ export default function Home() {
             <span className="ch-a pur" onClick={() => navigate("/crosshairs")}>+ Add</span>
           </div>
           {targets.length === 0 && <div className="mit-empty">No targets yet.</div>}
-          {targets.slice(0, GROWTH_ROWS).map((t) => {
+          {featuredTarget && (() => {
+            const s = PRIORITY_STYLE[featuredTarget.priority] ?? PRIORITY_STYLE.Low;
+            return (
+              <div className="xh-feat">
+                <div className="xh-feat-label">Today's target</div>
+                <div className="xh-feat-name" onClick={() => openCrosshairsPanel(featuredTarget)}>{featuredTarget.target_name}</div>
+                <div className="xh-feat-badges">
+                  {featuredTarget.industry && <span className="bdg bdg-gr">{featuredTarget.industry}</span>}
+                  <span className={`bdg ${s.bdg}`}>{s.label}</span>
+                </div>
+                {featuredTarget.next_suggested_action && (
+                  <div className="xh-feat-next">
+                    <svg viewBox="0 0 24 24">{ICONS.compass}</svg>
+                    {featuredTarget.next_suggested_action}
+                  </div>
+                )}
+                <div className="xh-feat-div"></div>
+                {touchLogged && !touchOpen ? (
+                  <div className="xh-feat-ok">✓ Touchpoint logged</div>
+                ) : (
+                  <button className="xh-log" onClick={() => setTouchOpen((o) => !o)}>
+                    {touchOpen ? "Cancel" : "+ Log Touchpoint"}
+                  </button>
+                )}
+                {touchOpen && (
+                  <div className="xh-touch">
+                    <textarea
+                      rows={1}
+                      value={touchNote}
+                      placeholder="Note what happened..."
+                      onChange={(e) => setTouchNote(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          saveTouchpoint();
+                        }
+                      }}
+                    />
+                    <button onClick={saveTouchpoint} disabled={touchSaving}>{touchSaving ? "Saving…" : "Save"}</button>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+          {targets.filter((t) => t.id !== featuredTarget?.id).slice(0, GROWTH_ROWS - (featuredTarget ? 1 : 0)).map((t) => {
             const s = PRIORITY_STYLE[t.priority] ?? PRIORITY_STYLE.Low;
             return (
               <div key={t.id} className="xh-row" onClick={() => openCrosshairsPanel(t)}>
@@ -2029,7 +2232,8 @@ export default function Home() {
                 const ds = `${calMonth.y}-${pad(calMonth.m + 1)}-${pad(d)}`;
                 const isToday = ds === todayISO;
                 const base = monthDots[ds] ?? [];
-                const dots = isToday ? [] : taskDots[ds]?.length && !base.includes("blue") ? [...base, "blue"] : base;
+                // Task due dates (mc_calendar_dots) get their own teal dot.
+                const dots = isToday ? [] : taskDots[ds]?.length ? [...base, "task"] : base;
                 return (
                   <div key={ds} className={`cal-d${isToday ? " today" : ""}`}>
                     {d}
@@ -2037,7 +2241,7 @@ export default function Home() {
                       <div
                         key={c}
                         className="cdot"
-                        style={{ background: `var(--${c})`, left: `calc(50% + ${(j - (dots.length - 1) / 2) * 5}px)` }}
+                        style={{ background: c === "task" ? TASK_DOT_COLOR : `var(--${c})`, left: `calc(50% + ${(j - (dots.length - 1) / 2) * 5}px)` }}
                       ></div>
                     ))}
                   </div>
@@ -2048,6 +2252,7 @@ export default function Home() {
               <div className="leg"><div className="leg-d" style={{ background: "var(--amber)" }}></div>RFQ closes</div>
               <div className="leg"><div className="leg-d" style={{ background: "var(--green)" }}></div>Delivery</div>
               <div className="leg"><div className="leg-d" style={{ background: "var(--blue)" }}></div>Invoice due</div>
+              <div className="leg"><div className="leg-d" style={{ background: TASK_DOT_COLOR }}></div>Task due</div>
               <div className="leg"><div className="leg-d" style={{ background: "var(--purple)" }}></div>Meetings</div>
             </div>
           </div>
@@ -2087,6 +2292,46 @@ export default function Home() {
         />
       )}
 
+      <div className={`pd-overlay${payOpen ? " open" : ""}`} onClick={() => setPayOpen(false)}></div>
+      <aside className={`pd-drawer${payOpen ? " open" : ""}`} aria-hidden={!payOpen} aria-label="Pending invoices">
+        <div className="pd-head">
+          <span className="pd-title">Pending Invoices</span>
+          <button className="pd-close" onClick={() => setPayOpen(false)} aria-label="Close">✕</button>
+        </div>
+        <div className="pd-body">
+          {payInvoices === null ? (
+            <div className="pd-loading">Loading…</div>
+          ) : payInvoices.length === 0 ? (
+            <div className="pd-empty">
+              <div className="pd-empty-icon">✅</div>
+              <div className="pd-empty-title">All invoices paid</div>
+              <div className="pd-empty-sub">Great work</div>
+            </div>
+          ) : (
+            payInvoices.map((inv) => {
+              const overdue = inv.due_date && inv.due_date < todayISO;
+              return (
+                <div key={inv.id} className="pd-card" style={{ opacity: payFading[inv.id] ? 0 : 1 }}>
+                  <div className="pd-row">
+                    <span className="pd-num">{inv.invoice_number || "Invoice"}</span>
+                    <span className="pd-amt">{pesoFull(inv.amount)}</span>
+                  </div>
+                  <div className="pd-row pd-meta">
+                    <span>{inv.clients?.name ?? "—"}</span>
+                    <span className={overdue ? "pd-overdue" : ""}>{inv.due_date ? `${overdue ? "Overdue · " : "Due "}${inv.due_date}` : "No due date"}</span>
+                  </div>
+                  <button className="pd-pay" onClick={() => markPaid(inv)} disabled={payFading[inv.id]}>Mark as Paid</button>
+                </div>
+              );
+            })
+          )}
+        </div>
+        <div className="pd-foot">
+          <span className="pd-foot-label">Total outstanding</span>
+          <span className="pd-total">{pesoFull(payTotal)}</span>
+        </div>
+      </aside>
+
       <TaskPanel
         open={panelOpen}
         task={panelTask}
@@ -2103,7 +2348,10 @@ export default function Home() {
           <div className="topbar">
             <div className="tb-greeting">
               <div className="tb-title">{greetingWord()}, {firstName}.</div>
-              <div className="tb-brief"><svg viewBox="0 0 24 24">{ICONS.pin}</svg>{brief}</div>
+              <div className="tb-brief" title={aiBrief ?? brief}>
+                <svg viewBox="0 0 24 24">{ICONS.sparkle}</svg>
+                <span className="tb-brief-text">{aiBrief ?? brief}</span>
+              </div>
             </div>
             <div className="tb-r">
               <div className="pill">✦ On Full Send</div>
