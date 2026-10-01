@@ -6,8 +6,7 @@ import { useAuth } from "../lib/AuthContext";
 import { useCheckIn } from "../lib/CheckInContext";
 import { fetchAdminBacklogTasks, CLICKUP_WORKSPACE_ID } from "../lib/clickup";
 import { createEvent, isGoogleCalendarConfigured } from "../lib/googleCalendar";
-import { getAccessToken, getTokenExpiry, adoptAccessToken } from "../lib/googleAuth";
-import { fetchSavedCalendarToken, calendarTokenState, saveCalendarToken, markSynced } from "../lib/googleCalendarToken";
+import { getAccessToken, adoptAccessToken } from "../lib/googleAuth";
 import { fetchTodayModule } from "../lib/learningModules";
 import TaskPanel from "../components/TaskPanel";
 import { pickFields } from "../lib/taskFields";
@@ -33,49 +32,26 @@ const pad = (n) => String(n).padStart(2, "0");
 
 // ---------------------------------------------------------------------------
 // Google Calendar reads, always through the google-calendar-proxy Edge
-// Function. With a valid OAuth token (saved from Settings in
-// app_settings.google_calendar_token) the proxy reads as the owner; without
-// one it falls back to its API key, which only sees public calendars.
+// Function. When Google Calendar is connected (Settings), the proxy reads
+// as the owner and refreshes the access token itself; otherwise it falls
+// back to its API key, which only sees public calendars. Each response says
+// which happened (token_state), which drives the banner / Connect link.
 // Raw events are mapped here so their fields can be inspected in DevTools.
 // ---------------------------------------------------------------------------
 const CALENDAR_ID = import.meta.env.VITE_GOOGLE_CALENDAR_ID;
 
-let calendarTokenCache = null; // { at, value: { state, token } }
-async function resolveCalendarToken() {
-  if (calendarTokenCache && Date.now() - calendarTokenCache.at < 60000) return calendarTokenCache.value;
-  let saved = null;
-  try {
-    saved = await fetchSavedCalendarToken();
-  } catch (e) {
-    console.warn("[Home] reading google_calendar_token failed:", e.message);
-  }
-  const local = getAccessToken();
-  let value;
-  if (calendarTokenState(saved) === "valid") {
-    adoptAccessToken(saved.access_token, saved.expiry);
-    value = { state: "valid", token: saved.access_token };
-  } else if (local) {
-    // Connected in this browser but not (or no longer) saved in Supabase.
-    saveCalendarToken(local, getTokenExpiry()).catch(() => {});
-    value = { state: "valid", token: local };
-  } else {
-    value = { state: saved ? "expired" : "none", token: null };
-  }
-  calendarTokenCache = { at: Date.now(), value };
-  return value;
-}
+// "valid" | "expired" | "none", reported to the page via onCalendarState.
+let onCalendarState = () => {};
 
 async function fetchCalendarRaw({ timeMin, timeMax }) {
-  const { token } = await resolveCalendarToken();
   const { data, error } = await supabase.functions.invoke("google-calendar-proxy", {
-    body: {
-      calendarId: CALENDAR_ID,
-      timeMin: timeMin.toISOString(),
-      timeMax: timeMax.toISOString(),
-      ...(token ? { access_token: token } : {}),
-    },
+    body: { calendarId: CALENDAR_ID, timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString() },
   });
-  if (data?.ok && token) markSynced();
+  if (data?.token_state) {
+    onCalendarState(data.token_state === "valid" ? "valid" : data.token_state === "refresh_failed" ? "expired" : "none");
+  }
+  // Lets pushes from this page (createEvent) use the owner's token.
+  if (data?.access_token) adoptAccessToken(data.access_token, data.expiry);
   return data ?? { ok: false, error: error?.message ?? "google-calendar-proxy failed" };
 }
 
@@ -743,9 +719,11 @@ export default function Home() {
   // ---- Google Calendar connection state: "valid" | "expired" | "none".
   const [gcalState, setGcalState] = useState(null);
   useEffect(() => {
-    if (!user || !CALENDAR_ID) return;
-    resolveCalendarToken().then((v) => setGcalState(v.state));
-  }, [user]);
+    onCalendarState = setGcalState;
+    return () => {
+      onCalendarState = () => {};
+    };
+  }, []);
 
   // ---- AI morning brief: generated once per Manila day, cached in sessionStorage.
   const [aiBrief, setAiBrief] = useState(null);

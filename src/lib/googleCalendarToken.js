@@ -1,51 +1,41 @@
 import { supabase } from "./supabaseClient";
+import { getClientId } from "./googleAuth";
 
-// The Google Calendar OAuth token saved from Settings in
-// app_settings.google_calendar_token = { access_token, expiry } (expiry in
-// epoch ms; migration 0018). Stored in Supabase so every device the owner
-// signs in on can read the calendar, not just the browser that connected.
+// Google Calendar connection (authorization-code flow, migration 0019).
+// The refresh token stays server-side in google_oauth_tokens. The app sees
+// app_settings.google_calendar_token = { access_token, expiry, connected,
+// connected_at, last_synced } — written by the google-calendar-auth and
+// google-calendar-proxy Edge Functions.
 
-export const LAST_SYNCED_KEY = "mc_gcal_last_synced";
-
-export async function fetchSavedCalendarToken() {
+/** Connection status for Settings: { connected, lastSynced, connectedAt } or null. */
+export async function fetchCalendarConnection() {
   const { data, error } = await supabase.from("app_settings").select("google_calendar_token").eq("id", true).maybeSingle();
   if (error) throw error;
   const t = data?.google_calendar_token;
-  return t?.access_token ? { access_token: t.access_token, expiry: Number(t.expiry) || 0 } : null;
+  if (!t) return null;
+  return {
+    connected: Boolean(t.connected),
+    lastSynced: t.last_synced ? new Date(t.last_synced) : null,
+    connectedAt: t.connected_at ? new Date(t.connected_at) : null,
+  };
 }
 
-/** "valid" | "expired" | "none" */
-export function calendarTokenState(token) {
-  if (!token) return "none";
-  return Date.now() < token.expiry ? "valid" : "expired";
-}
-
-export async function saveCalendarToken(accessToken, expiry) {
-  const { error } = await supabase
-    .from("app_settings")
-    .update({ google_calendar_token: { access_token: accessToken, expiry } })
-    .eq("id", true);
-  if (error) throw error;
-}
-
-export async function clearCalendarToken() {
-  const { error } = await supabase.from("app_settings").update({ google_calendar_token: null }).eq("id", true);
-  if (error) throw error;
-}
-
-export function lastSynced() {
-  try {
-    const v = localStorage.getItem(LAST_SYNCED_KEY);
-    return v ? new Date(Number(v)) : null;
-  } catch {
-    return null;
+async function callAuth(body) {
+  const { data, error } = await supabase.functions.invoke("google-calendar-auth", { body });
+  if (error) {
+    const detail = await error.context?.json?.().catch(() => null);
+    throw new Error(detail?.error ?? error.message ?? "google-calendar-auth failed");
   }
+  if (!data?.ok) throw new Error(data?.error ?? "google-calendar-auth failed");
+  return data;
 }
 
-export function markSynced() {
-  try {
-    localStorage.setItem(LAST_SYNCED_KEY, String(Date.now()));
-  } catch {
-    /* ignore */
-  }
+/** Exchanges a code from requestAuthCode(); returns { access_token, expiry }. */
+export function connectWithCode(code) {
+  return callAuth({ code, client_id: getClientId() });
+}
+
+/** Revokes the refresh token at Google and clears the stored connection. */
+export function disconnectCalendar() {
+  return callAuth({ mode: "disconnect" });
 }

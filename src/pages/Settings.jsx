@@ -2,21 +2,11 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../lib/AuthContext";
 import {
   isGoogleAuthConfigured,
-  hasConnectedBefore,
-  requestAccessToken,
+  requestAuthCode,
   disconnectGoogleCalendar,
-  needsReconnect,
-  getAccessToken,
-  getTokenExpiry,
   adoptAccessToken,
 } from "../lib/googleAuth";
-import {
-  fetchSavedCalendarToken,
-  calendarTokenState,
-  saveCalendarToken,
-  clearCalendarToken,
-  lastSynced,
-} from "../lib/googleCalendarToken";
+import { fetchCalendarConnection, connectWithCode, disconnectCalendar } from "../lib/googleCalendarToken";
 import Toast, { useToast } from "../components/Toast";
 import { fetchFxRate, updateFxRate, DEFAULT_FX_RATE } from "../lib/settings";
 import { fetchBlacklistedSuppliers, addSupplierToBlacklist, removeSupplierFromBlacklist } from "../lib/sourcing";
@@ -24,25 +14,14 @@ import { PageHeader, Card, CardHeader, Badge, Button } from "../components/ui";
 
 export default function Settings() {
   const { user } = useAuth();
-  const [connected, setConnected] = useState(hasConnectedBefore());
-  const [expired, setExpired] = useState(needsReconnect());
+  // Connection lives server-side (refresh token), so it's the same on every device.
+  const [connection, setConnection] = useState(null);
+  const connected = Boolean(connection?.connected);
   const [toast, showToast] = useToast();
   const calendarId = import.meta.env.VITE_GOOGLE_CALENDAR_ID;
-  const synced = lastSynced();
-
-  // The saved token in app_settings is the source of truth, so a connection
-  // made on another device shows as connected here too.
+  const loadConnection = () => fetchCalendarConnection().then(setConnection).catch(() => setConnection(null));
   useEffect(() => {
-    fetchSavedCalendarToken()
-      .then((t) => {
-        const state = calendarTokenState(t);
-        if (state === "valid") adoptAccessToken(t.access_token, t.expiry);
-        if (state !== "none") {
-          setConnected(true);
-          setExpired(state === "expired" && !getAccessToken());
-        }
-      })
-      .catch(() => {});
+    loadConnection();
   }, []);
   const [status, setStatus] = useState(null);
   const [connecting, setConnecting] = useState(false);
@@ -113,10 +92,10 @@ export default function Settings() {
     setConnecting(true);
     setStatus(null);
     try {
-      const token = await requestAccessToken({ interactive: true });
-      await saveCalendarToken(token, getTokenExpiry());
-      setConnected(true);
-      setExpired(false);
+      const code = await requestAuthCode();
+      const { access_token, expiry } = await connectWithCode(code);
+      adoptAccessToken(access_token, expiry);
+      await loadConnection();
       showToast("Google Calendar connected");
     } catch (err) {
       setStatus({ type: "error", message: err.message ?? "Couldn't connect Google Calendar." });
@@ -126,11 +105,15 @@ export default function Settings() {
   }
 
   async function handleDisconnect() {
-    disconnectGoogleCalendar();
-    await clearCalendarToken().catch((e) => console.warn("[Settings] clearing saved token failed:", e.message));
-    setConnected(false);
-    setExpired(false);
-    setStatus({ type: "success", message: "Google Calendar disconnected." });
+    setStatus(null);
+    try {
+      await disconnectCalendar();
+      disconnectGoogleCalendar();
+      setConnection(null);
+      setStatus({ type: "success", message: "Google Calendar disconnected." });
+    } catch (err) {
+      setStatus({ type: "error", message: err.message ?? "Couldn't disconnect." });
+    }
   }
 
   return (
@@ -178,9 +161,7 @@ export default function Settings() {
         <CardHeader
           title="Google Calendar"
           action={
-            <Badge variant={expired ? "amber" : connected ? "green" : "gray"}>
-              {expired ? "Session expired" : connected ? "Connected" : "Not connected"}
-            </Badge>
+            <Badge variant={connected ? "green" : "gray"}>{connected ? "Connected" : "Not connected"}</Badge>
           }
         />
         <div className="px-5 py-4">
@@ -198,20 +179,14 @@ export default function Settings() {
                 <p>
                   Calendar: <span className="text-white font-medium">{calendarId || "not configured"}</span>
                 </p>
-                <p>Last synced: {synced ? synced.toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" }) : "not yet"}</p>
-              </div>
-              {expired && (
-                <p className="text-xs text-ink-secondary">
-                  Google access lasts about an hour. Reconnect to resume pushing events and reading
-                  private calendar events.
+                <p>
+                  Last synced:{" "}
+                  {connection.lastSynced
+                    ? connection.lastSynced.toLocaleString("en-PH", { dateStyle: "medium", timeStyle: "short" })
+                    : "not yet — open the homepage to sync"}
                 </p>
-              )}
+              </div>
               <div className="flex gap-2">
-                {expired && (
-                  <Button variant="primary" onClick={handleConnect} disabled={connecting}>
-                    {connecting ? "Reconnecting…" : "Reconnect Google Calendar"}
-                  </Button>
-                )}
                 <Button variant="secondary" onClick={handleDisconnect}>
                   Disconnect Google Calendar
                 </Button>

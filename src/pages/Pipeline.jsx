@@ -7,6 +7,7 @@ import {
   urgencyFor,
   subscribeToRfqChanges,
   autoRejectStaleQuotes,
+  stageOf,
 } from "../lib/pipeline";
 import PoReceiptModal from "./pipeline/PoReceiptModal";
 import ConfirmDeliveryModal from "./pipeline/ConfirmDeliveryModal";
@@ -55,6 +56,8 @@ export default function Pipeline() {
     setDragOverStage(null);
     const rfqId = e.dataTransfer.getData("text/plain");
     if (!rfqId) return;
+    const card = cards.find((c) => c.id === rfqId);
+    if (card && stageOf(card.status) === stageKey) return; // same column — keep its exact status
     setCards((prev) => prev.map((c) => (c.id === rfqId ? { ...c, status: stageKey } : c)));
     updateRfqStage(rfqId, stageKey).catch((err) => {
       setError(err.message);
@@ -98,7 +101,8 @@ export default function Pipeline() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7 gap-4">
         {STAGES.map((stage) => {
-          const stageCards = cards.filter((c) => c.status === stage.key);
+          const stageCards = cards.filter((c) => stageOf(c.status) === stage.key);
+          const tone = stage.tone === "red" ? { bg: "#fef2f2", border: "#ef4444", text: "#b91c1c" } : stage.tone === "purple" ? { bg: "#f5f3ff", border: "#7c3aed", text: "#6d28d9" } : null;
           return (
             <Card
               key={stage.key}
@@ -112,15 +116,15 @@ export default function Pipeline() {
               className={`p-3 min-h-[200px] transition-colors ${
                 dragOverStage === stage.key ? "border-accent bg-accent/5" : ""
               }`}
-              style={stage.tone === "red" && dragOverStage !== stage.key ? { background: "#fef2f2" } : undefined}
+              style={tone && dragOverStage !== stage.key ? { background: tone.bg } : undefined}
             >
               <div
                 className="flex items-center justify-between mb-3 px-1"
-                style={stage.tone === "red" ? { borderLeft: "2px solid #ef4444", paddingLeft: 8 } : undefined}
+                style={tone ? { borderLeft: `2px solid ${tone.border}`, paddingLeft: 8 } : undefined}
               >
                 <p
-                  className={`uppercase font-medium ${stage.tone === "red" ? "" : "text-accent"}`}
-                  style={{ fontSize: 11, letterSpacing: "0.06em", ...(stage.tone === "red" ? { color: "#b91c1c" } : {}) }}
+                  className={`uppercase font-medium ${tone ? "" : "text-accent"}`}
+                  style={{ fontSize: 11, letterSpacing: "0.06em", ...(tone ? { color: tone.text } : {}) }}
                 >
                   {stage.label}
                 </p>
@@ -177,7 +181,8 @@ function PipelineCard({ card, onReceivePo, onConfirmDelivery }) {
         {card.rfqNumber || card.title}
         {card.closingDate ? ` · Closes ${card.closingDate}` : ""}
       </p>
-      <div className="flex items-center justify-end mt-1.5">
+      <div className="flex items-center justify-end gap-1.5 mt-1.5">
+        {card.status === "sourced" && <Badge variant="green">Ready to quote</Badge>}
         <Badge variant="gray">
           {card.lineCount} line{card.lineCount === 1 ? "" : "s"}
         </Badge>

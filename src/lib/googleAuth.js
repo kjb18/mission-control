@@ -116,6 +116,35 @@ export async function getOrRenewAccessToken() {
   return getAccessToken();
 }
 
+/**
+ * Authorization-code flow (popup). Resolves to a one-time code that the
+ * google-calendar-auth Edge Function exchanges for access + refresh tokens,
+ * so the connection keeps working after the access token expires.
+ */
+export function requestAuthCode() {
+  return new Promise((resolve, reject) => {
+    if (!window.google?.accounts?.oauth2?.initCodeClient) {
+      reject(new Error("Google Identity Services hasn't loaded yet."));
+      return;
+    }
+    const client = window.google.accounts.oauth2.initCodeClient({
+      client_id: CLIENT_ID,
+      scope: SCOPE,
+      ux_mode: "popup",
+      callback: (response) => {
+        if (response.error) reject(new Error(response.error_description || response.error));
+        else resolve(response.code);
+      },
+      error_callback: (err) => reject(new Error(err?.message || err?.type || "Google sign-in was closed.")),
+    });
+    client.requestCode();
+  });
+}
+
+export function getClientId() {
+  return CLIENT_ID;
+}
+
 /** Expiry (epoch ms) of the token currently held, or 0. */
 export function getTokenExpiry() {
   return accessToken ? tokenExpiresAt : 0;

@@ -2,7 +2,9 @@ import { supabase } from "./supabaseClient";
 
 export const STAGES = [
   { key: "intake_confirmed", label: "Intake" },
-  { key: "sourcing", label: "Sourcing" },
+  // Sourcing Desk sets "sourcing" while lines are being priced and "sourced"
+  // once every line has a winning supplier; both belong in this column.
+  { key: "sourced", label: "Sourcing in Progress", tone: "purple", includes: ["sourcing", "sourced"] },
   { key: "quoted", label: "Quoted" },
   { key: "awarded", label: "Awarded" },
   { key: "delivered", label: "Delivered" },
@@ -14,7 +16,12 @@ export const STAGES = [
 
 export const QUOTE_EXPIRY_DAYS = 45;
 
-const STAGE_KEYS = STAGES.map((s) => s.key);
+const STAGE_KEYS = STAGES.flatMap((s) => s.includes ?? [s.key]);
+
+/** Board column a status belongs to. */
+export function stageOf(status) {
+  return STAGES.find((s) => (s.includes ?? [s.key]).includes(status))?.key ?? status;
+}
 
 export async function fetchPipelineRfqs() {
   const { data, error } = await supabase
