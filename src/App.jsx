@@ -12,6 +12,7 @@ import Ledger from "./pages/Ledger";
 import Crosshairs from "./pages/Crosshairs";
 import Wins from "./pages/Wins";
 import Okrs from "./pages/Okrs";
+import Planning from "./pages/Planning";
 import Brewing from "./pages/Brewing";
 import LearningHub from "./pages/LearningHub";
 import Contacts from "./pages/Contacts";
@@ -49,6 +50,7 @@ function AppRoutes() {
           <Route path="crosshairs" element={<Crosshairs />} />
           <Route path="wins" element={<Wins />} />
           <Route path="okrs" element={<Okrs />} />
+          <Route path="planning" element={<Planning />} />
           <Route path="brewing" element={<Brewing />} />
           <Route path="learning-hub" element={<LearningHub />} />
           <Route path="contacts" element={<Contacts />} />

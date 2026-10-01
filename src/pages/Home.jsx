@@ -6,8 +6,12 @@ import { useAuth } from "../lib/AuthContext";
 import { useCheckIn } from "../lib/CheckInContext";
 import { fetchAdminBacklogTasks, CLICKUP_WORKSPACE_ID } from "../lib/clickup";
 import { createEvent, isGoogleCalendarConfigured } from "../lib/googleCalendar";
-import { getAccessToken } from "../lib/googleAuth";
+import { getAccessToken, getTokenExpiry, adoptAccessToken } from "../lib/googleAuth";
+import { fetchSavedCalendarToken, calendarTokenState, saveCalendarToken, markSynced } from "../lib/googleCalendarToken";
 import { fetchTodayModule } from "../lib/learningModules";
+import TaskPanel from "../components/TaskPanel";
+import { pickFields } from "../lib/taskFields";
+import { useHierarchy } from "../lib/hierarchy";
 
 /* =============================================================================
    Self-contained homepage — a direct port of the approved reference artifact
@@ -28,31 +32,50 @@ const DAYNAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const pad = (n) => String(n).padStart(2, "0");
 
 // ---------------------------------------------------------------------------
-// Google Calendar reads. Uses the OAuth token when one is held, otherwise the
-// google-calendar-proxy Edge Function (API key — public calendars only). Raw
-// events are mapped here so their fields can be inspected in DevTools.
+// Google Calendar reads, always through the google-calendar-proxy Edge
+// Function. With a valid OAuth token (saved from Settings in
+// app_settings.google_calendar_token) the proxy reads as the owner; without
+// one it falls back to its API key, which only sees public calendars.
+// Raw events are mapped here so their fields can be inspected in DevTools.
 // ---------------------------------------------------------------------------
 const CALENDAR_ID = import.meta.env.VITE_GOOGLE_CALENDAR_ID;
 
+let calendarTokenCache = null; // { at, value: { state, token } }
+async function resolveCalendarToken() {
+  if (calendarTokenCache && Date.now() - calendarTokenCache.at < 60000) return calendarTokenCache.value;
+  let saved = null;
+  try {
+    saved = await fetchSavedCalendarToken();
+  } catch (e) {
+    console.warn("[Home] reading google_calendar_token failed:", e.message);
+  }
+  const local = getAccessToken();
+  let value;
+  if (calendarTokenState(saved) === "valid") {
+    adoptAccessToken(saved.access_token, saved.expiry);
+    value = { state: "valid", token: saved.access_token };
+  } else if (local) {
+    // Connected in this browser but not (or no longer) saved in Supabase.
+    saveCalendarToken(local, getTokenExpiry()).catch(() => {});
+    value = { state: "valid", token: local };
+  } else {
+    value = { state: saved ? "expired" : "none", token: null };
+  }
+  calendarTokenCache = { at: Date.now(), value };
+  return value;
+}
+
 async function fetchCalendarRaw({ timeMin, timeMax }) {
-  const token = getAccessToken();
-  if (token) {
-    const params = new URLSearchParams({
+  const { token } = await resolveCalendarToken();
+  const { data, error } = await supabase.functions.invoke("google-calendar-proxy", {
+    body: {
+      calendarId: CALENDAR_ID,
       timeMin: timeMin.toISOString(),
       timeMax: timeMax.toISOString(),
-      singleEvents: "true",
-      orderBy: "startTime",
-      maxResults: "250",
-    });
-    const res = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events?${params}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    return res.json().catch(() => ({ ok: false, error: `Google Calendar API ${res.status}` }));
-  }
-  const { data, error } = await supabase.functions.invoke("google-calendar-proxy", {
-    body: { calendarId: CALENDAR_ID, timeMin: timeMin.toISOString(), timeMax: timeMax.toISOString() },
+      ...(token ? { access_token: token } : {}),
+    },
   });
+  if (data?.ok && token) markSynced();
   return data ?? { ok: false, error: error?.message ?? "google-calendar-proxy failed" };
 }
 
@@ -160,10 +183,13 @@ function topicCoverUrl(topic) {
   return typeof url === "string" && url.trim() ? url : null;
 }
 
-// "One. Two. Three." → first `n` sentences.
-function firstSentences(text, n) {
-  const parts = (text ?? "").trim().match(/[^.!?]+(?:[.!?]+|$)/g) ?? [];
-  return parts.slice(0, n).join("").trim();
+// Split on sentence ends: "." or "!" followed by a space or the end of the text.
+function sentences(text) {
+  return (text ?? "")
+    .trim()
+    .split(/(?<=[.!])(?:\s+|$)/)
+    .map((x) => x.trim())
+    .filter(Boolean);
 }
 const POM_TOTAL = 25 * 60;
 const CIRC = 2 * Math.PI * 19;
@@ -305,6 +331,8 @@ const ICONS = {
   settings: (<><circle cx="12" cy="12" r="3" /><path d="M19.07 4.93l-1.41 1.41M5.34 17.66l-1.41 1.41M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 18.66l1.41 1.41M2 12h2M20 12h2" /></>),
   list: (<><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /></>),
   pin: <path d="M12 2a5 5 0 015 5c0 3.5-5 13-5 13S7 10.5 7 7a5 5 0 015-5z" />,
+  grid: (<><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>),
+  warn: (<><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></>),
   sparkle: <path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2z" />,
   compass: (<><circle cx="12" cy="12" r="10" /><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" /></>),
 };
@@ -328,6 +356,7 @@ const NAV = [
       { label: "Crosshairs", to: "/crosshairs", icon: "target" },
       { label: "Wins", to: "/wins", icon: "trend" },
       { label: "OKRs", to: "/okrs", icon: "clock" },
+      { label: "Planning", to: "/planning", icon: "grid" },
       { label: "Brewing", to: "/brewing", icon: "flame" },
       { label: "Content", to: "/content", icon: "calendar" },
       { label: "SEO", to: "/seo", icon: "pulse" },
@@ -362,6 +391,32 @@ const isZoneDrag = (e) => e.dataTransfer.types.includes("zone-drag");
 // ---------------------------------------------------------------------------
 // Sidebar
 // ---------------------------------------------------------------------------
+// Phones only (CSS shows it below 768px, where the sidebar is hidden).
+const MOBILE_NAV = [
+  { label: "Home", to: "/", icon: "home" },
+  { label: "Pipeline", to: "/pipeline", icon: "pipeline" },
+  { label: "Crosshairs", to: "/crosshairs", icon: "target" },
+  { label: "Learning Hub", to: "/learning-hub", icon: "book" },
+  { label: "Settings", to: "/settings", icon: "settings" },
+];
+function MobileNav() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  return (
+    <nav className="mnav" aria-label="Main">
+      {MOBILE_NAV.map((item) => {
+        const active = item.to === "/" ? pathname === "/" : pathname.startsWith(item.to);
+        return (
+          <button key={item.to} className={`mnav-i${active ? " on" : ""}`} onClick={() => navigate(item.to)}>
+            <svg viewBox="0 0 24 24">{ICONS[item.icon]}</svg>
+            <span>{item.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 function Sidebar({ fullName, ritualDone }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -520,20 +575,6 @@ const TASK_PROPS_KEY = "mc_task_props";
 const WEEKLY_DONE_KEY = "mc_weekly_done";
 // Tasks due outside the current week: { "yyyy-MM-dd": ["task label", …] }
 const CALENDAR_DOTS_KEY = "mc_calendar_dots";
-const TASK_STATUSES = ["Open", "In Progress", "Done", "Dropped"];
-const TASK_TYPES = ["Task", "Mission", "Project"];
-const TASK_PRIORITIES = ["Hot", "Medium", "Low"];
-const DEFAULT_TASK_FIELDS = {
-  area: "Systems",
-  project: "",
-  mission: "",
-  type: "Task",
-  status: "Open",
-  due_date: "",
-  priority: "Medium",
-  notes: "",
-};
-const PRIORITY_DOT = { Hot: "var(--red)", Medium: "var(--orange)", Low: "var(--t4)", Nurturing: "var(--purple)" };
 const EMPTY_MIT_STATE = { done: false, meta: {} };
 
 function readJson(key) {
@@ -542,13 +583,6 @@ function readJson(key) {
     return v && typeof v === "object" && !Array.isArray(v) ? v : {};
   } catch {
     return {};
-  }
-}
-function writeJsonArray(key, value) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    /* storage unavailable */
   }
 }
 function writeJson(key, value) {
@@ -571,8 +605,6 @@ function deleteTaskProps(key) {
   delete all[key];
   writeJson(TASK_PROPS_KEY, all);
 }
-const pickFields = (obj) =>
-  Object.fromEntries(Object.keys(DEFAULT_TASK_FIELDS).filter((k) => obj?.[k] != null).map((k) => [k, obj[k]]));
 
 // Single click opens the panel, double click toggles done. The single-click
 // action waits briefly so a double click doesn't also open the panel.
@@ -590,239 +622,6 @@ function useClickOrDouble() {
       onDouble();
     },
   });
-}
-
-const SEED_AREAS = ["Sales", "Sourcing", "Marketing", "Finance", "Systems", "Personal"];
-
-/**
- * Dropdown listing existing records, with an optional inline "+ Create new"
- * row. Closes on an outside click.
- */
-function SmartSelect({ value, options, onChange, placeholder = "None", allowNone = false, createLabel, onCreate }) {
-  const [open, setOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState("");
-  const wrapRef = useRef(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
-        setOpen(false);
-        setCreating(false);
-      }
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, [open]);
-
-  const choose = (v) => {
-    onChange(v);
-    setOpen(false);
-    setCreating(false);
-  };
-  const create = async () => {
-    const name = draft.trim();
-    if (!name) return;
-    await onCreate(name);
-    setDraft("");
-    choose(name);
-  };
-  const list = [...new Set([value, ...options].filter(Boolean))];
-
-  return (
-    <div className="ss-wrap" ref={wrapRef}>
-      <button type="button" className="tp-input ss-btn" onClick={() => setOpen((o) => !o)} aria-haspopup="listbox" aria-expanded={open}>
-        <span className={value ? "" : "ss-ph"}>{value || placeholder}</span>
-        <svg className="ss-chev" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9" /></svg>
-      </button>
-      {open && (
-        <div className="ss-list" role="listbox">
-          {allowNone && (
-            <div className={`ss-opt ss-none${!value ? " sel" : ""}`} onClick={() => choose("")}>{placeholder}</div>
-          )}
-          {list.map((o) => (
-            <div key={o} role="option" aria-selected={o === value} className={`ss-opt${o === value ? " sel" : ""}`} onClick={() => choose(o)}>
-              {o}
-            </div>
-          ))}
-          {onCreate &&
-            (creating ? (
-              <div className="ss-new">
-                <input
-                  autoFocus
-                  value={draft}
-                  placeholder="Name, then Enter"
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") create();
-                    if (e.key === "Escape") {
-                      e.stopPropagation();
-                      setCreating(false);
-                    }
-                  }}
-                />
-              </div>
-            ) : (
-              <div className="ss-opt ss-create" onClick={() => setCreating(true)}>+ {createLabel}</div>
-            ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * task: { uid, title, source, fields, statusOptions, priorityOptions,
- *         canDelete, deleteNote, confirmDelete }
- */
-function TaskPanel({ open, task, hierarchy, onClose, onSave, onDelete }) {
-  const panelRef = useRef(null);
-  const [title, setTitle] = useState("");
-  const [fields, setFields] = useState(DEFAULT_TASK_FIELDS);
-  const [confirming, setConfirming] = useState(false);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!task) return;
-    setTitle(task.title);
-    setFields({ ...DEFAULT_TASK_FIELDS, ...task.fields });
-    setConfirming(false);
-    setSaving(false);
-  }, [task]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
-    };
-    const onKey = (e) => e.key === "Escape" && onClose();
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, onClose]);
-
-  const set = (k) => (e) => setFields((f) => ({ ...f, [k]: e.target.value }));
-  const setValue = (k) => (v) => setFields((f) => ({ ...f, [k]: v }));
-  const statusOptions = task?.statusOptions ?? TASK_STATUSES;
-  const priorityOptions = task?.priorityOptions ?? TASK_PRIORITIES;
-
-  const save = async () => {
-    if (!title.trim()) return;
-    setSaving(true);
-    await onSave({ title: title.trim(), fields });
-    setSaving(false);
-  };
-  const del = () => {
-    if (task.confirmDelete && !confirming) {
-      setConfirming(true);
-      return;
-    }
-    onDelete();
-  };
-
-  return (
-    <>
-      <div className={`tp-overlay${open ? " open" : ""}`}></div>
-      <div ref={panelRef} className={`tp-panel${open ? " open" : ""}`} role="dialog" aria-label="Task properties" aria-hidden={!open}>
-        {task && (
-          <>
-            <div className="tp-head">
-              <input
-                className="tp-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && save()}
-                aria-label="Task title"
-              />
-              <button className="tp-close" onClick={onClose} aria-label="Close">✕</button>
-            </div>
-            <div className="tp-body">
-              <div className="tp-src">{task.source}</div>
-              <div>
-                <div className="tp-sec-label">Hierarchy</div>
-                <div className="tp-row">
-                  <span className="tp-label">
-                    <span className="tp-dot" style={{ background: PRIORITY_DOT[fields.priority] ?? "var(--t4)" }}></span>Area
-                  </span>
-                  <SmartSelect value={fields.area} options={hierarchy.areas} onChange={setValue("area")} placeholder="Choose area" />
-                </div>
-                <div className="tp-row">
-                  <span className="tp-label">Project</span>
-                  <SmartSelect
-                    value={fields.project}
-                    options={hierarchy.projects}
-                    onChange={setValue("project")}
-                    allowNone
-                    createLabel="Create new project"
-                    onCreate={(name) => hierarchy.create("project", name, fields.area)}
-                  />
-                </div>
-                <div className="tp-row">
-                  <span className="tp-label">Mission</span>
-                  <SmartSelect
-                    value={fields.mission}
-                    options={hierarchy.missions}
-                    onChange={setValue("mission")}
-                    allowNone
-                    createLabel="Create new mission"
-                    onCreate={(name) => hierarchy.create("mission", name, fields.area)}
-                  />
-                </div>
-                <div className="tp-row">
-                  <span className="tp-label">Type</span>
-                  <select className="tp-input" value={fields.type} onChange={set("type")}>
-                    {TASK_TYPES.map((t) => (
-                      <option key={t}>{t}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <div className="tp-sec-label">Details</div>
-                <div className="tp-row">
-                  <span className="tp-label">Status</span>
-                  <select className="tp-input" value={fields.status} onChange={set("status")}>
-                    {[...new Set([fields.status, ...statusOptions])].map((o) => (
-                      <option key={o}>{o}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="tp-row">
-                  <span className="tp-label">Due date</span>
-                  <input className="tp-input" type="date" value={fields.due_date} onChange={set("due_date")} />
-                </div>
-                <div className="tp-row">
-                  <span className="tp-label">Priority</span>
-                  <select className="tp-input" value={fields.priority} onChange={set("priority")}>
-                    {[...new Set([fields.priority, ...priorityOptions])].map((o) => (
-                      <option key={o}>{o}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div>
-                <div className="tp-sec-label">Notes</div>
-                <textarea className="tp-notes" value={fields.notes} onChange={set("notes")} placeholder="Notes…"></textarea>
-              </div>
-              {task.deleteNote && <div className="tp-hint">{task.deleteNote}</div>}
-            </div>
-            <div className="tp-foot">
-              <button className="tp-del" onClick={del} disabled={!task.canDelete}>
-                {confirming ? "Click again to delete" : "Delete"}
-              </button>
-              <button className="tp-save" onClick={save} disabled={saving || !title.trim()}>
-                {saving ? "Saving…" : "Save"}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -861,8 +660,11 @@ export default function Home() {
   mitStateRef.current = mitState;
   const [blocks, setBlocks] = useState([]);
   const [weeklyDone, setWeeklyDone] = useState(() => readJson(WEEKLY_DONE_KEY));
-  const [areas, setAreas] = useState(null);
+  // ClickUp tasks only; tasks typed here live in logTasks (daily_logs.tasks).
   const [hitlist, setHitlist] = useState([]);
+  const [logTasks, setLogTasks] = useState([]);
+  const logTasksRef = useRef([]);
+  logTasksRef.current = logTasks;
   const [hitlistError, setHitlistError] = useState(null);
   // Hitlist edits made in the panel: { [id]: { done, label, props } }. ClickUp
   // tasks aren't written back, so these live in component state.
@@ -911,6 +713,39 @@ export default function Home() {
     });
     setSoonestRfq(soonest.data ?? null);
   }, []);
+
+  // ---- Auto-rejected quotation alerts (rfq_alerts, raised by the Pipeline page).
+  const [rfqAlerts, setRfqAlerts] = useState([]);
+  useEffect(() => {
+    if (!user) return;
+    const dismissedKey = `mc_alerts_dismissed_${isoDate(getManilaDate())}`;
+    if (readSession(dismissedKey)) return;
+    const since = new Date(Date.now() - 7 * 86400000).toISOString();
+    supabase
+      .from("rfq_alerts")
+      .select("id, rfq_number")
+      .eq("dismissed", false)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) console.warn("[Home] rfq_alerts unavailable:", error.message);
+        else setRfqAlerts(data ?? []);
+      });
+  }, [user]);
+  const dismissAlerts = async () => {
+    const ids = rfqAlerts.map((a) => a.id);
+    setRfqAlerts([]);
+    writeSession(`mc_alerts_dismissed_${isoDate(getManilaDate())}`, "1");
+    const { error } = await supabase.from("rfq_alerts").update({ dismissed: true }).in("id", ids);
+    if (error) console.warn("[Home] dismissing alerts failed:", error.message);
+  };
+
+  // ---- Google Calendar connection state: "valid" | "expired" | "none".
+  const [gcalState, setGcalState] = useState(null);
+  useEffect(() => {
+    if (!user || !CALENDAR_ID) return;
+    resolveCalendarToken().then((v) => setGcalState(v.state));
+  }, [user]);
 
   // ---- AI morning brief: generated once per Manila day, cached in sessionStorage.
   const [aiBrief, setAiBrief] = useState(null);
@@ -1018,13 +853,14 @@ export default function Home() {
 
   const loadDailyLog = useCallback(async () => {
     const today = isoDate(getManilaDate());
-    const [mitColumns, timeBlocks, mitDone, mitMeta] = await Promise.all([
+    const [mitColumns, timeBlocks, mitDone, mitMeta, tasksCol] = await Promise.all([
       dailyLogsHasColumns("mit_1,mit_2,mit_3"),
       dailyLogsHasColumns("time_blocks"),
       dailyLogsHasColumns("mit_1_done,mit_2_done,mit_3_done"),
       dailyLogsHasColumns("mit_meta"),
+      dailyLogsHasColumns("tasks"),
     ]);
-    schema.current = { mitColumns, timeBlocks, mitDone, mitMeta };
+    schema.current = { mitColumns, timeBlocks, mitDone, mitMeta, tasks: tasksCol };
     if (!mitDone) console.warn("[Home] daily_logs has no mit_N_done columns — MIT cross-outs won't persist until migration 0011 runs.");
     if (!mitMeta) console.warn("[Home] daily_logs has no mit_meta column — MIT properties won't persist until migration 0012 runs.");
     if (!mitColumns) console.warn("[Home] daily_logs has no mit_1/mit_2/mit_3 columns — using the mits jsonb array.");
@@ -1045,6 +881,9 @@ export default function Home() {
     savedMitCount.current = loaded.length;
     setMits(loaded.map((s) => s.label));
     setMitState(loaded.map((s) => s.state));
+    setLogTasks(
+      Array.isArray(row?.tasks) ? row.tasks.filter((t) => t && typeof t.text === "string" && t.text.trim()) : []
+    );
 
     if (timeBlocks) {
       setBlocks(Array.isArray(row?.time_blocks) ? row.time_blocks : []);
@@ -1081,71 +920,15 @@ export default function Home() {
     try {
       const tasks = await fetchAdminBacklogTasks();
       setHitlistError(null);
-      setHitlist((prev) => [
-        ...prev.filter((t) => t.local),
-        ...tasks.map((t) => ({ id: t.id, label: t.name, age: t.daysSinceActivity ?? 0 })),
-      ]);
+      setHitlist(tasks.map((t) => ({ id: t.id, label: t.name, age: t.daysSinceActivity ?? 0 })));
     } catch (e) {
       console.warn("[Home] ClickUp hitlist failed:", e.message);
       setHitlistError(e.message);
     }
   }, []);
 
-  const loadAreas = useCallback(async () => {
-    const { data, error } = await supabase.from("areas").select("id, name").order("name");
-    // No areas table in this project → the six seed areas.
-    setAreas(error ? null : data ?? []);
-  }, []);
-
-  // Projects and missions: open work_items rows, or localStorage lists when
-  // the work_items table doesn't exist.
-  const [projects, setProjects] = useState([]);
-  const [missions, setMissions] = useState([]);
-  const workItemsExists = useRef(false);
-  const loadWorkItems = useCallback(async () => {
-    const { data, error } = await supabase.from("work_items").select("title, type").in("type", ["project", "mission"]).eq("status", "open");
-    workItemsExists.current = !error;
-    if (error) {
-      console.warn("[Home] work_items table not found — projects and missions come from localStorage.");
-      const list = (key) => {
-        try {
-          const v = JSON.parse(localStorage.getItem(key));
-          return Array.isArray(v) ? v.filter((x) => typeof x === "string") : [];
-        } catch {
-          return [];
-        }
-      };
-      setProjects(list("mc_projects"));
-      setMissions(list("mc_missions"));
-      return;
-    }
-    setProjects(data.filter((r) => r.type === "project").map((r) => r.title));
-    setMissions(data.filter((r) => r.type === "mission").map((r) => r.title));
-  }, []);
-  const createHierarchyItem = async (type, name, areaName) => {
-    const setList = type === "project" ? setProjects : setMissions;
-    if (workItemsExists.current) {
-      const areaId = areas?.find((a) => a.name === areaName)?.id ?? null;
-      const { error } = await supabase.from("work_items").insert({ title: name, type, status: "open", area_id: areaId });
-      if (error) console.warn(`[Home] creating ${type} in work_items failed:`, error.message);
-    } else {
-      const key = type === "project" ? "mc_projects" : "mc_missions";
-      let list = [];
-      try {
-        list = JSON.parse(localStorage.getItem(key)) ?? [];
-      } catch {
-        /* start fresh */
-      }
-      if (!list.includes(name)) writeJsonArray(key, [...list, name]);
-    }
-    setList((prev) => (prev.includes(name) ? prev : [...prev, name]));
-  };
-  const hierarchy = {
-    areas: areas?.length ? areas.map((a) => a.name) : SEED_AREAS,
-    projects,
-    missions,
-    create: createHierarchyItem,
-  };
+  // Areas → projects → missions for the task panel (live tables, migration 0017).
+  const { panel: hierarchy, reload: reloadHierarchy } = useHierarchy();
 
   const loadModule = useCallback(async () => {
     try {
@@ -1158,9 +941,9 @@ export default function Home() {
 
   const loadAll = useCallback(async () => {
     setSyncing(true);
-    await Promise.allSettled([loadPulse(), loadWeek(), loadDailyLog(), loadGrowth(), loadHitlist(), loadAreas(), loadWorkItems(), loadModule()]);
+    await Promise.allSettled([loadPulse(), loadWeek(), loadDailyLog(), loadGrowth(), loadHitlist(), reloadHierarchy(), loadModule()]);
     setSyncing(false);
-  }, [loadPulse, loadWeek, loadDailyLog, loadGrowth, loadHitlist, loadAreas, loadWorkItems, loadModule]);
+  }, [loadPulse, loadWeek, loadDailyLog, loadGrowth, loadHitlist, reloadHierarchy, loadModule]);
 
   useEffect(() => {
     loadAll();
@@ -1236,15 +1019,47 @@ export default function Home() {
     }
   }, []);
 
+  // Tasks typed on this page: saved as today's daily_logs.tasks
+  // [{ id, text, done, createdAt }] (migration 0015).
+  const persistLogTasks = useCallback(async (next) => {
+    logTasksRef.current = next;
+    setLogTasks(next);
+    if (!schema.current.tasks) {
+      console.warn("[Home] daily_logs has no tasks column — hitlist task kept in local state only.");
+      return;
+    }
+    const { error } = await supabase
+      .from("daily_logs")
+      .upsert({ log_date: isoDate(getManilaDate()), tasks: next }, { onConflict: "log_date" });
+    if (error) console.warn("[Home] saving hitlist tasks to daily_logs failed:", error.message);
+  }, []);
+
   const addToHitlist = useCallback(async (label) => {
-    setHitlist((prev) => [{ id: `local-${Date.now()}`, label, age: 0, local: true }, ...prev]);
+    persistLogTasks([
+      { id: `local-${Date.now()}`, text: label, done: false, createdAt: new Date().toISOString() },
+      ...logTasksRef.current,
+    ]);
     const { data: area } = await supabase.from("areas").select("id").eq("name", "Systems").maybeSingle();
     const { error } = await supabase
       .from("work_items")
       .insert({ title: label, type: "task", status: "open", area_id: area?.id ?? null });
     if (error) console.warn("[Home] work_items unavailable — hitlist task kept in local state only:", error.message);
-  }, []);
+  }, [persistLogTasks]);
 
+  // Hitlist as shown: today's typed tasks (minus any already in ClickUp by
+  // name), then the ClickUp tasks.
+  const hitlistView = useMemo(() => {
+    const clickupNames = new Set(hitlist.map((t) => t.label.trim().toLowerCase()));
+    const local = logTasks
+      .filter((t) => !clickupNames.has(t.text.trim().toLowerCase()))
+      .map((t) => ({
+        id: t.id,
+        label: t.text,
+        age: Math.max(0, Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000)) || 0,
+        local: true,
+      }));
+    return [...local, ...hitlist];
+  }, [hitlist, logTasks]);
 
   // ---- Cross-out (double click) --------------------------------------------------------
   const clickOrDouble = useClickOrDouble();
@@ -1383,12 +1198,27 @@ export default function Home() {
       saveTaskProps(title, fields, old?.label);
     } else if (t.kind === "hitlist") {
       setHitlistMeta((prev) => ({ ...prev, [t.id]: { label: title, done, props: fields } }));
-      const probe = await supabase.from("work_items").select("id", { head: true }).limit(1);
-      if (probe.error) {
-        console.warn("[Home] work_items table not found — hitlist task properties kept in component state only.");
-      } else {
-        const { error } = await supabase.from("work_items").insert({ title, type: "task", status: status.toLowerCase(), notes, priority, due_date: fields.due_date || null });
-        if (error) console.warn("[Home] saving hitlist task to work_items failed:", error.message);
+      if (t.local && title !== t.title) {
+        persistLogTasks(logTasksRef.current.map((x) => (x.id === t.id ? { ...x, text: title } : x)));
+      }
+      // Mirror to work_items: update the row with this task's title, else add one.
+      const row = {
+        title,
+        type: "task",
+        status: status.toLowerCase().replace(/ /g, "_"),
+        notes: notes || null,
+        priority,
+        due_date: fields.due_date || null,
+        area_id: hierarchy.ids.area(fields.area),
+        project_id: hierarchy.ids.project(fields.project),
+        mission_id: hierarchy.ids.mission(fields.mission),
+      };
+      const existing = await supabase.from("work_items").select("id").eq("title", t.title).limit(1).maybeSingle();
+      const res = existing.data
+        ? await supabase.from("work_items").update(row).eq("id", existing.data.id)
+        : await supabase.from("work_items").insert(row);
+      if (existing.error || res.error) {
+        console.warn("[Home] saving hitlist task to work_items failed:", (existing.error ?? res.error).message);
       }
     } else if (t.kind === "crosshairs") {
       const { error } = await supabase.from("crosshairs_targets").update({ target_name: title, priority, notes: notes || null }).eq("id", t.id);
@@ -1425,7 +1255,7 @@ export default function Home() {
     } else if (t.kind === "block") {
       persistBlocks(blocks.filter((_, i) => i !== t.index));
     } else if (t.kind === "hitlist") {
-      setHitlist((prev) => prev.filter((x) => x.id !== t.id));
+      persistLogTasks(logTasksRef.current.filter((x) => x.id !== t.id));
     } else if (t.kind === "crosshairs") {
       const { error } = await supabase.from("crosshairs_targets").delete().eq("id", t.id);
       if (error) console.warn("[Home] deleting crosshairs target failed:", error.message);
@@ -1797,8 +1627,8 @@ export default function Home() {
         author: learnModule.book_author,
         color: learnModule.cover_color || "#3b82f6",
         initial: (learnModule.cover_initial || learnModule.book_title || "?").charAt(0).toUpperCase(),
-        takeaway: firstSentences(learnModule.key_takeaway || learnModule.description, 2),
-        application: firstSentences(learnModule.application, 1),
+        takeaway: sentences(learnModule.key_takeaway || learnModule.description).slice(0, 3),
+        application: sentences(learnModule.application).slice(0, 2),
       }
     : topic
       ? {
@@ -1807,8 +1637,8 @@ export default function Home() {
           color: "#3b82f6",
           initial: (topic.title ?? "?").trim().charAt(0).toUpperCase(),
           coverUrl: topicCoverUrl(topic),
-          takeaway: firstSentences(topic.description, 2),
-          application: "",
+          takeaway: sentences(topic.description).slice(0, 3),
+          application: [],
         }
       : null;
 
@@ -1829,7 +1659,7 @@ export default function Home() {
   const monthTitle = `${MONTHS_LONG[calMonth.m]} ${calMonth.y}`;
 
   // ---- Zones --------------------------------------------------------------------------
-  const staleCount = hitlist.filter((t) => t.age > 14).length;
+  const staleCount = hitlistView.filter((t) => t.age > 14).length;
 
   const zones = {
     pulse: (
@@ -1870,8 +1700,17 @@ export default function Home() {
 
     weekly: (
       <div key="weekly" data-zone-id="weekly" className="zone-wrap">
-        {zoneHead("weekly", <span>{weekLabel}</span>)}
+        {zoneHead(
+          "weekly",
+          <>
+            <span>{weekLabel}</span>
+            {gcalState === "none" && (
+              <button className="zl-connect" onClick={() => navigate("/settings")}>Connect Calendar</button>
+            )}
+          </>
+        )}
         <div className="card">
+          <div className="week-scroll">
           <div className="week-grid">
             {weekDays.map((d) => {
               const ds = isoDate(d);
@@ -1910,6 +1749,7 @@ export default function Home() {
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
       </div>
@@ -1983,8 +1823,16 @@ export default function Home() {
                           {hubCard.author && <div className="hub2-author">{hubCard.author}</div>}
                         </div>
                       </div>
-                      {hubCard.takeaway && <div className="hub2-takeaway">{hubCard.takeaway}</div>}
-                      {hubCard.application && <div className="hub2-app">{hubCard.application}</div>}
+                      {hubCard.takeaway.length > 0 && (
+                        <div className="hub2-takeaway">
+                          {hubCard.takeaway.map((t, i) => <p key={i}>{t}</p>)}
+                        </div>
+                      )}
+                      {hubCard.application.length > 0 && (
+                        <div className="hub2-app">
+                          {hubCard.application.map((t, i) => <p key={i}>{t}</p>)}
+                        </div>
+                      )}
                       <div className="hub2-foot">
                         <div className="hub2-bar"><div className="hub2-fill" style={{ width: `${topic?.progress_percent ?? 0}%` }}></div></div>
                         <span className="hub2-streak">🔥 {topic?.current_streak ?? 0}-day streak</span>
@@ -2063,16 +1911,18 @@ export default function Home() {
               </div>
               <div className="shut" style={shutCount === 5 ? { display: "none" } : undefined}>
                 <div className="shut-hdr">Shutdown Ritual <span className="shut-count">{shutCount}/5</span></div>
-                {SHUTDOWN_ITEMS.map((label, i) => (
-                  <label key={label} className="shut-item">
-                    <input
-                      type="checkbox"
-                      checked={shut[i]}
-                      onChange={() => setShut((s) => s.map((v, j) => (j === i ? !v : v)))}
-                    />{" "}
-                    {label}
-                  </label>
-                ))}
+                <div className="shut-items">
+                  {SHUTDOWN_ITEMS.map((label, i) => (
+                    <label key={label} className="shut-item">
+                      <input
+                        type="checkbox"
+                        checked={shut[i]}
+                        onChange={() => setShut((s) => s.map((v, j) => (j === i ? !v : v)))}
+                      />{" "}
+                      {label}
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="shut-done" style={shutCount === 5 ? { display: "block" } : undefined}>
                 <div className="shut-done-icon">🎉</div>
@@ -2162,8 +2012,8 @@ export default function Home() {
             <span className="ch-a" onClick={() => window.open(`https://app.clickup.com/${CLICKUP_WORKSPACE_ID}/home`, "_blank", "noopener")}>ClickUp ↗</span>
           </div>
           <div className={`bl-area${overList === "hitlist" ? " drag-over-list" : ""}`} {...listDragProps("hitlist", dropOnHitlist)}>
-            {hitlist.length === 0 && <div className="mit-empty">{hitlistError ? "ClickUp unavailable." : "Nothing on the hitlist."}</div>}
-            {hitlist.slice(0, GROWTH_ROWS).map((t) => {
+            {hitlistView.length === 0 && <div className="mit-empty">{hitlistError ? "ClickUp unavailable." : "Nothing on the hitlist."}</div>}
+            {hitlistView.slice(0, GROWTH_ROWS).map((t) => {
               const color = t.age > 14 ? "var(--red)" : t.age >= 7 ? "var(--orange)" : "var(--t4)";
               return (
                 <div
@@ -2341,6 +2191,8 @@ export default function Home() {
         onDelete={deletePanelTask}
       />
 
+      <MobileNav />
+
       <div className="shell">
         <Sidebar fullName={fullName} ritualDone={ritualDone || checkIn.isComplete} />
 
@@ -2359,6 +2211,23 @@ export default function Home() {
               <button className="btn-p" onClick={() => navigate("/intake")}>+ New RFQ</button>
             </div>
           </div>
+
+          {rfqAlerts.length > 0 && (
+            <div className="alert-banner" role="alert">
+              <svg viewBox="0 0 24 24">{ICONS.warn}</svg>
+              <span className="alert-text">
+                {rfqAlerts.length} quotation{rfqAlerts.length === 1 ? "" : "s"} auto-rejected after 45 days:{" "}
+                {[...new Set(rfqAlerts.map((a) => a.rfq_number))].join(", ")}
+              </span>
+              <button className="alert-x" onClick={dismissAlerts} aria-label="Dismiss">✕</button>
+            </div>
+          )}
+          {gcalState === "expired" && (
+            <div className="gcal-banner">
+              Google Calendar token expired.{" "}
+              <button onClick={() => navigate("/settings")}>Reconnect in Settings</button>
+            </div>
+          )}
 
           <div className="page">
             {zoneOrder.map((id) => (

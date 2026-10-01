@@ -137,6 +137,15 @@ export const LogoMark = (p) => (
   </svg>
 );
 
+export const PlanningIcon = (p) => (
+  <svg viewBox="0 0 24 24" {...base} {...p}>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </svg>
+);
+
 export const BrewingIcon = (p) => (
   <svg viewBox="0 0 24 24" {...base} {...p}>
     <path d="M6 9h11v6a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4z" />

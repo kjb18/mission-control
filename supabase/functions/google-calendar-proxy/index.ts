@@ -1,12 +1,11 @@
 // Supabase Edge Function: google-calendar-proxy
 //
-// Read-only fallback path for when Google Calendar isn't connected via
-// OAuth (src/lib/googleAuth.js) — forwards to the Calendar API with
-// GOOGLE_API_KEY injected server-side. The OAuth read/write path stays
-// entirely client-side by design (the user's own short-lived access
-// token is the correct client-side credential there, unlike a static
-// API key baked into a build); this proxy only replaces the old
-// VITE_GOOGLE_API_KEY fallback read.
+// Reads Google Calendar events for the homepage.
+//   - With { access_token } in the body (the owner's OAuth token, saved from
+//     Settings), it calls the Calendar API as the owner, so private events
+//     and full details come back.
+//   - Without one it falls back to GOOGLE_API_KEY, which only sees calendars
+//     shared publicly (and only free/busy if that's how they're shared).
 //
 // Requires a real authenticated owner session (see _shared/auth.ts).
 // Always responds 200 with { ok, items | error } so the client can
@@ -26,18 +25,18 @@ Deno.serve(async (req) => {
   if (!user) return unauthorized();
 
   try {
-    const { calendarId, timeMin, timeMax } = await req.json();
+    const { calendarId, timeMin, timeMax, access_token } = await req.json();
     if (!calendarId || !timeMin || !timeMax) {
       throw new Error("calendarId, timeMin, and timeMax are required.");
     }
 
     const apiKey = Deno.env.get("GOOGLE_API_KEY");
-    if (!apiKey) {
-      throw new Error("GOOGLE_API_KEY is not set. Run `supabase secrets set GOOGLE_API_KEY=...`.");
+    if (!access_token && !apiKey) {
+      throw new Error("No access_token sent and GOOGLE_API_KEY is not set.");
     }
 
     const params = new URLSearchParams({
-      key: apiKey,
+      ...(access_token ? {} : { key: apiKey! }),
       timeMin,
       timeMax,
       singleEvents: "true",
@@ -46,7 +45,8 @@ Deno.serve(async (req) => {
     });
 
     const res = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params}`,
+      access_token ? { headers: { Authorization: `Bearer ${access_token}` } } : undefined
     );
     const data = await res.json().catch(() => ({}));
 
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    return new Response(JSON.stringify({ ok: true, items: data.items ?? [] }), {
+    return new Response(JSON.stringify({ ok: true, items: data.items ?? [], auth: access_token ? "oauth" : "api_key" }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

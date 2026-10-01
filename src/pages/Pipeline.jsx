@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { STAGES, fetchPipelineRfqs, updateRfqStage, urgencyFor, subscribeToRfqChanges } from "../lib/pipeline";
+import {
+  STAGES,
+  QUOTE_EXPIRY_DAYS,
+  fetchPipelineRfqs,
+  updateRfqStage,
+  urgencyFor,
+  subscribeToRfqChanges,
+  autoRejectStaleQuotes,
+} from "../lib/pipeline";
 import PoReceiptModal from "./pipeline/PoReceiptModal";
 import ConfirmDeliveryModal from "./pipeline/ConfirmDeliveryModal";
 import { PageHeader, Card, Badge, Button } from "../components/ui";
@@ -22,6 +30,17 @@ export default function Pipeline() {
   const load = useCallback(() => {
     fetchPipelineRfqs().then(setCards).catch((e) => setError(e.message));
   }, []);
+
+  useEffect(() => {
+    autoRejectStaleQuotes()
+      .then((numbers) => {
+        if (numbers.length) {
+          setNotice(`Auto-rejected after ${QUOTE_EXPIRY_DAYS} days without an award: ${numbers.join(", ")}`);
+          load();
+        }
+      })
+      .catch((e) => console.warn("[Pipeline] auto-rejection check failed:", e.message));
+  }, [load]);
 
   useEffect(() => {
     load();
@@ -77,7 +96,7 @@ export default function Pipeline() {
         </p>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7 gap-4">
         {STAGES.map((stage) => {
           const stageCards = cards.filter((c) => c.status === stage.key);
           return (
@@ -93,11 +112,15 @@ export default function Pipeline() {
               className={`p-3 min-h-[200px] transition-colors ${
                 dragOverStage === stage.key ? "border-accent bg-accent/5" : ""
               }`}
+              style={stage.tone === "red" && dragOverStage !== stage.key ? { background: "#fef2f2" } : undefined}
             >
-              <div className="flex items-center justify-between mb-3 px-1">
+              <div
+                className="flex items-center justify-between mb-3 px-1"
+                style={stage.tone === "red" ? { borderLeft: "2px solid #ef4444", paddingLeft: 8 } : undefined}
+              >
                 <p
-                  className="uppercase text-accent font-medium"
-                  style={{ fontSize: 11, letterSpacing: "0.06em" }}
+                  className={`uppercase font-medium ${stage.tone === "red" ? "" : "text-accent"}`}
+                  style={{ fontSize: 11, letterSpacing: "0.06em", ...(stage.tone === "red" ? { color: "#b91c1c" } : {}) }}
                 >
                   {stage.label}
                 </p>

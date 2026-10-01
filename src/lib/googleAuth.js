@@ -116,6 +116,23 @@ export async function getOrRenewAccessToken() {
   return getAccessToken();
 }
 
+/** Expiry (epoch ms) of the token currently held, or 0. */
+export function getTokenExpiry() {
+  return accessToken ? tokenExpiresAt : 0;
+}
+
+/**
+ * Take over a token obtained on another device (saved in app_settings), so
+ * pushes such as createEvent work here too. Never prompts.
+ */
+export function adoptAccessToken(token, expiresAt) {
+  if (!token || Date.now() >= expiresAt) return;
+  accessToken = token;
+  tokenExpiresAt = expiresAt;
+  localStorage.setItem(STORAGE_KEY, "true");
+  localStorage.setItem(TOKEN_KEY, JSON.stringify({ token, expiresAt }));
+}
+
 /** Connected before, but the token has expired — Settings offers Reconnect. */
 export function needsReconnect() {
   return hasConnectedBefore() && !getAccessToken();
