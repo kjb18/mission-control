@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   fetchQuoteBuilderRfqs,
   fetchQuoteLines,
@@ -18,6 +19,7 @@ import SendQuotePanel from "./quoteBuilder/SendQuotePanel";
 import { PageHeader, Card, CardHeader } from "../components/ui";
 
 export default function QuoteBuilder() {
+  const [searchParams] = useSearchParams();
   const [rfqs, setRfqs] = useState([]);
   const [rfqId, setRfqId] = useState(null);
   const [lines, setLines] = useState([]);
@@ -33,9 +35,18 @@ export default function QuoteBuilder() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchQuoteBuilderRfqs().then(setRfqs).catch((e) => setError(e.message));
+    // Deep links from a Project page: ?rfq=<id> or ?project_id=<id> preselects an RFQ.
+    fetchQuoteBuilderRfqs()
+      .then((list) => {
+        setRfqs(list);
+        const wanted = searchParams.get("rfq");
+        const projectId = searchParams.get("project_id");
+        const match = (wanted && list.find((r) => r.id === wanted)) || (projectId && list.find((r) => r.project_id === projectId));
+        if (match) setRfqId(match.id);
+      })
+      .catch((e) => setError(e.message));
     fetchFxRate().then(setFxRate).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!rfqId) return;

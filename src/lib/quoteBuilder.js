@@ -7,7 +7,7 @@ export const DEFAULT_MARKUP_PERCENT = 25;
 export async function fetchQuoteBuilderRfqs() {
   const { data, error } = await supabase
     .from("rfqs")
-    .select("id, title, rfq_number, closing_date, status, client_id, clients(name, address)")
+    .select("id, title, rfq_number, closing_date, status, client_id, project_id, clients(name, address)")
     .eq("status", "sourced")
     .order("closing_date", { ascending: true, nullsFirst: false });
   if (error) throw error;

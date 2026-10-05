@@ -28,7 +28,7 @@ async function resolveOrCreateClient(name) {
  * (best-effort, non-fatal on failure) creates the matching ClickUp task and
  * Google Calendar event for the closing date.
  */
-export async function confirmRfq({ rfq, lines }) {
+export async function confirmRfq({ rfq, lines, projectId = null }) {
   const clientId = await resolveOrCreateClient(rfq.client_name);
 
   const { data: rfqRow, error: rfqError } = await supabase
@@ -38,6 +38,7 @@ export async function confirmRfq({ rfq, lines }) {
       rfq_number: rfq.rfq_reference || null,
       title: rfq.rfq_reference ? `RFQ ${rfq.rfq_reference}` : rfq.client_name || "Untitled RFQ",
       status: "intake_confirmed",
+      project_id: projectId,
       closing_date: rfq.closing_date || null,
       received_date: new Date().toISOString().slice(0, 10),
     })

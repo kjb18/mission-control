@@ -12,6 +12,9 @@
 //   4. Morning brief — { mode: "morning_brief", data: string }
 //      Three-sentence operational summary for the homepage topbar, built
 //      from the RFQ / invoice / Crosshairs figures the client sends in data.
+//   5. Project insight — { mode: "project_insight", data: string }
+//      Two-sentence project health assessment for the Project detail page.
+//      Returns { insight }.
 //      Drafts a supplier outreach email for one line item. Deliberately
 //      never receives client_name/rfq_reference/closing_date at all — the
 //      "must not mention" requirement is enforced by never handing Claude
@@ -147,6 +150,33 @@ async function morningBrief(body: any) {
   return { summary: (textBlock as any).text.trim() };
 }
 
+const PROJECT_INSIGHT_SYSTEM_PROMPT =
+  "You are a project health analyst for Khalil Joseph Banares at Ultra Power Industrial Resources Philippines. Analyze this B2B industrial project and give a 2-sentence assessment: first sentence on current health and risk level, second sentence on the single most important next action. Be specific and direct. Return JSON with key insight only, no other text.";
+
+async function projectInsight(body: any) {
+  const data = typeof body.data === "string" ? body.data.trim() : body.data ? JSON.stringify(body.data) : "";
+  if (!data) throw new Error("project_insight requires a non-empty data field.");
+  const anthropic = anthropicClient();
+  const message = await anthropic.messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 150,
+    system: PROJECT_INSIGHT_SYSTEM_PROMPT,
+    messages: [{ role: "user", content: data }],
+  });
+  if ((message.stop_reason as string) === "refusal") throw new Error("Claude declined to write the insight.");
+  const textBlock = message.content.find((b: any) => b.type === "text");
+  if (!textBlock) throw new Error("Claude returned no text content.");
+  const text = (textBlock as any).text as string;
+  try {
+    const parsed = extractJson(text);
+    if (typeof parsed?.insight === "string") return { insight: parsed.insight.trim() };
+  } catch {
+    // Fall through: max_tokens can cut the JSON off — salvage the text.
+  }
+  const m = text.match(/"insight"\s*:\s*"([\s\S]*)/);
+  return { insight: (m ? m[1] : text).replace(/"?\s*}?\s*$/, "").replace(/\\"/g, '"').trim() };
+}
+
 async function draftOutreachEmail(body: any) {
   const anthropic = anthropicClient();
   const quantityLine = body.quantity ? `Quantity: ${body.quantity} ${body.unit ?? ""}`.trim() : "";
@@ -249,6 +279,13 @@ Deno.serve(async (req) => {
     if (body.mode === "morning_brief") {
       const brief = await morningBrief(body);
       return new Response(JSON.stringify(brief), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (body.mode === "project_insight") {
+      const result = await projectInsight(body);
+      return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

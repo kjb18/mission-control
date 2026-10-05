@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "./Planning.css";
 import { supabase } from "../lib/supabaseClient";
 import { useHierarchy } from "../lib/hierarchy";
 import TaskPanel from "../components/TaskPanel";
+import { STAGE_COLORS, stageOfProject, projectPnl, marginTone, daysUntil, healthOf } from "../lib/projects";
 
 // Planning: areas → projects → missions → tasks (work_items), migration 0017.
 // Left: hierarchy tree. Right: the selected scope's projects, missions or
@@ -39,8 +41,11 @@ const keyFor = (level, label) => COLUMNS[level].find((c) => c.label === label)?.
 const nameOf = (level, item) => (level === "task" ? item.title : item.name);
 
 export default function Planning() {
+  const navigate = useNavigate();
   const { areas, projects, missions, reload: reloadHierarchy, panel: hierarchy, tablesOk } = useHierarchy();
   const [tasks, setTasks] = useState([]);
+  // Per-project sum of Project Expense + COGS rows, for the card's gross margin.
+  const [expenseByProject, setExpenseByProject] = useState({});
   const [selection, setSelection] = useState({ type: "all", id: null });
   const [expanded, setExpanded] = useState({});
   const [level, setLevel] = useState("project");
@@ -61,6 +66,17 @@ export default function Planning() {
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
+  useEffect(() => {
+    supabase
+      .from("project_expenses")
+      .select("project_id, type, amount")
+      .in("type", ["Project Expense", "COGS"])
+      .then(({ data }) => {
+        const totals = {};
+        for (const x of data ?? []) totals[x.project_id] = (totals[x.project_id] ?? 0) + Number(x.amount ?? 0);
+        setExpenseByProject(totals);
+      });
+  }, [projects]);
   const reloadAll = useCallback(() => Promise.all([reloadHierarchy(), loadTasks()]), [reloadHierarchy, loadTasks]);
 
   const byId = (list, id) => list.find((x) => x.id === id);
@@ -168,6 +184,10 @@ export default function Planning() {
 
   // ---- Task panel ------------------------------------------------------------
   const openPanel = (item) => {
+    if (level === "project") {
+      navigate(`/projects/${item.id}`);
+      return;
+    }
     const area = areaOf(item) ?? areaOf(projectOf(item)) ?? areaOf(missionOf(item));
     const project = projectOf(item) ?? projectOf(missionOf(item));
     setPanelTask({
@@ -244,6 +264,48 @@ export default function Planning() {
     }
     const m = missionOf(item);
     return m ? { text: m.name, color: "#7c3aed" } : null;
+  };
+
+  const projectCard = (item, badge) => {
+    const stage = stageOfProject(item);
+    const sc = STAGE_COLORS[stage];
+    const { margin } = projectPnl(item, expenseByProject[item.id]);
+    const left = daysUntil(item.deadline);
+    const health = healthOf(item);
+    const missionCount = missions.filter((m) => m.project_id === item.id).length;
+    const taskCount = tasks.filter((t) => t.project_id === item.id || missions.find((m) => m.id === t.mission_id)?.project_id === item.id).length;
+    const deadlineTone = left < 7 ? "red" : left <= 30 ? "amber" : "gray";
+    return (
+      <div
+        key={item.id}
+        className="pl-card pl-pcard"
+        draggable
+        onDragStart={(e) => e.dataTransfer.setData("text/plain", item.id)}
+        onClick={() => navigate(`/projects/${item.id}`)}
+      >
+        <span className={`pl-health ${health}`} title={`Health: ${health}`} />
+        <div className="pl-pname">{item.name}</div>
+        {item.client_name && <div className="pl-pclient">{item.client_name}</div>}
+        <div className="pl-card-meta">
+          {badge && (
+            <span className="pl-badge" style={{ color: badge.color, borderColor: `${badge.color}55` }}>
+              {badge.text}
+            </span>
+          )}
+          <span className="pl-stage" style={{ color: sc.fg, background: sc.bg }}>{stage}</span>
+          {margin != null && <span className={`pl-margin ${marginTone(margin)}`}>{margin.toFixed(1)}%</span>}
+          {left != null && (
+            <span className={`pl-left ${deadlineTone}`}>
+              {left < 0 ? `${-left} days overdue` : `${left} day${left === 1 ? "" : "s"} left`}
+            </span>
+          )}
+        </div>
+        <div className="pl-card-meta">
+          <span className="pl-chip">{missionCount} mission{missionCount === 1 ? "" : "s"}</span>
+          <span className="pl-chip">{taskCount} task{taskCount === 1 ? "" : "s"}</span>
+        </div>
+      </div>
+    );
   };
 
   const scopeTitle =
@@ -424,6 +486,7 @@ export default function Planning() {
                   {colItems.map((item) => {
                     const badge = badgeFor(item);
                     const count = countFor(item);
+                    if (level === "project") return projectCard(item, badge);
                     return (
                       <div
                         key={item.id}

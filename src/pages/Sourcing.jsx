@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   fetchSourcingDeskRfqs,
   fetchRfqLines,
@@ -19,6 +19,7 @@ import { PageHeader, Card, CardHeader, Badge, Button } from "../components/ui";
 
 export default function Sourcing() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [rfqs, setRfqs] = useState([]);
   const [rfqId, setRfqId] = useState(null);
   const [lines, setLines] = useState([]);
@@ -32,10 +33,19 @@ export default function Sourcing() {
   const [fxRate, setFxRate] = useState(DEFAULT_FX_RATE);
 
   useEffect(() => {
-    fetchSourcingDeskRfqs().then(setRfqs).catch((e) => setError(e.message));
+    // Deep links from a Project page: ?rfq=<id> or ?project_id=<id> preselects an RFQ.
+    fetchSourcingDeskRfqs()
+      .then((list) => {
+        setRfqs(list);
+        const wanted = searchParams.get("rfq");
+        const projectId = searchParams.get("project_id");
+        const match = (wanted && list.find((r) => r.id === wanted)) || (projectId && list.find((r) => r.project_id === projectId));
+        if (match) setRfqId(match.id);
+      })
+      .catch((e) => setError(e.message));
     fetchSuppliers().then(setSuppliers).catch(() => {});
     fetchFxRate().then(setFxRate).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadLines = useCallback(async (id) => {
     const data = await fetchRfqLines(id);

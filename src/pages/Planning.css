@@ -67,3 +67,21 @@
   .pl-tree { position: static; max-height: 40vh; }
   .pl-board { grid-template-columns: repeat(4, 220px); }
 }
+
+/* Project cards (link through to /projects/:id) */
+.pl-pcard { position: relative; cursor: pointer; padding-right: 22px; }
+.pl-pname { font-size: 13px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-pclient { font-size: 11px; color: #64748b; margin-top: 2px; }
+.pl-health { position: absolute; top: 10px; right: 10px; width: 8px; height: 8px; border-radius: 50%; }
+.pl-health.green { background: #22c55e; }
+.pl-health.amber { background: #f59e0b; }
+.pl-health.red { background: #ef4444; }
+.pl-stage, .pl-margin { font-size: 10px; font-weight: 600; border-radius: 10px; padding: 1px 7px; }
+.pl-margin.green { background: #dcfce7; color: #15803d; }
+.pl-margin.amber { background: #fef3c7; color: #b45309; }
+.pl-margin.red { background: #fee2e2; color: #b91c1c; }
+.pl-left { font-size: 10px; }
+.pl-left.red { color: #dc2626; }
+.pl-left.amber { color: #d97706; }
+.pl-left.gray { color: #64748b; }
+.pl-chip { font-size: 10px; color: #64748b; background: #f1f5f9; border-radius: 6px; padding: 1px 6px; }

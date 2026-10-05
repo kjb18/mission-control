@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { parseRfqText, parseRfqFile, matchOnly, RFQ_FILE_TYPES, rfqFileType } from "../lib/parseRfq";
 import { confirmRfq } from "../lib/rfqIntake";
@@ -13,6 +14,8 @@ const TABS = [
 ];
 
 export default function Intake() {
+  const [searchParams] = useSearchParams();
+  const projectId = searchParams.get("project_id");
   const [tab, setTab] = useState("paste");
   const [pasteText, setPasteText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -119,7 +122,7 @@ export default function Intake() {
     setBusy(true);
     setError(null);
     try {
-      const { downstream } = await confirmRfq(review);
+      const { downstream } = await confirmRfq({ ...review, projectId });
       if (review.queueId) {
         await supabase.from("intake_queue").update({ status: "confirmed" }).eq("id", review.queueId);
         loadPendingQueue();
@@ -151,6 +154,10 @@ export default function Intake() {
 
       <FileDropOverlay show={dragging} text="Drop your RFQ image or PDF here" />
       <Toast toast={toast} />
+
+      {projectId && (
+        <p className="text-xs text-ink-secondary">This RFQ will be linked to the project you came from.</p>
+      )}
 
       {parsingName && (
         <div className="flex items-center gap-3 rounded-[10px] border border-line bg-base-900 px-4 py-3 text-sm text-ink-secondary">

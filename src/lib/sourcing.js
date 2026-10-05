@@ -27,7 +27,7 @@ export function weeksToDays(weeks) {
 export async function fetchSourcingDeskRfqs() {
   const { data, error } = await supabase
     .from("rfqs")
-    .select("id, title, rfq_number, closing_date, status, client_id, clients(name)")
+    .select("id, title, rfq_number, closing_date, status, client_id, project_id, clients(name)")
     .in("status", ["intake_confirmed", "sourcing"])
     .order("closing_date", { ascending: true, nullsFirst: false });
   if (error) throw error;

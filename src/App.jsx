@@ -13,6 +13,7 @@ import Crosshairs from "./pages/Crosshairs";
 import Wins from "./pages/Wins";
 import Okrs from "./pages/Okrs";
 import Planning from "./pages/Planning";
+import ProjectDetail from "./pages/ProjectDetail";
 import Brewing from "./pages/Brewing";
 import LearningHub from "./pages/LearningHub";
 import Contacts from "./pages/Contacts";
@@ -51,6 +52,7 @@ function AppRoutes() {
           <Route path="wins" element={<Wins />} />
           <Route path="okrs" element={<Okrs />} />
           <Route path="planning" element={<Planning />} />
+          <Route path="projects/:id" element={<ProjectDetail />} />
           <Route path="brewing" element={<Brewing />} />
           <Route path="learning-hub" element={<LearningHub />} />
           <Route path="contacts" element={<Contacts />} />
