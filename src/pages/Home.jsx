@@ -9,6 +9,8 @@ import { createEvent, isGoogleCalendarConfigured } from "../lib/googleCalendar";
 import { getAccessToken, adoptAccessToken } from "../lib/googleAuth";
 import { fetchTodayModule } from "../lib/learningModules";
 import TaskPanel from "../components/TaskPanel";
+import WeekTimeGrid, { timeLabel } from "./WeekTimeGrid";
+import { createCalendarEvent, pushDueEventIfChanged } from "../lib/calendarEvents";
 import { pickFields } from "../lib/taskFields";
 import { useHierarchy } from "../lib/hierarchy";
 
@@ -69,7 +71,13 @@ async function fetchCalendarEvents(range) {
   return items
     .map((ev) => {
       const startRaw = ev.start?.dateTime ?? ev.start?.date;
-      return { title: ev.summary || ev.title || ev.name || null, start: startRaw ? new Date(startRaw) : null };
+      const endRaw = ev.end?.dateTime ?? ev.end?.date;
+      return {
+        title: ev.summary || ev.title || ev.name || null,
+        start: startRaw ? new Date(startRaw) : null,
+        end: endRaw ? new Date(endRaw) : null,
+        allDay: Boolean(ev.start?.date && !ev.start?.dateTime),
+      };
     })
     .filter((ev) => ev.start);
 }
@@ -584,6 +592,19 @@ function deleteTaskProps(key) {
 
 // Single click opens the panel, double click toggles done. The single-click
 // action waits briefly so a double click doesn't also open the panel.
+// True at phone width (matches the 768px CSS breakpoint).
+function useIsMobile() {
+  const query = "(max-width: 768px)";
+  const [mobile, setMobile] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return mobile;
+}
+
 function useClickOrDouble() {
   const timer = useRef(null);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -788,11 +809,12 @@ export default function Home() {
     const days = getWeekDates();
     const startISO = isoDate(days[0]);
     const endISO = isoDate(days[6]);
-    const [rfqs, deliveries, invoices, cal] = await Promise.all([
+    const [rfqs, deliveries, invoices, cal, logs] = await Promise.all([
       supabase.from("rfqs").select("rfq_number, title, closing_date").gte("closing_date", startISO).lte("closing_date", endISO),
       supabase.from("deliveries").select("delivery_date, purchase_orders(po_number)").gte("delivery_date", startISO).lte("delivery_date", endISO),
       supabase.from("invoices").select("invoice_number, due_date").neq("status", "paid").gte("due_date", startISO).lte("due_date", endISO),
       fetchCalendarEventsWithTimeout({ timeMin: manilaInstant(startISO), timeMax: manilaInstant(endISO, "23:59:59") }),
+      supabase.from("daily_logs").select("log_date, time_blocks").gte("log_date", startISO).lte("log_date", endISO),
     ]);
     const map = {};
     const push = (ds, ev) => ds && (map[ds] = [...(map[ds] ?? []), ev]);
@@ -800,7 +822,26 @@ export default function Home() {
     (deliveries.data ?? []).forEach((d) => push(d.delivery_date, { t: "del", l: d.purchase_orders?.po_number ? `${d.purchase_orders.po_number} delivery` : "Delivery" }));
     (invoices.data ?? []).forEach((i) => push(i.due_date, { t: "adm", l: i.invoice_number ? `${i.invoice_number} due` : "Invoice due" }));
     // Nameless events are skipped rather than shown as "untitled" chips.
-    cal.forEach((ev) => ev.title && push(isoDate(toManila(ev.start)), { t: "mtg", l: ev.title }));
+    // Timed events carry their start/end so the time grid can place them.
+    cal.forEach(
+      (ev) =>
+        ev.title &&
+        push(isoDate(toManila(ev.start)), {
+          t: "mtg",
+          l: ev.title,
+          ...(ev.allDay || !ev.end ? {} : { timed: true, start: ev.start, end: ev.end }),
+        })
+    );
+    // Time blocks scheduled onto a day (daily_logs.time_blocks), unless Google already has that event.
+    const have = new Set(cal.filter((ev) => ev.title && ev.start).map((ev) => `${ev.title}|${ev.start.getTime()}`));
+    (logs.data ?? []).forEach((row) =>
+      (Array.isArray(row.time_blocks) ? row.time_blocks : []).forEach((b) => {
+        if (!b?.label || !/^\d{2}:\d{2}/.test(b.time ?? "")) return;
+        const start = manilaInstant(row.log_date, `${b.time.slice(0, 5)}:00`);
+        if (have.has(`${b.label}|${start.getTime()}`)) return;
+        push(row.log_date, { t: "adm", l: b.label, timed: true, block: true, start, end: new Date(start.getTime() + 30 * 60000) });
+      })
+    );
     const drops = loadWeeklyDrops();
     days.forEach((d) => (drops[isoDate(d)] ?? []).forEach((chip) => push(isoDate(d), chip)));
     setWeekEvents(map);
@@ -1189,6 +1230,15 @@ export default function Home() {
     });
   };
 
+  const [calToast, setCalToast] = useState(null);
+  const calToastTimer = useRef(null);
+  const showCalToast = (msg, ok = true) => {
+    setCalToast({ msg, ok });
+    clearTimeout(calToastTimer.current);
+    calToastTimer.current = setTimeout(() => setCalToast(null), 5000);
+  };
+  useEffect(() => () => clearTimeout(calToastTimer.current), []);
+
   const savePanel = async ({ title, fields }) => {
     const t = panelTask;
     const done = fields.status === "Done";
@@ -1230,6 +1280,7 @@ export default function Home() {
         notes: notes || null,
         priority,
         due_date: fields.due_date || null,
+        due_time: fields.due_time || null,
         area_id: hierarchy.ids.area(fields.area),
         project_id: hierarchy.ids.project(fields.project),
         mission_id: hierarchy.ids.mission(fields.mission),
@@ -1256,6 +1307,9 @@ export default function Home() {
     const oldLabel = t.kind === "week" ? t.chip.l : t.kind === "block" ? blocks[t.index]?.label : t.title;
     applyDueDate(title, fields.due_date, oldLabel);
     closePanel();
+    // A due date + time also goes on the calendar (30-minute popup alert → iPhone).
+    const pushed = await pushDueEventIfChanged({ title, fields, before: { title: t.title, fields: t.fields } });
+    if (pushed) showCalToast(pushed.ok ? `Calendar alert set for ${fields.due_date} ${fields.due_time}` : `Calendar alert failed: ${pushed.error}`, pushed.ok);
   };
 
   const deletePanelTask = async () => {
@@ -1395,6 +1449,7 @@ export default function Home() {
 
   // ---- Weekly plan ------------------------------------------------------------------
   const [dragOverDay, setDragOverDay] = useState(null);
+  const isMobile = useIsMobile();
   const weekDays = getWeekDates();
   const weekLabel = `Week of ${weekDays[0].getDate()} ${MONTHS[weekDays[0].getMonth()]} – ${weekDays[6].getDate()} ${MONTHS[weekDays[6].getMonth()]}`;
   const dropOnDay = async (e, ds) => {
@@ -1428,6 +1483,35 @@ export default function Home() {
       }
     }
     if (!pushed) saveWeeklyDrop(ds, lb);
+  };
+
+  // Drop on the time grid: schedule the task at ds + minutes after midnight (30-minute
+  // snap). Saves a time block, pushes a Google Calendar event with a 30-minute alert,
+  // and shows the chip at once.
+  const dropOnSlot = async (label, source, ds, min) => {
+    const time = `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
+    const start = manilaInstant(ds, `${time}:00`);
+    setWeekEvents((prev) => ({
+      ...prev,
+      [ds]: [...(prev[ds] ?? []), { t: "adm", l: label, timed: true, block: true, start, end: new Date(start.getTime() + 30 * 60000) }],
+    }));
+    if (source === "mit" && mits.includes(label)) persistMits(mits.filter((m) => m !== label));
+
+    // Time block on that day's daily_logs row (today's is also in the Time blocks panel).
+    if (ds === todayISO) {
+      persistBlocks([...blocks, { time, label }]);
+    } else if (schema.current.timeBlocks) {
+      const { data: row } = await supabase.from("daily_logs").select("time_blocks").eq("log_date", ds).maybeSingle();
+      const next = [...(Array.isArray(row?.time_blocks) ? row.time_blocks : []), { time, label }].sort((a, b) => a.time.localeCompare(b.time));
+      const { error } = await supabase.from("daily_logs").upsert({ log_date: ds, time_blocks: next }, { onConflict: "log_date" });
+      if (error) console.warn("[Home] saving time block failed:", error.message);
+    }
+
+    const res = await createCalendarEvent({ title: label, date: ds, time });
+    showCalToast(
+      res.ok ? `${label} scheduled ${ds} ${timeLabel(min)} — alert 30 min before` : `Scheduled here, but the calendar alert failed: ${res.error}`,
+      res.ok
+    );
   };
 
   // A task sits on exactly one day: drop its local chip (and saved drop) from
@@ -1731,6 +1815,7 @@ export default function Home() {
           </>
         )}
         <div className="card">
+          {isMobile ? (
           <div className="week-scroll">
           <div className="week-grid">
             {weekDays.map((d) => {
@@ -1772,6 +1857,37 @@ export default function Home() {
             })}
           </div>
           </div>
+          ) : (
+            <WeekTimeGrid
+              days={weekDays.map((d) => {
+                const ds = isoDate(d);
+                const entries = (weekEvents[ds] ?? []).map((ev, idx) => ({ ev, idx }));
+                return {
+                  ds,
+                  name: DAYNAMES[d.getDay()],
+                  num: d.getDate(),
+                  isToday: ds === todayISO,
+                  untimed: entries.filter(({ ev }) => !ev.timed),
+                  timed: entries.filter(({ ev }) => ev.timed),
+                };
+              })}
+              renderChip={(ds, ev, i) => (
+                <div
+                  key={i}
+                  className={`ev ev-${ev.t}${isWeeklyDone(ds, ev.l) ? " ev-done" : ""}`}
+                  title={ev.l}
+                  {...clickOrDouble(() => openWeekPanel(ds, ev, i), () => setWeeklyDoneFor(ds, ev.l, !isWeeklyDone(ds, ev.l)))}
+                >
+                  {ev.l}
+                </div>
+              )}
+              onChipClick={openWeekPanel}
+              onDropTask={dropOnSlot}
+              onHeaderDrop={dropOnDay}
+              dragOverDay={dragOverDay}
+              setDragOverDay={setDragOverDay}
+            />
+          )}
         </div>
       </div>
     ),
@@ -2213,6 +2329,8 @@ export default function Home() {
         onSave={savePanel}
         onDelete={deletePanelTask}
       />
+
+      {calToast && <div className={`cal-toast${calToast.ok ? "" : " bad"}`} role="status">{calToast.msg}</div>}
 
       <MobileNav />
 

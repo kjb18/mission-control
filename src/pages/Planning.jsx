@@ -4,6 +4,7 @@ import "./Planning.css";
 import { supabase } from "../lib/supabaseClient";
 import { useHierarchy } from "../lib/hierarchy";
 import TaskPanel from "../components/TaskPanel";
+import { pushDueEventIfChanged } from "../lib/calendarEvents";
 import { STAGE_COLORS, stageOfProject, projectPnl, marginTone, daysUntil, healthOf } from "../lib/projects";
 
 // Planning: areas → projects → missions → tasks (work_items), migration 0017.
@@ -203,6 +204,7 @@ export default function Planning() {
         type: level === "task" ? "Task" : level === "mission" ? "Mission" : "Project",
         status: labelFor(level, item.status),
         due_date: item.due_date ?? "",
+        due_time: item.due_time?.slice(0, 5) ?? "",
         priority: item.priority ?? "Medium",
         notes: item.notes ?? item.description ?? "",
       },
@@ -223,9 +225,12 @@ export default function Planning() {
         ? { name: title, area_id: ids.area_id, description: fields.notes || null, ...common }
         : t.level === "mission"
           ? { name: title, area_id: ids.area_id, project_id: ids.project_id, priority: fields.priority, notes: fields.notes || null, ...common }
-          : { title, ...ids, priority: fields.priority, notes: fields.notes || null, ...common };
+          : { title, ...ids, priority: fields.priority, notes: fields.notes || null, due_time: fields.due_time || null, ...common };
     const { error: e } = await supabase.from(TABLE[t.level]).update(row).eq("id", t.id);
     if (e) setError(`Couldn't save: ${e.message}`);
+    // A due date + time also goes on the calendar (30-minute popup alert).
+    const pushed = await pushDueEventIfChanged({ title, fields, before: { title: t.title, fields: t.fields } });
+    if (pushed && !pushed.ok) setError(`Saved, but the calendar alert wasn't created: ${pushed.error}`);
     await reloadAll();
     closePanel();
   };

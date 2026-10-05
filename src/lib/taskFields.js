@@ -13,6 +13,7 @@ export const DEFAULT_TASK_FIELDS = {
   type: "Task",
   status: "Open",
   due_date: "",
+  due_time: "",
   priority: "Medium",
   notes: "",
 };

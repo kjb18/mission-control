@@ -26,7 +26,7 @@ export function stageOf(status) {
 export async function fetchPipelineRfqs() {
   const { data, error } = await supabase
     .from("rfqs")
-    .select("id, rfq_number, title, closing_date, status, client_id, clients(name), rfq_lines(count)")
+    .select("id, rfq_number, title, closing_date, status, notes, project_id, client_id, clients(name), rfq_lines(count)")
     .in("status", STAGE_KEYS)
     .order("closing_date", { ascending: true, nullsFirst: false });
   if (error) throw error;
@@ -40,6 +40,8 @@ function normalizeCard(row) {
     title: row.title,
     closingDate: row.closing_date,
     status: row.status,
+    notes: row.notes,
+    projectId: row.project_id,
     clientId: row.client_id,
     clientName: row.clients?.name ?? "Unknown client",
     lineCount: row.rfq_lines?.[0]?.count ?? 0,
@@ -100,4 +102,44 @@ export function subscribeToRfqChanges(onChange) {
     .subscribe();
 
   return () => supabase.removeChannel(channel);
+}
+
+// RFQ status → project stage for a project created from a Pipeline card.
+const PROJECT_STAGE_FOR = {
+  intake_confirmed: "Open",
+  sourcing: "Sourcing",
+  sourced: "Sourcing",
+  quoted: "Quoted",
+  awarded: "PO Received",
+  delivered: "Delivered",
+  declined: "Lost",
+  rejected: "Lost",
+};
+
+/** Creates a project from an RFQ card, links the RFQ to it, and returns the new project id. */
+export async function createProjectForRfq(card) {
+  const { data: area } = await supabase.from("areas").select("id").eq("name", "Sales").maybeSingle();
+  const { data: project, error } = await supabase
+    .from("projects")
+    .insert({
+      name: card.title || card.rfqNumber || "Untitled project",
+      area_id: area?.id ?? null,
+      status: "open",
+      stage: PROJECT_STAGE_FOR[card.status] ?? "Open",
+      client_id: card.clientId ?? null,
+      client_name: card.clientName && card.clientName !== "Unknown client" ? card.clientName : null,
+      deadline: card.closingDate ?? null,
+      notes: card.notes ?? null,
+    })
+    .select("id")
+    .single();
+  if (error) throw error;
+
+  const { error: linkError } = await supabase.from("rfqs").update({ project_id: project.id }).eq("id", card.id);
+  if (linkError) {
+    // Don't leave an orphan project behind when the link fails.
+    await supabase.from("projects").delete().eq("id", project.id);
+    throw linkError;
+  }
+  return project.id;
 }

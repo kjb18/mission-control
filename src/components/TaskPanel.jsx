@@ -222,6 +222,24 @@ export default function TaskPanel({ open, task, hierarchy, onClose, onSave, onDe
                   <input className="tp-input" type="date" value={fields.due_date} onChange={set("due_date")} />
                 </div>
                 <div className="tp-row">
+                  <span className="tp-label">Due time</span>
+                  <span className="tp-time">
+                    <input
+                      className="tp-input"
+                      type="time"
+                      value={fields.due_time ?? ""}
+                      onChange={set("due_time")}
+                      // Optional, but 09:00 once you start setting one.
+                      onFocus={() => !fields.due_time && setFields((f) => ({ ...f, due_time: "09:00" }))}
+                      aria-label="Due time"
+                    />
+                    {fields.due_time && (
+                      <button type="button" className="tp-time-x" onClick={() => setFields((f) => ({ ...f, due_time: "" }))} aria-label="Clear due time">✕</button>
+                    )}
+                  </span>
+                </div>
+                {fields.due_time && fields.due_date && <div className="tp-hint">Saving adds a calendar event with a 30-minute alert.</div>}
+                <div className="tp-row">
                   <span className="tp-label">Priority</span>
                   <select className="tp-input" value={fields.priority} onChange={set("priority")}>
                     {[...new Set([fields.priority, ...priorityOptions])].map((o) => (

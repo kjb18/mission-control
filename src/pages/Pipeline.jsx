@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   STAGES,
   QUOTE_EXPIRY_DAYS,
@@ -11,6 +12,7 @@ import {
 } from "../lib/pipeline";
 import PoReceiptModal from "./pipeline/PoReceiptModal";
 import ConfirmDeliveryModal from "./pipeline/ConfirmDeliveryModal";
+import RfqDetailsModal from "./pipeline/RfqDetailsModal";
 import { PageHeader, Card, Badge, Button } from "../components/ui";
 
 const URGENCY_STYLES = {
@@ -21,7 +23,9 @@ const URGENCY_STYLES = {
 };
 
 export default function Pipeline() {
+  const navigate = useNavigate();
   const [cards, setCards] = useState([]);
+  const [detailsCard, setDetailsCard] = useState(null);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [dragOverStage, setDragOverStage] = useState(null);
@@ -135,6 +139,7 @@ export default function Pipeline() {
                   <PipelineCard
                     key={card.id}
                     card={card}
+                    onOpen={() => (card.projectId ? navigate(`/projects/${card.projectId}`) : setDetailsCard(card))}
                     onReceivePo={stage.key === "quoted" ? () => setPoReceiptCard(card) : null}
                     onConfirmDelivery={stage.key === "awarded" ? () => setDeliveryCard(card) : null}
                   />
@@ -148,6 +153,16 @@ export default function Pipeline() {
         })}
       </div>
 
+      {detailsCard && (
+        <RfqDetailsModal
+          card={detailsCard}
+          onClose={() => setDetailsCard(null)}
+          onCreated={(projectId) => {
+            setDetailsCard(null);
+            navigate(`/projects/${projectId}`);
+          }}
+        />
+      )}
       {poReceiptCard && (
         <PoReceiptModal
           card={poReceiptCard}
@@ -166,34 +181,46 @@ export default function Pipeline() {
   );
 }
 
-function PipelineCard({ card, onReceivePo, onConfirmDelivery }) {
+function PipelineCard({ card, onOpen, onReceivePo, onConfirmDelivery }) {
   const urgency = urgencyFor(card.closingDate);
   return (
     <div
       draggable
       onDragStart={(e) => e.dataTransfer.setData("text/plain", card.id)}
-      className={`border-l-2 ${URGENCY_STYLES[urgency]} bg-base-800 border-[0.5px] border-line rounded-[10px] px-3 py-2.5 cursor-grab active:cursor-grabbing hover:border-line-strong`}
+      onClick={onOpen}
+      role="link"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && e.target === e.currentTarget && onOpen()}
+      className={`border-l-2 ${URGENCY_STYLES[urgency]} bg-base-800 border-[0.5px] border-line rounded-[10px] pl-3 pr-2 py-2.5 cursor-pointer hover:bg-slate-100 hover:border-line-strong transition-colors`}
     >
-      <p className="text-white font-medium truncate" style={{ fontSize: 11 }}>
-        {card.clientName}
-      </p>
-      <p className="text-ink-muted truncate mt-0.5" style={{ fontSize: 10 }}>
-        {card.rfqNumber || card.title}
-        {card.closingDate ? ` · Closes ${card.closingDate}` : ""}
-      </p>
-      <div className="flex items-center justify-end gap-1.5 mt-1.5">
+      <div className="flex items-center gap-1">
+        <div className="min-w-0 flex-1">
+          <p className="text-white font-medium truncate" style={{ fontSize: 11 }}>
+            {card.clientName}
+          </p>
+          <p className="text-ink-muted truncate mt-0.5" style={{ fontSize: 10 }}>
+            {card.rfqNumber || card.title}
+            {card.closingDate ? ` · Closes ${card.closingDate}` : ""}
+          </p>
+        </div>
+        <svg className="shrink-0 text-ink-muted" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+      </div>
+      <div className="flex items-center justify-end gap-1.5 mt-1.5 pr-1">
+        {card.projectId && <Badge variant="blue">Project</Badge>}
         {card.status === "sourced" && <Badge variant="green">Ready to quote</Badge>}
         <Badge variant="gray">
           {card.lineCount} line{card.lineCount === 1 ? "" : "s"}
         </Badge>
       </div>
       {onReceivePo && (
-        <Button variant="primary" onClick={onReceivePo} className="w-full mt-2 !text-xs !py-1.5">
+        <Button variant="primary" onClick={(e) => { e.stopPropagation(); onReceivePo(); }} className="w-full mt-2 !text-xs !py-1.5">
           Receive PO
         </Button>
       )}
       {onConfirmDelivery && (
-        <Button variant="primary" onClick={onConfirmDelivery} className="w-full mt-2 !text-xs !py-1.5 !bg-emerald-500">
+        <Button variant="primary" onClick={(e) => { e.stopPropagation(); onConfirmDelivery(); }} className="w-full mt-2 !text-xs !py-1.5 !bg-emerald-500">
           Confirm Delivery
         </Button>
       )}
