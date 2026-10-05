@@ -636,8 +636,10 @@ export default function Home() {
   mitStateRef.current = mitState;
   const [blocks, setBlocks] = useState([]);
   const [weeklyDone, setWeeklyDone] = useState(() => readJson(WEEKLY_DONE_KEY));
-  // ClickUp tasks only; tasks typed here live in logTasks (daily_logs.tasks).
+  // ClickUp tasks and Mission Control work_items; tasks typed here live in
+  // logTasks (daily_logs.tasks).
   const [hitlist, setHitlist] = useState([]);
+  const [mcTasks, setMcTasks] = useState([]);
   const [logTasks, setLogTasks] = useState([]);
   const logTasksRef = useRef([]);
   logTasksRef.current = logTasks;
@@ -895,15 +897,46 @@ export default function Home() {
   }, []);
 
   const loadHitlist = useCallback(async () => {
-    try {
-      const tasks = await fetchAdminBacklogTasks();
-      setHitlistError(null);
-      setHitlist(tasks.map((t) => ({ id: t.id, label: t.name, age: t.daysSinceActivity ?? 0 })));
-    } catch (e) {
-      console.warn("[Home] ClickUp hitlist failed:", e.message);
-      setHitlistError(e.message);
-    }
+    const loadClickUp = async () => {
+      try {
+        const tasks = await fetchAdminBacklogTasks();
+        setHitlistError(null);
+        setHitlist(tasks.map((t) => ({ id: t.id, label: t.name, age: t.daysSinceActivity ?? 0, source: "clickup" })));
+      } catch (e) {
+        console.warn("[Home] ClickUp hitlist failed:", e.message);
+        setHitlistError(e.message);
+      }
+    };
+    // GET /rest/v1/work_items?status=in.(open,in_progress)&type=eq.task&order=created_at.desc&limit=50
+    const loadWorkItems = async () => {
+      const { data, error } = await supabase
+        .from("work_items")
+        .select("id, title, created_at")
+        .in("status", ["open", "in_progress"])
+        .eq("type", "task")
+        .order("created_at", { ascending: false })
+        .limit(50);
+      if (error) {
+        console.warn("[Home] work_items hitlist failed:", error.message);
+        return;
+      }
+      setMcTasks(
+        (data ?? []).map((w) => ({
+          id: `mc-${w.id}`,
+          label: w.title,
+          age: Math.max(0, Math.floor((Date.now() - new Date(w.created_at).getTime()) / 86400000)) || 0,
+          source: "mc",
+        }))
+      );
+    };
+    await Promise.allSettled([loadClickUp(), loadWorkItems()]);
   }, []);
+
+  // Re-fetch both hitlist sources every 5 minutes.
+  useEffect(() => {
+    const id = setInterval(loadHitlist, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [loadHitlist]);
 
   // Areas → projects → missions for the task panel (live tables, migration 0017).
   const { panel: hierarchy, reload: reloadHierarchy } = useHierarchy();
@@ -1024,20 +1057,30 @@ export default function Home() {
     if (error) console.warn("[Home] work_items unavailable — hitlist task kept in local state only:", error.message);
   }, [persistLogTasks]);
 
-  // Hitlist as shown: today's typed tasks (minus any already in ClickUp by
-  // name), then the ClickUp tasks.
+  // Hitlist as shown: ClickUp tasks first, then Mission Control work_items
+  // (deduped by title, ClickUp wins), each oldest first; today's typed tasks
+  // (minus any already present by title) go on top.
   const hitlistView = useMemo(() => {
-    const clickupNames = new Set(hitlist.map((t) => t.label.trim().toLowerCase()));
+    const byAge = (a, b) => b.age - a.age;
+    const seen = new Set();
+    const keep = (t) => {
+      const k = t.label.trim().toLowerCase();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    };
+    const clickup = [...hitlist].sort(byAge).filter(keep);
+    const mc = [...mcTasks].sort(byAge).filter(keep);
     const local = logTasks
-      .filter((t) => !clickupNames.has(t.text.trim().toLowerCase()))
+      .filter((t) => !seen.has(t.text.trim().toLowerCase()))
       .map((t) => ({
         id: t.id,
         label: t.text,
         age: Math.max(0, Math.floor((Date.now() - new Date(t.createdAt).getTime()) / 86400000)) || 0,
         local: true,
       }));
-    return [...local, ...hitlist];
-  }, [hitlist, logTasks]);
+    return [...local, ...clickup, ...mc];
+  }, [hitlist, mcTasks, logTasks]);
 
   // ---- Cross-out (double click) --------------------------------------------------------
   const clickOrDouble = useClickOrDouble();
@@ -1114,10 +1157,10 @@ export default function Home() {
       id: t.id,
       local: t.local,
       title: meta.label ?? t.label,
-      source: t.local ? "Hitlist · added here" : "Hitlist · ClickUp task",
+      source: t.local ? "Hitlist · added here" : t.source === "mc" ? "Hitlist · Mission Control task" : "Hitlist · ClickUp task",
       fields: { ...pickFields(meta.props), status: meta.props?.status ?? (meta.done ? "Done" : "Open") },
       canDelete: Boolean(t.local),
-      deleteNote: t.local ? null : "ClickUp tasks are removed in ClickUp.",
+      deleteNote: t.local ? null : t.source === "mc" ? "Mission Control tasks are removed in Work Items." : "ClickUp tasks are removed in ClickUp.",
     });
   };
   const openCrosshairsPanel = (t) => {
@@ -2006,6 +2049,8 @@ export default function Home() {
                 >
                   <div className="bl-dot" style={{ background: color }}></div>
                   <div className="bl-n">{hitlistMeta[t.id]?.label ?? t.label}</div>
+                  {t.source === "clickup" && <span className="bdg bdg-gr" style={{ marginRight: 6 }}>CU</span>}
+                  {t.source === "mc" && <span className="bdg bdg-b" style={{ marginRight: 6 }}>MC</span>}
                   <span className="bl-age" style={{ color: color === "var(--t4)" ? "var(--t3)" : color }}>{t.age}d</span>
                 </div>
               );
