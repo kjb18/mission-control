@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "./ProjectDetail.css";
 import { supabase } from "../lib/supabaseClient";
@@ -8,6 +8,7 @@ import {
   Combobox,
   Field,
   PlInput,
+  PlCalcRow,
   InsightPanel,
   QuotationsTab,
   ExpensesTab,
@@ -129,10 +130,6 @@ export default function ProjectDetail() {
   const saveStage = (stage) => save({ stage, stage_changed_at: new Date().toISOString() }, "stage");
   const saveNumber = (field) => save({ [field]: Number(project[field]) || 0 }, field);
 
-  const expenseTotal = useMemo(
-    () => expenses.filter((x) => x.type === "Project Expense" || x.type === "COGS").reduce((s, x) => s + Number(x.amount ?? 0), 0),
-    [expenses]
-  );
 
   if (loadError)
     return (
@@ -223,7 +220,7 @@ export default function ProjectDetail() {
           pos={pos}
           quotes={quotes}
           sourcing={sourcing}
-          expenseTotal={expenseTotal}
+          expenses={expenses}
           missionCount={missionCount}
           taskCount={taskCount}
         />
@@ -242,9 +239,11 @@ export default function ProjectDetail() {
 // ============================ Tab 1: Overview ====================================
 
 
-function OverviewTab({ project, set, save, saveStage, saveNumber, saved, clients, rfqs, pos, quotes, sourcing, expenseTotal, missionCount, taskCount }) {
+function OverviewTab({ project, set, save, saveStage, saveNumber, saved, clients, rfqs, pos, quotes, sourcing, expenses, missionCount, taskCount }) {
   const stage = stageOfProject(project);
-  const { invoice, profit, margin } = projectPnl(project, expenseTotal);
+  // Recomputed on every render, so edits in the Expenses tab show here at once.
+  const pnl = projectPnl(project.invoice_amount, expenses);
+  const { invoice, profit, margin } = pnl;
   const vatType = project.vat_type ?? "VAT Inclusive";
 
   const text = (field, type = "text") => (
@@ -367,19 +366,12 @@ function OverviewTab({ project, set, save, saveStage, saveNumber, saved, clients
             <PlInput project={project} field="invoice_amount" set={set} onSave={saveNumber} saved={saved.invoice_amount} />
           </div>
 
+          {pnl.shippingRevenue > 0 && <PlCalcRow label="Shipping Revenue" value={pnl.shippingRevenue} minus={false} />}
+
           <div className="pd-sublabel pd-sublabel-costs">COSTS</div>
-          <div className="pd-pl-row">
-            <span className="pd-pl-name"><i className="pd-minus" />COGS</span>
-            <PlInput project={project} field="cogs" set={set} onSave={saveNumber} saved={saved.cogs} />
-          </div>
-          <div className="pd-pl-row">
-            <span className="pd-pl-name"><i className="pd-minus" />Shipping Cost</span>
-            <PlInput project={project} field="shipping_cost" set={set} onSave={saveNumber} saved={saved.shipping_cost} />
-          </div>
-          <div className="pd-pl-row">
-            <span className="pd-pl-name"><i className="pd-minus" />Project Expenses</span>
-            <span className="pd-pl-ro">{money(expenseTotal)}</span>
-          </div>
+          <PlCalcRow label="COGS" value={pnl.cogs} />
+          <PlCalcRow label="Shipping Cost" value={pnl.shipping} />
+          <PlCalcRow label="Project Expenses" value={pnl.other} />
 
           <hr className="pd-hr" />
           <div className="pd-pl-row">

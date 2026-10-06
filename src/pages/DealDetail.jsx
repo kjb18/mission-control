@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "./DealDetail.css";
 import { supabase } from "../lib/supabaseClient";
@@ -10,6 +10,7 @@ import {
   StatusBadge,
   Field,
   PlInput,
+  PlCalcRow,
   InsightPanel,
   QuotationsTab,
   ExpensesTab,
@@ -151,10 +152,6 @@ export default function DealDetail() {
     }
   };
 
-  const expenseTotal = useMemo(
-    () => expenses.filter((x) => x.type === "Project Expense" || x.type === "COGS").reduce((s, x) => s + Number(x.amount ?? 0), 0),
-    [expenses]
-  );
 
   if (loadError)
     return (
@@ -261,7 +258,7 @@ export default function DealDetail() {
           saveNumber={saveNumber}
           saved={saved}
           pos={pos}
-          expenseTotal={expenseTotal}
+          expenses={expenses}
           rfqCount={deal.rfq_id ? 1 : 0}
           quoteCount={quotes.length}
         />
@@ -334,8 +331,10 @@ function PoForm({ quoteId, clientId, onDone, setError }) {
 
 // ---- Overview -----------------------------------------------------------------
 
-function OverviewTab({ deal, set, save, saveNumber, saved, pos, expenseTotal, rfqCount, quoteCount }) {
-  const { invoice, profit, margin } = projectPnl(deal, expenseTotal);
+function OverviewTab({ deal, set, save, saveNumber, saved, pos, expenses, rfqCount, quoteCount }) {
+  // Recomputed on every render, so edits in the Expenses tab show here at once.
+  const pnl = projectPnl(deal.invoice_amount, expenses);
+  const { invoice, profit, margin } = pnl;
 
   const input = (field, type = "text") => (
     <input
@@ -438,19 +437,12 @@ function OverviewTab({ deal, set, save, saveNumber, saved, pos, expenseTotal, rf
             <PlInput project={deal} field="invoice_amount" set={set} onSave={saveNumber} saved={saved.invoice_amount} />
           </div>
 
+          {pnl.shippingRevenue > 0 && <PlCalcRow label="Shipping Revenue" value={pnl.shippingRevenue} minus={false} />}
+
           <div className="pd-sublabel pd-sublabel-costs">COSTS</div>
-          <div className="pd-pl-row">
-            <span className="pd-pl-name"><i className="pd-minus" />COGS</span>
-            <PlInput project={deal} field="cogs" set={set} onSave={saveNumber} saved={saved.cogs} />
-          </div>
-          <div className="pd-pl-row">
-            <span className="pd-pl-name"><i className="pd-minus" />Shipping Cost</span>
-            <PlInput project={deal} field="shipping_cost" set={set} onSave={saveNumber} saved={saved.shipping_cost} />
-          </div>
-          <div className="pd-pl-row">
-            <span className="pd-pl-name"><i className="pd-minus" />Deal Expenses</span>
-            <span className="pd-pl-ro">{money(expenseTotal)}</span>
-          </div>
+          <PlCalcRow label="COGS" value={pnl.cogs} />
+          <PlCalcRow label="Shipping Cost" value={pnl.shipping} />
+          <PlCalcRow label="Deal Expenses" value={pnl.other} />
 
           <hr className="pd-hr" />
           <div className="pd-pl-row">

@@ -110,6 +110,22 @@ export function Field({ label, saved, children }) {
   );
 }
 
+/** Read-only P&L row whose value comes from the Expenses tab. */
+export function PlCalcRow({ label, value, minus = true }) {
+  return (
+    <div className="pd-pl-row">
+      <span className="pd-pl-name">
+        {minus && <i className="pd-minus" />}
+        {label}
+        <span className="pd-info" title="Calculated from Expenses tab" aria-label="Calculated from Expenses tab" tabIndex={0}>
+          i
+        </span>
+      </span>
+      <span className="pd-pl-ro">{money(value)}</span>
+    </div>
+  );
+}
+
 export function PlInput({ project, field, set, onSave, saved }) {
   return (
     <span className="pd-pl-input">

@@ -45,7 +45,7 @@ export default function Planning() {
   const navigate = useNavigate();
   const { areas, projects, missions, reload: reloadHierarchy, panel: hierarchy, tablesOk } = useHierarchy();
   const [tasks, setTasks] = useState([]);
-  // Per-project sum of Project Expense + COGS rows, for the card's gross margin.
+  // Per-project expense rows, for the card's gross margin.
   const [expenseByProject, setExpenseByProject] = useState({});
   const [selection, setSelection] = useState({ type: "all", id: null });
   const [expanded, setExpanded] = useState({});
@@ -71,11 +71,10 @@ export default function Planning() {
     supabase
       .from("project_expenses")
       .select("project_id, type, amount")
-      .in("type", ["Project Expense", "COGS"])
       .then(({ data }) => {
-        const totals = {};
-        for (const x of data ?? []) totals[x.project_id] = (totals[x.project_id] ?? 0) + Number(x.amount ?? 0);
-        setExpenseByProject(totals);
+        const rows = {};
+        for (const x of data ?? []) (rows[x.project_id] ??= []).push(x);
+        setExpenseByProject(rows);
       });
   }, [projects]);
   const reloadAll = useCallback(() => Promise.all([reloadHierarchy(), loadTasks()]), [reloadHierarchy, loadTasks]);
@@ -274,7 +273,7 @@ export default function Planning() {
   const projectCard = (item, badge) => {
     const stage = stageOfProject(item);
     const sc = STAGE_COLORS[stage];
-    const { margin } = projectPnl(item, expenseByProject[item.id]);
+    const { margin } = projectPnl(item.invoice_amount, expenseByProject[item.id]);
     const left = daysUntil(item.deadline);
     const health = healthOf(item);
     const missionCount = missions.filter((m) => m.project_id === item.id).length;

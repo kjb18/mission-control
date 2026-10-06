@@ -138,3 +138,5 @@
   .pd-fields { grid-template-columns: 1fr; }
   .pd-row-actions { margin-left: 0; }
 }
+.pd-info { display: inline-flex; align-items: center; justify-content: center; width: 13px; height: 13px; border-radius: 50%; border: 1px solid #cbd5e1; color: #94a3b8; font-size: 9px; font-weight: 700; font-style: italic; font-family: Georgia, serif; cursor: help; flex: none; }
+.pd-info:hover, .pd-info:focus { color: #3b82f6; border-color: #3b82f6; outline: none; }

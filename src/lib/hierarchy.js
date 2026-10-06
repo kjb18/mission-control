@@ -18,7 +18,7 @@ function localList(key) {
 export async function fetchHierarchy() {
   const [areas, projects, missions] = await Promise.all([
     supabase.from("areas").select("id, name, color, icon").order("name"),
-    supabase.from("projects").select("id, name, area_id, status, due_date, description, created_at, client_name, stage, stage_changed_at, updated_at, deadline, invoice_amount, cogs, shipping_cost").order("created_at"),
+    supabase.from("projects").select("id, name, area_id, status, due_date, description, created_at, client_name, stage, stage_changed_at, updated_at, deadline, invoice_amount").order("created_at"),
     supabase.from("missions").select("id, name, project_id, area_id, status, priority, due_date, notes, created_at").order("created_at"),
   ]);
   const tablesOk = !areas.error && !projects.error && !missions.error;

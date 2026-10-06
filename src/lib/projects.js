@@ -51,11 +51,26 @@ export function daysUntil(date) {
 
 export const daysSince = (ts) => (ts ? Math.floor((Date.now() - new Date(ts).getTime()) / 86400000) : null);
 
-/** Gross profit = invoice − COGS − shipping − (Project Expense + COGS expense rows). */
-export function projectPnl(project, expenseTotal = 0) {
-  const invoice = Number(project?.invoice_amount ?? 0);
-  const profit = invoice - Number(project?.cogs ?? 0) - Number(project?.shipping_cost ?? 0) - Number(expenseTotal ?? 0);
-  return { invoice, profit, margin: invoice > 0 ? (profit / invoice) * 100 : null };
+/**
+ * P&L from expense rows only (project_expenses / deal_expenses). The cogs and
+ * shipping_cost columns are no longer read: entering a cost there and as an
+ * expense row counted it twice. Shipping Revenue rows are income, so they add
+ * to revenue rather than being subtracted with the costs.
+ */
+export function expenseTotals(rows = []) {
+  const sum = (types) => rows.filter((r) => types.includes(r.type)).reduce((s, r) => s + Number(r.amount ?? 0), 0);
+  const cogs = sum(["COGS"]);
+  const shipping = sum(["Shipping Cost"]);
+  const other = sum(["Project Expense", "OpEx"]);
+  return { cogs, shipping, other, shippingRevenue: sum(["Shipping Revenue"]), costs: cogs + shipping + other };
+}
+
+/** Gross profit = invoice amount (+ shipping revenue) − every cost row in the Expenses tab. */
+export function projectPnl(invoiceAmount, rows = []) {
+  const t = expenseTotals(rows);
+  const invoice = Number(invoiceAmount ?? 0);
+  const profit = invoice + t.shippingRevenue - t.costs;
+  return { ...t, invoice, profit, margin: invoice > 0 ? (profit / invoice) * 100 : null };
 }
 
 export const marginTone = (margin) => (margin > 20 ? "green" : margin >= 10 ? "amber" : "red");
