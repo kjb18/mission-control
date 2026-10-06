@@ -12,7 +12,7 @@ import {
 } from "../lib/pipeline";
 import PoReceiptModal from "./pipeline/PoReceiptModal";
 import ConfirmDeliveryModal from "./pipeline/ConfirmDeliveryModal";
-import RfqDetailsModal from "./pipeline/RfqDetailsModal";
+import { ensureDealsForRfqs } from "../lib/deals";
 import { PageHeader, Card, Badge, Button } from "../components/ui";
 
 const URGENCY_STYLES = {
@@ -25,7 +25,6 @@ const URGENCY_STYLES = {
 export default function Pipeline() {
   const navigate = useNavigate();
   const [cards, setCards] = useState([]);
-  const [detailsCard, setDetailsCard] = useState(null);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
   const [dragOverStage, setDragOverStage] = useState(null);
@@ -33,7 +32,12 @@ export default function Pipeline() {
   const [deliveryCard, setDeliveryCard] = useState(null);
 
   const load = useCallback(() => {
-    fetchPipelineRfqs().then(setCards).catch((e) => setError(e.message));
+    // Every RFQ gets a deal (once) before the cards are read, so each card can link to it.
+    ensureDealsForRfqs()
+      .catch((e) => console.warn("[Pipeline] creating deals failed:", e.message))
+      .then(fetchPipelineRfqs)
+      .then(setCards)
+      .catch((e) => setError(e.message));
   }, []);
 
   useEffect(() => {
@@ -139,7 +143,7 @@ export default function Pipeline() {
                   <PipelineCard
                     key={card.id}
                     card={card}
-                    onOpen={() => (card.projectId ? navigate(`/projects/${card.projectId}`) : setDetailsCard(card))}
+                    onOpen={() => (card.dealId ? navigate(`/deals/${card.dealId}`) : setError("This RFQ has no deal yet — reload the page."))}
                     onReceivePo={stage.key === "quoted" ? () => setPoReceiptCard(card) : null}
                     onConfirmDelivery={stage.key === "awarded" ? () => setDeliveryCard(card) : null}
                   />
@@ -153,16 +157,6 @@ export default function Pipeline() {
         })}
       </div>
 
-      {detailsCard && (
-        <RfqDetailsModal
-          card={detailsCard}
-          onClose={() => setDetailsCard(null)}
-          onCreated={(projectId) => {
-            setDetailsCard(null);
-            navigate(`/projects/${projectId}`);
-          }}
-        />
-      )}
       {poReceiptCard && (
         <PoReceiptModal
           card={poReceiptCard}
@@ -208,7 +202,6 @@ function PipelineCard({ card, onOpen, onReceivePo, onConfirmDelivery }) {
         </svg>
       </div>
       <div className="flex items-center justify-end gap-1.5 mt-1.5 pr-1">
-        {card.projectId && <Badge variant="blue">Project</Badge>}
         {card.status === "sourced" && <Badge variant="green">Ready to quote</Badge>}
         <Badge variant="gray">
           {card.lineCount} line{card.lineCount === 1 ? "" : "s"}

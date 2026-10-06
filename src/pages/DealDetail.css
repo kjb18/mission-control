@@ -1,0 +1,14 @@
+/* Deal detail reuses the pd-* layout, cards, tabs and tables from ProjectDetail.css. */
+@import "./ProjectDetail.css";
+
+.dd-title-wrap { flex: 1; min-width: 220px; display: flex; align-items: center; gap: 8px; }
+.dd-title-wrap .pd-title { flex: 1; min-width: 0; }
+.dd-sub { margin: 2px 0 0; }
+.dd-vat { color: #475569; background: #f1f5f9; font-weight: 600; font-size: 11px; }
+.dd-btn-green { background: #16a34a; color: #fff; }
+.dd-btn-green:hover { background: #15803d; }
+.dd-pay { display: flex; align-items: center; gap: 8px; }
+.dd-pay .pd-input { flex: 1; min-width: 0; }
+.dd-po { padding: 12px 16px; margin-bottom: 14px; }
+.dd-po .pd-picker { margin-bottom: 0; flex-wrap: wrap; }
+.dd-po .pd-input { flex: 1; min-width: 120px; width: auto; }

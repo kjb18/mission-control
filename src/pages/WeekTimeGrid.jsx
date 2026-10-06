@@ -104,12 +104,13 @@ export default function WeekTimeGrid({ days, renderChip, onChipClick, onDropTask
     };
   }, []);
 
-  // On load, scroll so the current time line sits ~3 hours below the top edge.
+  // On load, center the current Manila time in the 192px window:
+  // (hours since 07:00) × 48 − 96, clamped to the scrollable range.
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const target = pxFor(manilaMinutes(new Date())) - 3 * HOUR_PX;
-    el.scrollTop = Math.max(0, Math.min(target, BODY_H - el.clientHeight));
+    const target = pxFor(manilaMinutes(new Date())) - el.clientHeight / 2;
+    el.scrollTop = Math.max(0, Math.min(target, el.scrollHeight - el.clientHeight));
   }, []);
 
   // Keep the fixed header aligned with the columns when the body has a scrollbar.

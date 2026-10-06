@@ -35,13 +35,14 @@ export default function QuoteBuilder() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Deep links from a Project page: ?rfq=<id> or ?project_id=<id> preselects an RFQ.
+    // Deep links: ?rfq=<id>, ?rfq_number=<n> (Deal page) or ?project_id=<id> preselects an RFQ.
     fetchQuoteBuilderRfqs()
       .then((list) => {
         setRfqs(list);
         const wanted = searchParams.get("rfq");
         const projectId = searchParams.get("project_id");
-        const match = (wanted && list.find((r) => r.id === wanted)) || (projectId && list.find((r) => r.project_id === projectId));
+        const rfqNumber = searchParams.get("rfq_number");
+        const match = (wanted && list.find((r) => r.id === wanted)) || (rfqNumber && list.find((r) => r.rfq_number === rfqNumber)) || (projectId && list.find((r) => r.project_id === projectId));
         if (match) setRfqId(match.id);
       })
       .catch((e) => setError(e.message));
