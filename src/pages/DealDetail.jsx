@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import "./DealDetail.css";
 import { supabase } from "../lib/supabaseClient";
 import { fetchFxRate, DEFAULT_FX_RATE } from "../lib/settings";
+import { fetchLinesWithQuotes } from "../lib/sourcing";
 import { DEAL_STATUSES, dealStatusKey, dealStatusMeta, isPipelineStatus } from "../lib/deals";
 import { VAT_TYPES, money, todayISO, daysSince, projectPnl } from "../lib/projects";
 import {
@@ -84,11 +85,10 @@ export default function DealDetail() {
       if (!rfqId) return;
 
       const [l, q] = await Promise.all([
-        supabase
-          .from("rfq_lines")
-          .select("id, line_number, description, quantity, unit, supplier_quotes(id, unit_price, lead_time_days, notes, status, suppliers(name))")
-          .eq("rfq_id", rfqId)
-          .order("line_number"),
+        fetchLinesWithQuotes([rfqId]).then(
+          (data) => ({ data, error: null }),
+          (error) => ({ data: [], error })
+        ),
         supabase.from("quotations").select("*, rfqs(id, closing_date, clients(name, address))").eq("rfq_id", rfqId).order("created_at", { ascending: false }),
       ]);
       if (l.error || q.error) setError((l.error ?? q.error).message);

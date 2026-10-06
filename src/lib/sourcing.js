@@ -188,3 +188,31 @@ export async function removeSupplierFromBlacklist(id) {
   const { error } = await supabase.from("suppliers").update({ is_blacklisted: false }).eq("id", id);
   if (error) throw error;
 }
+
+/**
+ * rfq_lines for some RFQs, each with its supplier_quotes attached as
+ * `line.supplier_quotes`. Two queries joined here rather than one embed:
+ * rfq_lines ↔ supplier_quotes has two foreign keys (supplier_quotes.rfq_line_id
+ * and rfq_lines.winning_supplier_quote_id), so PostgREST refuses to embed it
+ * ("more than one relationship was found").
+ */
+export async function fetchLinesWithQuotes(rfqIds) {
+  if (!rfqIds?.length) return [];
+  const { data: lines, error } = await supabase
+    .from("rfq_lines")
+    .select("id, rfq_id, line_number, description, quantity, unit, status, part_signature_id, winning_supplier_quote_id")
+    .in("rfq_id", rfqIds)
+    .order("line_number");
+  if (error) throw error;
+  if (!lines?.length) return [];
+
+  const { data: quotes, error: quotesError } = await supabase
+    .from("supplier_quotes")
+    .select("id, rfq_line_id, supplier_id, unit_price, brand, lead_time_days, notes, status, created_at, quoted_at, suppliers(name)")
+    .in("rfq_line_id", lines.map((l) => l.id));
+  if (quotesError) throw quotesError;
+
+  const byLine = new Map();
+  for (const q of quotes ?? []) byLine.set(q.rfq_line_id, [...(byLine.get(q.rfq_line_id) ?? []), q]);
+  return lines.map((l) => ({ ...l, supplier_quotes: byLine.get(l.id) ?? [] }));
+}

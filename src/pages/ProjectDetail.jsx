@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import "./ProjectDetail.css";
 import { supabase } from "../lib/supabaseClient";
+import { fetchLinesWithQuotes } from "../lib/sourcing";
 import {
   Pill,
   StatusBadge,
@@ -89,8 +90,12 @@ export default function ProjectDetail() {
     }
     const [q, lines] = await Promise.all([
       supabase.from("quotations").select("*, rfqs(id, closing_date, clients(name, address))").in("rfq_id", rfqIds).order("created_at", { ascending: false }),
-      supabase.from("rfq_lines").select("id, rfq_id, line_number, description, quantity, unit, status, supplier_quotes(id, unit_price, brand, lead_time_days, status, created_at, quoted_at, suppliers(name))").in("rfq_id", rfqIds).order("line_number"),
+      fetchLinesWithQuotes(rfqIds).then(
+        (data) => ({ data, error: null }),
+        (error) => ({ data: [], error })
+      ),
     ]);
+    if (q.error || lines.error) setError((q.error ?? lines.error).message);
     setQuotes(q.data ?? []);
     // One sourcing "session" per linked RFQ: its lines and the supplier quotes gathered.
     setSourcing(
