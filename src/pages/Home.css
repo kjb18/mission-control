@@ -95,16 +95,17 @@ body { font-family: var(--font); background: var(--bg); color: var(--t1); font-s
 .ch-a.pur { color: var(--purple); }
 
 /* ── ZONE 1: BUSINESS PULSE ── */
-.pulse { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 10px; }
-.stat { background: var(--white); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-sm); padding: 14px 16px; cursor: pointer; position: relative; overflow: hidden; transition: box-shadow .15s, transform .1s; }
+.pulse { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 8px; }
+.stat { background: var(--white); border: 1px solid var(--border); border-radius: 10px; box-shadow: var(--shadow-sm); padding: 8px 10px 7px; cursor: pointer; position: relative; overflow: hidden; transition: box-shadow .15s, transform .1s; }
 .stat:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
-.stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 12px 12px 0 0; }
+.stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: 10px 10px 0 0; }
 .stat.blue::before { background: linear-gradient(90deg, var(--blue), var(--blue-mid)); }
 .stat.amber::before { background: linear-gradient(90deg, var(--amber), #fbbf24); }
 .stat.green::before { background: linear-gradient(90deg, var(--green), #34d399); }
-.stat-n { font-size: 28px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; margin-bottom: 4px; }
-.stat-lbl { font-size: 11px; color: var(--t3); font-weight: 500; margin-bottom: 2px; }
-.stat-lnk { font-size: 10px; color: var(--blue); font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 3px; opacity: .8; }
+.stat-n { font-size: 18px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -.02em; margin-bottom: 2px; }
+.stat-n.stat-n-peso { font-size: 16px; }
+.stat-lbl { font-size: 9px; color: var(--t3); font-weight: 500; margin-bottom: 2px; }
+.stat-lnk { font-size: 9px; color: var(--blue); font-weight: 600; margin-top: 4px; display: flex; align-items: center; gap: 3px; opacity: .8; }
 .stat-lnk.am { color: var(--amber); }
 .stat-lnk.gr { color: var(--green); }
 
@@ -132,12 +133,12 @@ body { font-family: var(--font); background: var(--bg); color: var(--t1); font-s
 .tg-scroll { height: 192px; overflow-y: auto; position: relative; }
 .tg-body { position: relative; }
 .tg-hours { position: relative; }
-.tg-hlabel { position: absolute; right: 6px; transform: translateY(-50%); font-size: 10px; color: var(--t4); line-height: 1; white-space: nowrap; }
-.tg-hours .tg-hlabel:first-child { transform: none; top: 2px !important; }
+.tg-hlabel { position: absolute; right: 6px; margin-top: 1px; font-size: 10px; color: var(--t4); line-height: 1; white-space: nowrap; }
 .tg-col { position: relative; border-left: 1px solid var(--border-l); min-width: 0; }
 .tg-col.today { background: rgba(59,130,246,.03); }
-.tg-hr { height: 48px; box-sizing: border-box; border-top: 1px solid var(--border-l); position: relative; }
-.tg-hr::after { content: ''; position: absolute; left: 0; right: 0; top: 23px; border-top: 1px dashed #f1f5f9; }
+.tg-hr { box-sizing: border-box; border-top: 1px solid var(--border-l); position: relative; }
+.tg-hr::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed #f1f5f9; }
+.tg-hr.compact::after { display: none; }
 .tg-ev { position: absolute; box-sizing: border-box; border-radius: 4px; padding: 2px 5px; font-size: 10px; line-height: 1.25; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; gap: 1px; border-left: 3px solid currentColor; z-index: 2; }
 .tg-ev:hover { filter: brightness(.96); z-index: 3; }
 .tg-ev-t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -368,6 +369,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--t1); font-s
 .page { flex-direction: row; flex-wrap: wrap; align-items: flex-start; align-content: flex-start; gap: 12px; }
 .page > .zone-wrap, .page > .new-task-bar { width: 100%; flex-shrink: 0; }
 .page > .zone-wrap.zone-third { width: calc(33.333% - 8px); min-width: 280px; flex: 1 0 calc(33.333% - 8px); }
+/* Business pulse: 8px below it (the page gap is 12px) and 6px under its label. */
+.page > .zone-wrap[data-zone-id="pulse"] { margin-bottom: -4px; }
+.zone-wrap[data-zone-id="pulse"] .zlbl { margin-bottom: 6px; }
 
 /* ── Learning Hub card, expanded ── */
 .hub-body.hub2 { display: block; }

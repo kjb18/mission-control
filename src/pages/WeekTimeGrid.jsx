@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-// Time-based weekly calendar for the homepage (desktop). 07:00–21:00, 48px per
-// hour. Untimed items (RFQ closings, deliveries, invoices, all-day events) sit
+// Time-based weekly calendar for the homepage (desktop). 07:00–21:00 on a
+// non-linear scale: off-hours squeezed, working hours expanded (HOUR_HEIGHTS). Untimed items (RFQ closings, deliveries, invoices, all-day events) sit
 // in the fixed header; timed events are absolutely positioned in each day's
 // column. Dragging a MIT or Hitlist task over a column shows a ghost chip
 // snapped to 30 minutes; dropping calls onDropTask(label, source, ds, minutes).
@@ -9,12 +9,17 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const START_H = 7;
 const END_H = 21;
-const HOUR_PX = 48;
 const SNAP_MIN = 30;
 const START_MIN = START_H * 60;
 const END_MIN = END_H * 60;
-const BODY_H = (END_H - START_H) * HOUR_PX;
+// Pixel height of each hour slot; index 0 is 07:00–08:00, index 13 is 20:00–21:00.
+const HOUR_HEIGHTS = [12, 36, 44, 44, 44, 32, 44, 44, 44, 44, 44, 36, 12, 12];
+// HOUR_OFFSETS[i] = sum of HOUR_HEIGHTS[0..i-1]: where slot i starts.
+const HOUR_OFFSETS = HOUR_HEIGHTS.map((_, i) => HOUR_HEIGHTS.slice(0, i).reduce((a, b) => a + b, 0));
+const BODY_H = HOUR_HEIGHTS.reduce((a, b) => a + b, 0); // 492
 const HOURS = Array.from({ length: END_H - START_H }, (_, i) => START_H + i);
+// Rows shorter than this have no room for the half-hour line.
+const HALF_LINE_MIN_PX = 36;
 
 const manilaClock = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit", hour12: false });
 /** Minutes after midnight, Manila time, for a Date. */
@@ -23,7 +28,21 @@ export function manilaMinutes(date) {
   return (h % 24) * 60 + m;
 }
 
-const pxFor = (min) => ((min - START_MIN) / 60) * HOUR_PX;
+/** Minutes after midnight → y within the grid (e.g. 10:30 → HOUR_OFFSETS[3] + 0.5 × HOUR_HEIGHTS[3]). */
+const pxFor = (min) => {
+  if (min <= START_MIN) return 0;
+  if (min >= END_MIN) return BODY_H;
+  const i = Math.floor((min - START_MIN) / 60);
+  return HOUR_OFFSETS[i] + (((min - START_MIN) % 60) / 60) * HOUR_HEIGHTS[i];
+};
+
+/** y within the grid → minutes after midnight (inverse of pxFor). */
+const minutesAt = (y) => {
+  const clamped = Math.max(0, Math.min(BODY_H, y));
+  let i = 0;
+  while (i < HOUR_HEIGHTS.length - 1 && HOUR_OFFSETS[i + 1] <= clamped) i++;
+  return START_MIN + i * 60 + ((clamped - HOUR_OFFSETS[i]) / HOUR_HEIGHTS[i]) * 60;
+};
 const hourLabel = (h) => `${h % 12 || 12} ${h < 12 ? "AM" : "PM"}`;
 export const timeLabel = (min) => {
   const h = Math.floor(min / 60);
@@ -105,7 +124,7 @@ export default function WeekTimeGrid({ days, renderChip, onChipClick, onDropTask
   }, []);
 
   // On load, center the current Manila time in the 192px window:
-  // (hours since 07:00) × 48 − 96, clamped to the scrollable range.
+  // pxFor(now) − 96, clamped to the scrollable range.
   useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -126,7 +145,7 @@ export default function WeekTimeGrid({ days, renderChip, onChipClick, onDropTask
 
   const slotAt = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const raw = START_MIN + ((e.clientY - rect.top) / HOUR_PX) * 60;
+    const raw = minutesAt(e.clientY - rect.top);
     const snapped = Math.round(raw / SNAP_MIN) * SNAP_MIN;
     return Math.max(START_MIN, Math.min(END_MIN - SNAP_MIN, snapped));
   };
@@ -200,13 +219,17 @@ export default function WeekTimeGrid({ days, renderChip, onChipClick, onDropTask
                     if (label?.trim()) onDropTask(label, source, d.ds, min);
                   }}
                 >
-                  {HOURS.map((h) => (
-                    <div key={h} className="tg-hr" />
+                  {HOURS.map((h, i) => (
+                    <div
+                      key={h}
+                      className={`tg-hr${HOUR_HEIGHTS[i] < HALF_LINE_MIN_PX ? " compact" : ""}`}
+                      style={{ height: HOUR_HEIGHTS[i] }}
+                    />
                   ))}
 
                   {placed.map(({ ev, idx, startMin, endMin, lane, lanes }) => {
                     const top = Math.max(0, pxFor(startMin));
-                    const height = Math.max(20, pxFor(Math.min(endMin, END_MIN)) - top - 1);
+                    const height = Math.max(14, pxFor(Math.min(endMin, END_MIN)) - top - 1);
                     return (
                       <div
                         key={`${idx}-${ev.l}`}
@@ -222,7 +245,7 @@ export default function WeekTimeGrid({ days, renderChip, onChipClick, onDropTask
                   })}
 
                   {drag && ghost?.ds === d.ds && (
-                    <div className="tg-ghost" style={{ top: pxFor(ghost.min), height: HOUR_PX / 2 - 1 }}>
+                    <div className="tg-ghost" style={{ top: pxFor(ghost.min), height: Math.max(18, pxFor(ghost.min + SNAP_MIN) - pxFor(ghost.min) - 1) }}>
                       <span className="tg-ev-t">{drag.label}</span>
                       <span className="tg-ev-time">{timeLabel(ghost.min)}</span>
                     </div>

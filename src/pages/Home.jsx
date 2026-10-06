@@ -1782,7 +1782,7 @@ export default function Home() {
             <div className="stat-lnk">↗ Pipeline</div>
           </div>
           <div className="stat amber" onClick={openPayDrawer}>
-            <div className="stat-n" style={{ color: "var(--amber)" }}>{formatPeso(pulse.pending)}</div>
+            <div className="stat-n stat-n-peso" style={{ color: "var(--amber)" }}>{formatPeso(pulse.pending)}</div>
             <div className="stat-lbl">Pending payment</div>
             <div
               className="stat-lnk am"
