@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import "./LearningHub.css";
 import {
   fetchTodayModule,
@@ -94,7 +94,7 @@ function ModuleView({ module }) {
   );
 }
 
-function TodayTab() {
+function TodayTab({ refreshSeq, onRefreshing }) {
   const [module, setModule] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -119,6 +119,26 @@ function TodayTab() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Refresh button (in the tab bar): force a new module, keeping the current one
+  // on screen until the replacement arrives.
+  useEffect(() => {
+    if (!refreshSeq) return;
+    let cancelled = false;
+    onRefreshing(true);
+    setError(null);
+    fetchTodayModule({ force: true })
+      .then((m) => {
+        if (cancelled) return;
+        setModule(m);
+        setLoading(false);
+      })
+      .catch((e) => !cancelled && setError(e.message))
+      .finally(() => !cancelled && onRefreshing(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshSeq]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const logSession = async () => {
     setLogging(true);
@@ -260,6 +280,8 @@ function RequestTab() {
 
 export default function LearningHub() {
   const [tab, setTab] = useState("today");
+  const [refreshSeq, setRefreshSeq] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   return (
     <div className="lh-page">
@@ -270,22 +292,44 @@ export default function LearningHub() {
         </div>
         <div className="lh-tabs" role="tablist">
           {TABS.map((t) => (
-            <button
-              key={t.key}
-              role="tab"
-              aria-selected={tab === t.key}
-              className={`lh-tab${tab === t.key ? " on" : ""}`}
-              onClick={() => setTab(t.key)}
-            >
-              {t.label}
-            </button>
+            <Fragment key={t.key}>
+              <button
+                role="tab"
+                aria-selected={tab === t.key}
+                className={`lh-tab${tab === t.key ? " on" : ""}`}
+                onClick={() => setTab(t.key)}
+              >
+                {t.label}
+              </button>
+              {t.key === "today" && (
+                <button
+                  className="lh-refresh"
+                  title="Generate a new module for today"
+                  aria-label="Generate a new module for today"
+                  disabled={refreshing}
+                  onClick={() => {
+                    setTab("today");
+                    setRefreshSeq((n) => n + 1);
+                  }}
+                >
+                  {refreshing ? (
+                    <span className="lh-refresh-spin" />
+                  ) : (
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+                      <path d="M21 3v6h-6" />
+                    </svg>
+                  )}
+                </button>
+              )}
+            </Fragment>
           ))}
         </div>
       </div>
 
       {/* Today and Request stay mounted so switching back is instant; History
           refetches each time it opens so newly logged sessions show. */}
-      <div hidden={tab !== "today"}><TodayTab /></div>
+      <div hidden={tab !== "today"}><TodayTab refreshSeq={refreshSeq} onRefreshing={setRefreshing} /></div>
       <div hidden={tab !== "history"}>{tab === "history" && <HistoryTab />}</div>
       <div hidden={tab !== "request"}><RequestTab /></div>
     </div>

@@ -68,3 +68,10 @@
 .lh-msg { font-size: 13px; margin-top: 10px; }
 .lh-msg.ok { color: #047857; }
 .lh-msg.err { color: #b91c1c; }
+
+/* Refresh: force a new module for today */
+.lh-refresh { display: inline-flex; align-items: center; justify-content: center; width: 22px; align-self: center; border: none; background: none; padding: 0; margin-left: -4px; color: var(--t3, #64748b); cursor: pointer; }
+.lh-refresh:hover { color: #0f172a; }
+.lh-refresh:disabled { cursor: default; }
+.lh-refresh-spin { width: 12px; height: 12px; border: 1.5px solid #cbd5e1; border-top-color: var(--t3, #64748b); border-radius: 50%; animation: lh-refresh-rot 0.7s linear infinite; }
+@keyframes lh-refresh-rot { to { transform: rotate(360deg); } }

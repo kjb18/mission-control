@@ -121,33 +121,12 @@ body { font-family: var(--font); background: var(--bg); color: var(--t1); font-s
 .ev-mtg { background: var(--purple-bdg); color: #5b21b6; }
 .ev-adm { background: var(--blue-bdg); color: var(--blue-dark); }
 .ev-emp { height: 11px; background: #f8fafc; border-radius: 3px; margin-bottom: 2px; }
+.wd-todrow { display: flex; align-items: center; justify-content: center; gap: 4px; margin-bottom: 4px; }
+.wd-todrow .wd-tod { margin: 0; }
+.wd-now { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 600; color: #ef4444; font-variant-numeric: tabular-nums; }
+.wd-now i { width: 5px; height: 5px; border-radius: 50%; background: #ef4444; }
+.ev[draggable="true"] { cursor: grab; }
 .drag-over-day { background: var(--blue-bg) !important; outline: 2px dashed var(--blue); outline-offset: -2px; border-radius: 6px; }
-
-/* Time-based weekly calendar (desktop): 07:00–21:00, 48px per hour */
-.tg-hscroll { overflow-x: auto; }
-.tg { min-width: 604px; }
-.tg-head, .tg-body { display: grid; grid-template-columns: 44px repeat(7, minmax(80px, 1fr)); }
-.tg-head { padding-top: 10px; border-bottom: 1px solid var(--border); background: var(--white); }
-.tg-hday { text-align: center; padding: 0 2px 6px; min-width: 0; border-left: 1px solid var(--border-l); }
-.tg-hday .ev { text-align: left; }
-.tg-scroll { height: 192px; overflow-y: auto; position: relative; }
-.tg-body { position: relative; }
-.tg-hours { position: relative; }
-.tg-hlabel { position: absolute; right: 6px; margin-top: 1px; font-size: 10px; color: var(--t4); line-height: 1; white-space: nowrap; }
-.tg-col { position: relative; border-left: 1px solid var(--border-l); min-width: 0; }
-.tg-col.today { background: rgba(59,130,246,.03); }
-.tg-hr { box-sizing: border-box; border-top: 1px solid var(--border-l); position: relative; }
-.tg-hr::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed #f1f5f9; }
-.tg-hr.compact::after { display: none; }
-.tg-ev { position: absolute; box-sizing: border-box; border-radius: 4px; padding: 2px 5px; font-size: 10px; line-height: 1.25; overflow: hidden; cursor: pointer; display: flex; flex-direction: column; gap: 1px; border-left: 3px solid currentColor; z-index: 2; }
-.tg-ev:hover { filter: brightness(.96); z-index: 3; }
-.tg-ev-t { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tg-ev-time { font-size: 10px; opacity: .8; white-space: nowrap; }
-.tg-ghost { position: absolute; left: 2px; right: 2px; box-sizing: border-box; border-radius: 4px; padding: 2px 5px; font-size: 10px; line-height: 1.25; background: var(--blue-bg); color: var(--blue-dark); border: 1.5px dashed var(--blue); pointer-events: none; z-index: 4; display: flex; flex-direction: column; overflow: hidden; }
-.tg-now { position: absolute; left: 0; right: 0; height: 0; z-index: 5; pointer-events: none; }
-.tg-now-label { position: absolute; left: 0; width: 38px; text-align: right; transform: translateY(-50%); font-size: 10px; font-weight: 600; color: #ef4444; background: var(--white); line-height: 1; white-space: nowrap; }
-.tg-now-dot { position: absolute; left: 44px; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: #ef4444; }
-.tg-now-line { position: absolute; left: 44px; right: 0; border-top: 1px solid #ef4444; }
 
 /* ── NEW TASK BAR ── */
 .new-task-bar { display: flex; gap: 8px; padding: 10px 14px; background: var(--white); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-sm); align-items: center; transition: box-shadow .15s; }

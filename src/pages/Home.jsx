@@ -9,8 +9,7 @@ import { createEvent, isGoogleCalendarConfigured } from "../lib/googleCalendar";
 import { getAccessToken, adoptAccessToken } from "../lib/googleAuth";
 import { fetchTodayModule } from "../lib/learningModules";
 import TaskPanel from "../components/TaskPanel";
-import WeekTimeGrid, { timeLabel } from "./WeekTimeGrid";
-import { createCalendarEvent, pushDueEventIfChanged } from "../lib/calendarEvents";
+import { pushDueEventIfChanged } from "../lib/calendarEvents";
 import { pickFields } from "../lib/taskFields";
 import { useHierarchy } from "../lib/hierarchy";
 
@@ -115,6 +114,11 @@ function getWeekDates() {
     dd.setDate(sun.getDate() + i);
     return dd;
   });
+}
+const manilaClock = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+/** "HH:MM", Manila time. */
+function manilaHM(date) {
+  return manilaClock.format(date);
 }
 function manilaInstant(iso, time = "00:00:00") {
   return new Date(`${iso}T${time}+08:00`);
@@ -233,8 +237,12 @@ function loadZoneOrder() {
   }
 }
 
-// Weekly plan drops saved while Google Calendar isn't connected:
-// { "yyyy-MM-dd": [{ t: "adm", l: "task label" }, …] }
+// Weekly plan chips kept in this browser: tasks dropped while Google Calendar
+// isn't connected, and chips dragged to another day.
+// { "yyyy-MM-dd": [{ t: "adm", l: "label", time?: "HH:MM", from?: "yyyy-MM-dd" }, …] }
+// `from` marks a chip moved off another day: on load the original chip there
+// (Supabase or Google) is hidden so it isn't shown twice.
+const CHIP_TYPES = ["mtg", "rfq", "del", "adm"];
 function loadWeeklyDrops() {
   try {
     const saved = JSON.parse(localStorage.getItem(WEEKLY_DROPS_KEY));
@@ -244,9 +252,15 @@ function loadWeeklyDrops() {
       if (!Array.isArray(items)) return;
       // Earlier builds stored plain label strings; read both shapes.
       const chips = items
-        .map((item) => (typeof item === "string" ? item : item?.l))
-        .filter((l) => typeof l === "string" && l.trim() !== "")
-        .map((l) => ({ t: "adm", l, local: true }));
+        .map((item) => (typeof item === "string" ? { l: item } : item))
+        .filter((c) => typeof c?.l === "string" && c.l.trim() !== "")
+        .map((c) => ({
+          t: CHIP_TYPES.includes(c.t) ? c.t : "adm",
+          l: c.l,
+          ...(/^\d{2}:\d{2}$/.test(c.time ?? "") ? { time: c.time } : {}),
+          ...(/^\d{4}-\d{2}-\d{2}$/.test(c.from ?? "") ? { from: c.from } : {}),
+          local: true,
+        }));
       if (chips.length) drops[ds] = chips;
     });
     return drops;
@@ -254,11 +268,12 @@ function loadWeeklyDrops() {
     return {};
   }
 }
-// Stored shape is exactly { t: "adm", l } — the in-memory `local` flag stays out.
+// Stored shape is { t, l, time?, from? } — the in-memory `local` flag stays out.
 function writeWeeklyDrops(drops) {
   const clean = {};
   Object.entries(drops).forEach(([ds, chips]) => {
-    if (chips.length) clean[ds] = chips.map((c) => ({ t: "adm", l: c.l }));
+    if (chips.length)
+      clean[ds] = chips.map((c) => ({ t: c.t ?? "adm", l: c.l, ...(c.time ? { time: c.time } : {}), ...(c.from ? { from: c.from } : {}) }));
   });
   try {
     localStorage.setItem(WEEKLY_DROPS_KEY, JSON.stringify(clean));
@@ -271,6 +286,19 @@ function removeWeeklyDrop(label) {
   Object.keys(drops).forEach((ds) => {
     drops[ds] = drops[ds].filter((d) => d.l !== label);
   });
+  writeWeeklyDrops(drops);
+}
+/** A chip dragged from one day to another: saved on the new day with its type and time. */
+function moveWeeklyDrop(chip, fromDs, toDs) {
+  const drops = loadWeeklyDrops();
+  let origin = fromDs;
+  if (chip.local) {
+    const list = drops[fromDs] ?? [];
+    const at = list.findIndex((d) => d.l === chip.l && (d.time ?? "") === (chip.time ?? ""));
+    if (at > -1) origin = list.splice(at, 1)[0].from;
+    else origin = chip.from;
+  }
+  drops[toDs] = [...(drops[toDs] ?? []), { t: chip.t, l: chip.l, time: chip.time, from: origin }];
   writeWeeklyDrops(drops);
 }
 function saveWeeklyDrop(ds, label) {
@@ -592,19 +620,6 @@ function deleteTaskProps(key) {
 
 // Single click opens the panel, double click toggles done. The single-click
 // action waits briefly so a double click doesn't also open the panel.
-// True at phone width (matches the 768px CSS breakpoint).
-function useIsMobile() {
-  const query = "(max-width: 768px)";
-  const [mobile, setMobile] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const onChange = () => setMobile(mq.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-  return mobile;
-}
-
 function useClickOrDouble() {
   const timer = useRef(null);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -822,15 +837,9 @@ export default function Home() {
     (deliveries.data ?? []).forEach((d) => push(d.delivery_date, { t: "del", l: d.purchase_orders?.po_number ? `${d.purchase_orders.po_number} delivery` : "Delivery" }));
     (invoices.data ?? []).forEach((i) => push(i.due_date, { t: "adm", l: i.invoice_number ? `${i.invoice_number} due` : "Invoice due" }));
     // Nameless events are skipped rather than shown as "untitled" chips.
-    // Timed events carry their start/end so the time grid can place them.
+    // Timed events carry an "HH:MM" start, shown before the title and used to order the day.
     cal.forEach(
-      (ev) =>
-        ev.title &&
-        push(isoDate(toManila(ev.start)), {
-          t: "mtg",
-          l: ev.title,
-          ...(ev.allDay || !ev.end ? {} : { timed: true, start: ev.start, end: ev.end }),
-        })
+      (ev) => ev.title && push(isoDate(toManila(ev.start)), { t: "mtg", l: ev.title, ...(ev.allDay ? {} : { time: manilaHM(ev.start) }) })
     );
     // Time blocks scheduled onto a day (daily_logs.time_blocks), unless Google already has that event.
     const have = new Set(cal.filter((ev) => ev.title && ev.start).map((ev) => `${ev.title}|${ev.start.getTime()}`));
@@ -839,11 +848,18 @@ export default function Home() {
         if (!b?.label || !/^\d{2}:\d{2}/.test(b.time ?? "")) return;
         const start = manilaInstant(row.log_date, `${b.time.slice(0, 5)}:00`);
         if (have.has(`${b.label}|${start.getTime()}`)) return;
-        push(row.log_date, { t: "adm", l: b.label, timed: true, block: true, start, end: new Date(start.getTime() + 30 * 60000) });
+        push(row.log_date, { t: "adm", l: b.label, time: b.time.slice(0, 5) });
       })
     );
     const drops = loadWeeklyDrops();
-    days.forEach((d) => (drops[isoDate(d)] ?? []).forEach((chip) => push(isoDate(d), chip)));
+    const weekDrops = days.flatMap((d) => (drops[isoDate(d)] ?? []).map((chip) => [isoDate(d), chip]));
+    // A chip moved off its source day hides the original there.
+    weekDrops.forEach(([, chip]) => {
+      if (!chip.from || !map[chip.from]) return;
+      const at = map[chip.from].findIndex((c) => !c.local && c.l === chip.l && c.t === chip.t);
+      if (at > -1) map[chip.from] = map[chip.from].filter((_, i) => i !== at);
+    });
+    weekDrops.forEach(([ds, chip]) => push(ds, chip));
     setWeekEvents(map);
   }, []);
 
@@ -1449,12 +1465,26 @@ export default function Home() {
 
   // ---- Weekly plan ------------------------------------------------------------------
   const [dragOverDay, setDragOverDay] = useState(null);
-  const isMobile = useIsMobile();
-  const weekDays = getWeekDates();
+  // Current Manila time beside today's date, refreshed every minute.
+  const [nowHM, setNowHM] = useState(() => manilaHM(new Date()));
+  useEffect(() => {
+    const id = setInterval(() => setNowHM(manilaHM(new Date())), 60000);
+    return () => clearInterval(id);
+  }, []);  const weekDays = getWeekDates();
   const weekLabel = `Week of ${weekDays[0].getDate()} ${MONTHS[weekDays[0].getMonth()]} – ${weekDays[6].getDate()} ${MONTHS[weekDays[6].getMonth()]}`;
   const dropOnDay = async (e, ds) => {
     e.preventDefault();
     setDragOverDay(null);
+    const weekChip = e.dataTransfer.getData("week-chip");
+    if (weekChip) {
+      try {
+        const { ds: fromDs, idx } = JSON.parse(weekChip);
+        moveChip(fromDs, idx, ds);
+      } catch {
+        /* malformed drag data — ignore */
+      }
+      return;
+    }
     const lb = e.dataTransfer.getData("text/plain");
     console.log(`Weekly plan drop on ${ds}: ${lb}`);
     if (!lb || !lb.trim()) return;
@@ -1485,33 +1515,22 @@ export default function Home() {
     if (!pushed) saveWeeklyDrop(ds, lb);
   };
 
-  // Drop on the time grid: schedule the task at ds + minutes after midnight (30-minute
-  // snap). Saves a time block, pushes a Google Calendar event with a 30-minute alert,
-  // and shows the chip at once.
-  const dropOnSlot = async (label, source, ds, min) => {
-    const time = `${pad(Math.floor(min / 60))}:${pad(min % 60)}`;
-    const start = manilaInstant(ds, `${time}:00`);
+  // A weekly chip dragged to another day: moves there with its type and time.
+  // Chips from Google or Supabase move only here and in localStorage.
+  const moveChip = (fromDs, idx, toDs) => {
+    if (fromDs === toDs) return;
+    const chip = weekEvents[fromDs]?.[idx];
+    if (!chip) return;
     setWeekEvents((prev) => ({
       ...prev,
-      [ds]: [...(prev[ds] ?? []), { t: "adm", l: label, timed: true, block: true, start, end: new Date(start.getTime() + 30 * 60000) }],
+      [fromDs]: (prev[fromDs] ?? []).filter((_, i) => i !== idx),
+      [toDs]: [...(prev[toDs] ?? []), { ...chip, local: true, from: chip.local ? chip.from : fromDs }],
     }));
-    if (source === "mit" && mits.includes(label)) persistMits(mits.filter((m) => m !== label));
-
-    // Time block on that day's daily_logs row (today's is also in the Time blocks panel).
-    if (ds === todayISO) {
-      persistBlocks([...blocks, { time, label }]);
-    } else if (schema.current.timeBlocks) {
-      const { data: row } = await supabase.from("daily_logs").select("time_blocks").eq("log_date", ds).maybeSingle();
-      const next = [...(Array.isArray(row?.time_blocks) ? row.time_blocks : []), { time, label }].sort((a, b) => a.time.localeCompare(b.time));
-      const { error } = await supabase.from("daily_logs").upsert({ log_date: ds, time_blocks: next }, { onConflict: "log_date" });
-      if (error) console.warn("[Home] saving time block failed:", error.message);
+    moveWeeklyDrop(chip, fromDs, toDs);
+    if (isWeeklyDone(fromDs, chip.l)) {
+      setWeeklyDoneFor(fromDs, chip.l, false);
+      setWeeklyDoneFor(toDs, chip.l, true);
     }
-
-    const res = await createCalendarEvent({ title: label, date: ds, time });
-    showCalToast(
-      res.ok ? `${label} scheduled ${ds} ${timeLabel(min)} — alert 30 min before` : `Scheduled here, but the calendar alert failed: ${res.error}`,
-      res.ok
-    );
   };
 
   // A task sits on exactly one day: drop its local chip (and saved drop) from
@@ -1815,12 +1834,14 @@ export default function Home() {
           </>
         )}
         <div className="card">
-          {isMobile ? (
           <div className="week-scroll">
           <div className="week-grid">
             {weekDays.map((d) => {
               const ds = isoDate(d);
-              const evs = weekEvents[ds] ?? [];
+              // Timed chips first, earliest first; untimed chips below in their original order.
+              const evs = (weekEvents[ds] ?? [])
+                .map((ev, idx) => ({ ev, idx }))
+                .sort((a, b) => (a.ev.time ? 0 : 1) - (b.ev.time ? 0 : 1) || (a.ev.time ?? "").localeCompare(b.ev.time ?? "") || a.idx - b.idx);
               return (
                 <div
                   key={ds}
@@ -1834,18 +1855,35 @@ export default function Home() {
                   onDrop={(e) => !isZoneDrag(e) && dropOnDay(e, ds)}
                 >
                   <div className="wd-n">{DAYNAMES[d.getDay()]}</div>
-                  {ds === todayISO ? <div className="wd-tod">{d.getDate()}</div> : <div className="wd-d">{d.getDate()}</div>}
+                  {ds === todayISO ? (
+                    <div className="wd-todrow">
+                      <div className="wd-tod">{d.getDate()}</div>
+                      <span className="wd-now" title="Current time (Manila)"><i />{nowHM}</span>
+                    </div>
+                  ) : (
+                    <div className="wd-d">{d.getDate()}</div>
+                  )}
                   {evs.length ? (
-                    evs.map((ev, i) => (
-                      <div
-                        key={i}
-                        className={`ev ev-${ev.t}${isWeeklyDone(ds, ev.l) ? " ev-done" : ""}`}
-                        title={ev.l}
-                        {...clickOrDouble(() => openWeekPanel(ds, ev, i), () => setWeeklyDoneFor(ds, ev.l, !isWeeklyDone(ds, ev.l)))}
-                      >
-                        {ev.l}
-                      </div>
-                    ))
+                    evs.map(({ ev, idx }) => {
+                      const text = ev.time ? `${ev.time} ${ev.l}` : ev.l;
+                      return (
+                        <div
+                          key={idx}
+                          className={`ev ev-${ev.t}${isWeeklyDone(ds, ev.l) ? " ev-done" : ""}`}
+                          title={text}
+                          draggable
+                          onDragStart={(e) => {
+                            e.stopPropagation();
+                            e.dataTransfer.setData("week-chip", JSON.stringify({ ds, idx }));
+                            e.dataTransfer.setData("text/plain", ev.l);
+                            e.dataTransfer.setData("source", "week");
+                          }}
+                          {...clickOrDouble(() => openWeekPanel(ds, ev, idx), () => setWeeklyDoneFor(ds, ev.l, !isWeeklyDone(ds, ev.l)))}
+                        >
+                          {text}
+                        </div>
+                      );
+                    })
                   ) : (
                     <>
                       <div className="ev-emp"></div>
@@ -1857,37 +1895,6 @@ export default function Home() {
             })}
           </div>
           </div>
-          ) : (
-            <WeekTimeGrid
-              days={weekDays.map((d) => {
-                const ds = isoDate(d);
-                const entries = (weekEvents[ds] ?? []).map((ev, idx) => ({ ev, idx }));
-                return {
-                  ds,
-                  name: DAYNAMES[d.getDay()],
-                  num: d.getDate(),
-                  isToday: ds === todayISO,
-                  untimed: entries.filter(({ ev }) => !ev.timed),
-                  timed: entries.filter(({ ev }) => ev.timed),
-                };
-              })}
-              renderChip={(ds, ev, i) => (
-                <div
-                  key={i}
-                  className={`ev ev-${ev.t}${isWeeklyDone(ds, ev.l) ? " ev-done" : ""}`}
-                  title={ev.l}
-                  {...clickOrDouble(() => openWeekPanel(ds, ev, i), () => setWeeklyDoneFor(ds, ev.l, !isWeeklyDone(ds, ev.l)))}
-                >
-                  {ev.l}
-                </div>
-              )}
-              onChipClick={openWeekPanel}
-              onDropTask={dropOnSlot}
-              onHeaderDrop={dropOnDay}
-              dragOverDay={dragOverDay}
-              setDragOverDay={setDragOverDay}
-            />
-          )}
         </div>
       </div>
     ),

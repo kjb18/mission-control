@@ -3,6 +3,10 @@
 // Returns today's learning module (Asia/Manila date) for the signed-in
 // owner. If one is already stored in learning_hub_modules it is returned
 // as-is; otherwise Claude generates one, it's stored, and it's returned.
+// { force: true } skips the stored module and generates a fresh one that
+// replaces today's (the Learning Hub's Refresh button).
+// Claude is told which books recent modules covered: without that it picked
+// the same book (SPIN Selling) almost every day.
 // A pending row in learning_hub_requests (used = false) steers the topic
 // and is marked used once the module is saved.
 //
@@ -44,10 +48,6 @@ function json(body: unknown, status = 200) {
   });
 }
 
-function manilaToday() {
-  // en-CA formats as yyyy-MM-dd.
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
-}
 
 function parseModule(text: string) {
   const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "");
@@ -75,10 +75,14 @@ function parseModule(text: string) {
   };
 }
 
-async function generate(anthropic: Anthropic, request: string | null) {
+async function generate(anthropic: Anthropic, request: string | null, recentBooks: string[]) {
+  const avoid = recentBooks.length
+    ? `\n\nThese books were covered recently. Choose a different book, and vary the category from day to day:\n${recentBooks.map((b) => `- ${b}`).join("\n")}`
+    : "";
+  // A user's request wins: if they asked for a book again, they get it.
   const userMessage = request
     ? `${USER_MESSAGE}\n\nThe user asked for today's module to cover this topic — base it on this request:\n${request}`
-    : USER_MESSAGE;
+    : `${USER_MESSAGE}${avoid}`;
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 4096,
@@ -101,16 +105,26 @@ Deno.serve(async (req) => {
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: req.headers.get("Authorization")! } },
     });
-    const today = manilaToday();
+    const body = await req.json().catch(() => ({}));
+    const force = body?.force === true;
+    // en-CA formats the date part as yyyy-MM-dd.
+    const manilaDate = new Date().toLocaleString("en-CA", { timeZone: "Asia/Manila" }).slice(0, 10);
 
-    const existing = await supabase
-      .from("learning_hub_modules")
-      .select("*")
-      .eq("generated_date", today)
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (existing.error) throw existing.error;
-    if (existing.data) return json({ module: existing.data, cached: true });
+    let replace = force;
+    if (!force) {
+      const existing = await supabase
+        .from("learning_hub_modules")
+        .select("*")
+        .eq("generated_date", manilaDate)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (existing.error) throw existing.error;
+      // Only a module stamped with today's Manila date counts; anything else is regenerated.
+      if (existing.data && String(existing.data.generated_date).slice(0, 10) === manilaDate) {
+        return json({ module: existing.data, cached: true });
+      }
+      if (existing.data) replace = true;
+    }
 
     const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not set. Run `supabase secrets set ANTHROPIC_API_KEY=sk-ant-...`.");
@@ -126,26 +140,38 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const request = pending.data?.request_text ?? null;
 
+    const recent = await supabase
+      .from("learning_hub_modules")
+      .select("book_title, book_author")
+      .eq("user_id", user.id)
+      .order("generated_date", { ascending: false })
+      .limit(30);
+    const recentBooks = [...new Set((recent.data ?? []).map((m) => `${m.book_title} — ${m.book_author}`))];
+
     // One retry covers the occasional reply that isn't clean JSON.
     let fields;
     try {
-      fields = await generate(anthropic, request);
+      fields = await generate(anthropic, request, recentBooks);
     } catch (first) {
       if (first instanceof Anthropic.APIError) throw first;
-      fields = await generate(anthropic, request);
+      fields = await generate(anthropic, request, recentBooks);
     }
 
-    // ignoreDuplicates: if two tabs generate at once, the first insert wins
-    // and both return the stored row.
+    // Normal load: ignoreDuplicates, so if two tabs generate at once the first
+    // insert wins and both return the stored row. force: replace today's
+    // module (logged_today isn't in the payload, so a logged session stays logged).
     const inserted = await supabase
       .from("learning_hub_modules")
-      .upsert({ ...fields, user_id: user.id, generated_date: today }, { onConflict: "generated_date,user_id", ignoreDuplicates: true });
+      .upsert(
+        { ...fields, user_id: user.id, generated_date: manilaDate },
+        { onConflict: "generated_date,user_id", ignoreDuplicates: !replace }
+      );
     if (inserted.error) throw inserted.error;
 
     const stored = await supabase
       .from("learning_hub_modules")
       .select("*")
-      .eq("generated_date", today)
+      .eq("generated_date", manilaDate)
       .eq("user_id", user.id)
       .single();
     if (stored.error) throw stored.error;
