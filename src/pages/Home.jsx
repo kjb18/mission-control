@@ -105,11 +105,11 @@ function toManila(date) {
 function isoDate(d) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
-// weekOffset: 0 = this week, -1 = last week, 1 = next week, …
-function getWeekDates(weekOffset = 0) {
+// dayOffset: days the 7-day window is shifted from the Sunday anchor (-7 = last week's Sunday).
+function getWeekDates(dayOffset = 0) {
   const d = getManilaDate();
   const sun = new Date(d);
-  sun.setDate(d.getDate() - d.getDay() + weekOffset * 7);
+  sun.setDate(d.getDate() - d.getDay() + dayOffset);
   return Array.from({ length: 7 }, (_, i) => {
     const dd = new Date(sun);
     dd.setDate(sun.getDate() + i);
@@ -198,8 +198,9 @@ function withFixedZone(movable) {
   return order;
 }
 const GROWTH_ROWS = 6;
-const MIN_WEEK_OFFSET = -4;
-const MAX_WEEK_OFFSET = 8;
+const MIN_DAY_OFFSET = -28;
+const MAX_DAY_OFFSET = 56;
+const DAY_STEP = 2;
 const SWIPED_KEY = "mc_has_swiped_week";
 const SWIPE_MIN_PX = 50;
 const CAROVER_KEY = (sunISO) => `mc_carryover_dismissed_${sunISO}`;
@@ -299,13 +300,15 @@ function removeWeeklyDrop(label) {
 /** A chip dragged from one day to another: saved on the new day with its type and time. */
 function moveWeeklyDrop(chip, fromDs, toDs) {
   const drops = loadWeeklyDrops();
-  let origin = fromDs;
-  if (chip.local) {
-    const list = drops[fromDs] ?? [];
-    const at = list.findIndex((d) => d.l === chip.l && (d.time ?? "") === (chip.time ?? ""));
-    if (at > -1) origin = list.splice(at, 1)[0].from;
-    else origin = chip.from;
-  }
+  let origin = chip.local ? chip.from : fromDs;
+  // The chip lives on one day only: clear every copy of it, wherever stored.
+  Object.keys(drops).forEach((ds) => {
+    drops[ds] = drops[ds].filter((d) => {
+      if (d.l !== chip.l) return true;
+      if (chip.local && ds === fromDs && (d.time ?? "") === (chip.time ?? "")) origin = d.from;
+      return false;
+    });
+  });
   drops[toDs] = [...(drops[toDs] ?? []), { t: chip.t, l: chip.l, time: chip.time, from: origin }];
   writeWeeklyDrops(drops);
 }
@@ -668,10 +671,10 @@ export default function Home() {
   const [pulse, setPulse] = useState({ rfqs: null, pos: null, pending: null, completed: null });
   const [soonestRfq, setSoonestRfq] = useState(null);
   const [weekEvents, setWeekEvents] = useState({});
-  // 0 = current week; negative = past, positive = future.
-  const [weekOffset, setWeekOffset] = useState(0);
-  const weekOffsetRef = useRef(0);
-  weekOffsetRef.current = weekOffset;
+  // Days the visible 7-day window is shifted; 0 starts on this week's Sunday.
+  const [dayOffset, setDayOffset] = useState(0);
+  const dayOffsetRef = useRef(0);
+  dayOffsetRef.current = dayOffset;
   const [calMonth, setCalMonth] = useState(() => {
     const d = getManilaDate();
     return { y: d.getFullYear(), m: d.getMonth() };
@@ -835,7 +838,7 @@ export default function Home() {
   }, [user]);
 
   const loadWeek = useCallback(async () => {
-    const offset = weekOffsetRef.current;
+    const offset = dayOffsetRef.current;
     const days = getWeekDates(offset);
     const startISO = isoDate(days[0]);
     const endISO = isoDate(days[6]);
@@ -876,7 +879,7 @@ export default function Home() {
     });
     weekDrops.forEach(([ds, chip]) => push(ds, chip));
     // The user may have navigated on while this was loading.
-    if (weekOffsetRef.current === offset) setWeekEvents(map);
+    if (dayOffsetRef.current === offset) setWeekEvents(map);
   }, []);
 
   const loadMonth = useCallback(async ({ y, m }) => {
@@ -1036,11 +1039,11 @@ export default function Home() {
   // Navigating weeks reloads just the weekly plan (loadAll covers the first load).
   const loadedOffset = useRef(0);
   useEffect(() => {
-    if (loadedOffset.current === weekOffset) return;
-    loadedOffset.current = weekOffset;
+    if (loadedOffset.current === dayOffset) return;
+    loadedOffset.current = dayOffset;
     setWeekEvents({});
     loadWeek();
-  }, [weekOffset, loadWeek]);
+  }, [dayOffset, loadWeek]);
 
   useEffect(() => {
     loadMonth(calMonth);
@@ -1287,7 +1290,7 @@ export default function Home() {
     if (!user) return;
     const today = getManilaDate();
     if (today.getDay() < 1 || today.getDay() > 3) return;
-    const lastDays = getWeekDates(-1).map(isoDate);
+    const lastDays = getWeekDates(-7).map(isoDate);
     const [sunISO, satISO] = [lastDays[0], lastDays[6]];
     if (readSession(CAROVER_KEY(sunISO))) return;
     const done = readJson(WEEKLY_DONE_KEY);
@@ -1316,7 +1319,7 @@ export default function Home() {
       return;
     }
     // Drop the moved chips (only unfinished ones were listed) from last week's days.
-    const lastDays = getWeekDates(-1).map(isoDate);
+    const lastDays = getWeekDates(-7).map(isoDate);
     const drops = loadWeeklyDrops();
     lastDays.forEach((ds) => {
       if (drops[ds]) drops[ds] = drops[ds].filter((c) => !labels.includes(c.l));
@@ -1544,13 +1547,13 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
-  const weekDays = getWeekDates(weekOffset);
-  const weekLabel = `Week of ${pad(weekDays[0].getDate())} ${MONTHS[weekDays[0].getMonth()]} - ${pad(weekDays[6].getDate())} ${MONTHS[weekDays[6].getMonth()]}`;
-  const canGoBack = weekOffset > MIN_WEEK_OFFSET;
-  const canGoForward = weekOffset < MAX_WEEK_OFFSET;
-  const shiftWeek = (delta) => setWeekOffset((o) => Math.min(MAX_WEEK_OFFSET, Math.max(MIN_WEEK_OFFSET, o + delta)));
+  const weekDays = getWeekDates(dayOffset);
+  const weekLabel = `${pad(weekDays[0].getDate())} ${MONTHS[weekDays[0].getMonth()]} - ${pad(weekDays[6].getDate())} ${MONTHS[weekDays[6].getMonth()]}`;
+  const canGoBack = dayOffset > MIN_DAY_OFFSET;
+  const canGoForward = dayOffset < MAX_DAY_OFFSET;
+  const shiftDays = (delta) => setDayOffset((o) => Math.min(MAX_DAY_OFFSET, Math.max(MIN_DAY_OFFSET, o + delta)));
 
-  // Swipe left → next week, right → previous (touch screens).
+  // Swipe left → 2 days later, right → 2 days earlier (touch screens).
   const [hasSwipedWeek, setHasSwipedWeek] = useState(() => readSession(SWIPED_KEY) === "1");
   const swipeStart = useRef(null);
   const onWeekTouchStart = (e) => {
@@ -1566,8 +1569,8 @@ export default function Home() {
     // Vertical page scrolls and horizontal scrolling of the day grid aren't swipes.
     if (Math.abs(t.clientY - start.y) > Math.abs(dx)) return;
     if ((e.currentTarget.querySelector(".week-scroll")?.scrollLeft ?? 0) !== start.scroll) return;
-    if (dx < -SWIPE_MIN_PX && canGoForward) shiftWeek(1);
-    else if (dx > SWIPE_MIN_PX && canGoBack) shiftWeek(-1);
+    if (dx < -SWIPE_MIN_PX && canGoForward) shiftDays(DAY_STEP);
+    else if (dx > SWIPE_MIN_PX && canGoBack) shiftDays(-DAY_STEP);
     else return;
     setHasSwipedWeek(true);
     writeSession(SWIPED_KEY, "1");
@@ -1621,11 +1624,14 @@ export default function Home() {
     if (fromDs === toDs) return;
     const chip = weekEvents[fromDs]?.[idx];
     if (!chip) return;
-    setWeekEvents((prev) => ({
-      ...prev,
-      [fromDs]: (prev[fromDs] ?? []).filter((_, i) => i !== idx),
-      [toDs]: [...(prev[toDs] ?? []), { ...chip, local: true, from: chip.local ? chip.from : fromDs }],
-    }));
+    setWeekEvents((prev) => {
+      const next = {};
+      Object.entries(prev).forEach(([d, evs]) => {
+        next[d] = d === fromDs ? evs.filter((_, i) => i !== idx) : evs.filter((c) => !(c.local && c.l === chip.l));
+      });
+      next[toDs] = [...(next[toDs] ?? []), { ...chip, local: true, from: chip.local ? chip.from : fromDs }];
+      return next;
+    });
     moveWeeklyDrop(chip, fromDs, toDs);
     if (isWeeklyDone(fromDs, chip.l)) {
       setWeeklyDoneFor(fromDs, chip.l, false);
@@ -1670,7 +1676,7 @@ export default function Home() {
     });
     if (oldLabel && oldLabel !== label) removeLocalChip(oldLabel);
     if (/^\d{4}-\d{2}-\d{2}$/.test(dueDate ?? "")) {
-      const weekISO = getWeekDates(weekOffset).map(isoDate);
+      const weekISO = getWeekDates(dayOffset).map(isoDate);
       if (weekISO.includes(dueDate)) {
         placeChipOnDay(label, dueDate);
       } else {
@@ -1699,10 +1705,18 @@ export default function Home() {
     },
   });
 
-  const dropOnMits = (lb) => {
-    if (lb && mits.length < 3 && !mits.includes(lb)) persistMits([...mits, lb]);
+  const dropOnMits = (lb, src) => {
+    if (!lb || mits.length >= 3 || mits.includes(lb)) return;
+    persistMits([...mits, lb]);
+    // A chip taken off the calendar leaves mc_weekly_drops too, so it can't reappear.
+    if (src === "week") removeLocalChip(lb);
   };
   const dropOnHitlist = (lb, src) => {
+    if (src === "week" && lb) {
+      addToHitlist(lb);
+      removeLocalChip(lb);
+      return;
+    }
     if (src !== "mit") return;
     if (!mits.includes(lb)) return;
     persistMits(mits.filter((m) => m !== lb));
@@ -1927,16 +1941,16 @@ export default function Home() {
         {zoneHead(
           "weekly",
           <>
-            <span style={weekOffset !== 0 ? { color: "var(--t2)" } : undefined}>{weekLabel}</span>
+            <span style={dayOffset !== 0 ? { color: "var(--t2)" } : undefined}>{weekLabel}</span>
             {gcalState === "none" && (
               <button className="zl-connect" onClick={() => navigate("/settings")}>Connect Calendar</button>
             )}
             <div className="zl-nav">
-              <button className="zl-arrow" onClick={() => shiftWeek(-1)} disabled={!canGoBack} aria-label="Previous week">
+              <button className="zl-arrow" onClick={() => shiftDays(-DAY_STEP)} disabled={!canGoBack} aria-label="Earlier days">
                 <svg viewBox="0 0 24 24">{ICONS.chevL}</svg>
               </button>
-              {weekOffset !== 0 && <button className="zl-today" onClick={() => setWeekOffset(0)}>Today</button>}
-              <button className="zl-arrow" onClick={() => shiftWeek(1)} disabled={!canGoForward} aria-label="Next week">
+              {dayOffset !== 0 && <button className="zl-today" onClick={() => setDayOffset(0)}>Today</button>}
+              <button className="zl-arrow" onClick={() => shiftDays(DAY_STEP)} disabled={!canGoForward} aria-label="Later days">
                 <svg viewBox="0 0 24 24">{ICONS.chevR}</svg>
               </button>
             </div>
@@ -2480,7 +2494,7 @@ export default function Home() {
               <button className="alert-x" onClick={dismissAlerts} aria-label="Dismiss">✕</button>
             </div>
           )}
-          {carryover && weekOffset === 0 && (
+          {carryover && dayOffset === 0 && (
             <div className="carry-banner" role="alert">
               <svg viewBox="0 0 24 24">{ICONS.clock}</svg>
               <span className="carry-text">
