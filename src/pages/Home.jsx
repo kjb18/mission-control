@@ -1596,7 +1596,7 @@ export default function Home() {
     // on the next load as both a MIT and a chip. persistMits() compacts the
     // list and nulls the freed mit_N column in today's daily_logs row.
     if (mits.includes(lb)) persistMits(mits.filter((m) => m !== lb));
-    // Push to Google Calendar as 09:00–09:30 Manila; the next load shows it
+    // Push to Google Calendar as 15:00–15:30 Manila; the next load shows it
     // as a meeting chip. Only an unexpired token counts as connected; nothing
     // here may open Google's sign-in popup.
     let pushed = false;
@@ -1606,8 +1606,8 @@ export default function Home() {
       try {
         const res = await createEvent({
           title: lb,
-          start: manilaInstant(ds, "09:00:00"),
-          end: manilaInstant(ds, "09:30:00"),
+          start: manilaInstant(ds, "15:00:00"),
+          end: manilaInstant(ds, "15:30:00"),
           reminderMinutes: 10,
         });
         pushed = !res?.skipped;
@@ -1730,7 +1730,7 @@ export default function Home() {
     persistBlocks([...blocks, { time: `${pad(Math.floor(next / 60) % 24)}:${pad(next % 60)}`, label: lb }]);
   };
 
-  const [tbTime, setTbTime] = useState("09:00");
+  const [tbTime, setTbTime] = useState("15:00");
   const [tbLabel, setTbLabel] = useState("");
   const tbLabelRef = useRef(null);
   const addTimeBlock = () => {
