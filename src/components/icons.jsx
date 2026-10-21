@@ -153,3 +153,11 @@ export const BrewingIcon = (p) => (
     <path d="M9 3.5c0 1-1 1-1 2s1 1 1 2M13 3.5c0 1-1 1-1 2s1 1 1 2" />
   </svg>
 );
+
+export const TruckIcon = (p) => (
+  <svg viewBox="0 0 24 24" {...base} {...p}>
+    <circle cx="7" cy="17" r="2" />
+    <circle cx="17" cy="17" r="2" />
+    <path d="M5 17H3V6a1 1 0 0 1 1-1h9v12M9 17h6M19 17h2v-6h-8M13 6h5l3 5" />
+  </svg>
+);

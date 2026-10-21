@@ -14,6 +14,7 @@ import {
   SeoIcon,
   ContactsIcon,
   LearningIcon,
+  TruckIcon,
   SettingsIcon,
   LogoMark,
 } from "./icons";
@@ -34,6 +35,7 @@ const NAV_SECTIONS = [
       { to: "/sourcing", label: "Sourcing", icon: SourcingIcon },
       { to: "/quote-builder", label: "Quote Builder", icon: QuoteIcon },
       { to: "/ledger", label: "Ledger", icon: LedgerIcon },
+      { to: "/logistics", label: "Logistics", icon: TruckIcon },
     ],
   },
   {

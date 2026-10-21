@@ -18,6 +18,7 @@ import DealDetail from "./pages/DealDetail";
 import Brewing from "./pages/Brewing";
 import LearningHub from "./pages/LearningHub";
 import Contacts from "./pages/Contacts";
+import Logistics from "./pages/Logistics";
 import Seo from "./pages/Seo";
 import Content from "./pages/Content";
 import Settings from "./pages/Settings";
@@ -58,6 +59,7 @@ function AppRoutes() {
           <Route path="brewing" element={<Brewing />} />
           <Route path="learning-hub" element={<LearningHub />} />
           <Route path="contacts" element={<Contacts />} />
+          <Route path="logistics" element={<Logistics />} />
           <Route path="seo" element={<Seo />} />
           <Route path="content" element={<Content />} />
           <Route path="settings" element={<Settings />} />
