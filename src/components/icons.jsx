@@ -161,3 +161,17 @@ export const TruckIcon = (p) => (
     <path d="M5 17H3V6a1 1 0 0 1 1-1h9v12M9 17h6M19 17h2v-6h-8M13 6h5l3 5" />
   </svg>
 );
+
+export const EyeIcon = (p) => (
+  <svg viewBox="0 0 24 24" {...base} {...p}>
+    <path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" />
+    <circle cx="12" cy="12" r="3" />
+  </svg>
+);
+
+export const EyeOffIcon = (p) => (
+  <svg viewBox="0 0 24 24" {...base} {...p}>
+    <path d="M3 3l18 18M10.6 5.1A10.5 10.5 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.6A16.5 16.5 0 0 0 2 12s3.6 7 10 7a10 10 0 0 0 4.4-1" />
+    <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+  </svg>
+);

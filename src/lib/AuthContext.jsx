@@ -38,6 +38,19 @@ export function AuthProvider({ children }) {
     return { error };
   }
 
+  // Password sign-in. The password is only ever the value the user types; it is
+  // set by the user in the Supabase Auth dashboard, never stored in the code.
+  // ADMIN SETUP: in the Supabase dashboard go to Authentication settings and make
+  // sure the Email provider is enabled with password sign-in turned on, otherwise
+  // signInWithPassword fails for every account.
+  async function signInWithPassword(email, password) {
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    return { error };
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -47,6 +60,7 @@ export function AuthProvider({ children }) {
     user: session?.user ?? null,
     isLoading: session === undefined,
     sendMagicLink,
+    signInWithPassword,
     signOut,
   };
 

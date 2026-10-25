@@ -277,9 +277,41 @@ function loadWeeklyDrops() {
     return {};
   }
 }
+// A day's chips come from Google, Supabase and local drops, so a manual order
+// can't live in the local chip array alone. It is kept in the same
+// mc_weekly_drops entry under a reserved "_order" field (non-array, so
+// loadWeeklyDrops skips it): { "yyyy-MM-dd": ["t|time|label", …] }.
+// A day with no entry keeps the default time sort.
+const WEEKLY_ORDER_FIELD = "_order";
+const chipOrderKey = (c) => `${c.t}|${c.time ?? ""}|${c.l}`;
+function loadWeeklyOrder() {
+  try {
+    const order = JSON.parse(localStorage.getItem(WEEKLY_DROPS_KEY))?.[WEEKLY_ORDER_FIELD];
+    if (!order || typeof order !== "object" || Array.isArray(order)) return {};
+    const clean = {};
+    Object.entries(order).forEach(([ds, keys]) => {
+      if (Array.isArray(keys) && keys.every((k) => typeof k === "string")) clean[ds] = keys;
+    });
+    return clean;
+  } catch {
+    return {};
+  }
+}
+function saveWeeklyOrder(ds, keys) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(WEEKLY_DROPS_KEY));
+    const base = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
+    base[WEEKLY_ORDER_FIELD] = { ...loadWeeklyOrder(), [ds]: keys };
+    localStorage.setItem(WEEKLY_DROPS_KEY, JSON.stringify(base));
+  } catch {
+    /* storage unavailable — order lasts for this session only */
+  }
+}
 // Stored shape is { t, l, time?, from? } — the in-memory `local` flag stays out.
 function writeWeeklyDrops(drops) {
   const clean = {};
+  const order = loadWeeklyOrder();
+  if (Object.keys(order).length) clean[WEEKLY_ORDER_FIELD] = order;
   Object.entries(drops).forEach(([ds, chips]) => {
     if (chips.length)
       clean[ds] = chips.map((c) => ({ t: c.t ?? "adm", l: c.l, ...(c.time ? { time: c.time } : {}), ...(c.from ? { from: c.from } : {}) }));
@@ -1540,6 +1572,13 @@ export default function Home() {
 
   // ---- Weekly plan ------------------------------------------------------------------
   const [dragOverDay, setDragOverDay] = useState(null);
+  const [weekOrder, setWeekOrder] = useState(loadWeeklyOrder);
+  // The chip being dragged inside the weekly grid ({ ds, idx, label }); dataTransfer
+  // can't be read during dragover, so same-day reorders are detected from this.
+  const draggedChip = useRef(null);
+  const [draggingChip, setDraggingChip] = useState(null); // { ds, idx } while a chip drag is live
+  // Insertion line shown while reordering: { ds, idx, pos: "before" | "after" }.
+  const [insertAt, setInsertAt] = useState(null);
   // Current Manila time beside today's date, refreshed every minute.
   const [nowHM, setNowHM] = useState(() => manilaHM(new Date()));
   useEffect(() => {
@@ -1616,6 +1655,68 @@ export default function Home() {
       }
     }
     if (!pushed) saveWeeklyDrop(ds, lb);
+  };
+
+  // A day's chips in display order: the saved manual order when there is one
+  // (chips not in it, e.g. newly added, follow in the default order), else
+  // timed chips first by time, then untimed in their original order.
+  const orderedDayChips = (ds) => {
+    const order = weekOrder[ds];
+    const rank = (ev) => {
+      const i = order ? order.indexOf(chipOrderKey(ev)) : -1;
+      return i < 0 ? Infinity : i;
+    };
+    return (weekEvents[ds] ?? [])
+      .map((ev, idx) => ({ ev, idx }))
+      .sort((a, b) => {
+        const ra = rank(a.ev);
+        const rb = rank(b.ev);
+        if (ra !== rb) return ra < rb ? -1 : 1;
+        return (a.ev.time ? 0 : 1) - (b.ev.time ? 0 : 1) || (a.ev.time ?? "").localeCompare(b.ev.time ?? "") || a.idx - b.idx;
+      });
+  };
+  const clearChipDrag = () => {
+    draggedChip.current = null;
+    setDraggingChip(null);
+    setInsertAt(null);
+  };
+  const isTopHalf = (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    return e.clientY < r.top + r.height / 2;
+  };
+  // Dragging a chip over another chip of the same day shows where it would land.
+  // Anything else (other days, MITs, the Hitlist) bubbles to the day column as a move.
+  const onChipDragOver = (e, ds, idx) => {
+    const drag = draggedChip.current;
+    if (!drag || drag.ds !== ds) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverDay(null);
+    if (drag.idx === idx) return setInsertAt(null);
+    const pos = isTopHalf(e) ? "before" : "after";
+    setInsertAt((prev) => (prev && prev.ds === ds && prev.idx === idx && prev.pos === pos ? prev : { ds, idx, pos }));
+  };
+  // Reorder inside one day. The chip's label and time are untouched: the user is
+  // overriding the time sort by hand, so no time is reassigned.
+  const onChipDrop = (e, ds, idx) => {
+    const drag = draggedChip.current;
+    if (!drag || drag.ds !== ds) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const pos = isTopHalf(e) ? "before" : "after";
+    clearChipDrag();
+    if (drag.idx === idx) return;
+    const rest = orderedDayChips(ds);
+    const from = rest.findIndex((x) => x.idx === drag.idx);
+    if (from < 0) return;
+    const [moved] = rest.splice(from, 1);
+    const target = rest.findIndex((x) => x.idx === idx);
+    if (target < 0) return;
+    rest.splice(pos === "before" ? target : target + 1, 0, moved);
+    const keys = rest.map((x) => chipOrderKey(x.ev));
+    setWeekOrder((prev) => ({ ...prev, [ds]: keys }));
+    saveWeeklyOrder(ds, keys);
   };
 
   // A weekly chip dragged to another day: moves there with its type and time.
@@ -1961,10 +2062,7 @@ export default function Home() {
           <div className="week-grid">
             {weekDays.map((d) => {
               const ds = isoDate(d);
-              // Timed chips first, earliest first; untimed chips below in their original order.
-              const evs = (weekEvents[ds] ?? [])
-                .map((ev, idx) => ({ ev, idx }))
-                .sort((a, b) => (a.ev.time ? 0 : 1) - (b.ev.time ? 0 : 1) || (a.ev.time ?? "").localeCompare(b.ev.time ?? "") || a.idx - b.idx);
+              const evs = orderedDayChips(ds);
               return (
                 <div
                   key={ds}
@@ -1974,8 +2072,15 @@ export default function Home() {
                     e.preventDefault();
                     setDragOverDay(ds);
                   }}
-                  onDragLeave={() => setDragOverDay(null)}
-                  onDrop={(e) => !isZoneDrag(e) && dropOnDay(e, ds)}
+                  onDragLeave={(e) => {
+                    setDragOverDay(null);
+                    if (!e.currentTarget.contains(e.relatedTarget)) setInsertAt(null);
+                  }}
+                  onDrop={(e) => {
+                    if (isZoneDrag(e)) return;
+                    dropOnDay(e, ds);
+                    clearChipDrag();
+                  }}
                 >
                   <div className="wd-n">{DAYNAMES[d.getDay()]}</div>
                   {ds === todayISO ? (
@@ -1989,22 +2094,33 @@ export default function Home() {
                   {evs.length ? (
                     evs.map(({ ev, idx }) => {
                       const text = ev.time ? `${ev.time} ${ev.l}` : ev.l;
+                      const line = (pos) =>
+                        insertAt && insertAt.ds === ds && insertAt.idx === idx && insertAt.pos === pos ? <div className="ev-ins" aria-hidden="true" /> : null;
                       return (
-                        <div
-                          key={idx}
-                          className={`ev ev-${ev.t}${isWeeklyDone(ds, ev.l) ? " ev-done" : ""}`}
-                          title={text}
-                          draggable
-                          onDragStart={(e) => {
-                            e.stopPropagation();
-                            e.dataTransfer.setData("week-chip", JSON.stringify({ ds, idx }));
-                            e.dataTransfer.setData("text/plain", ev.l);
-                            e.dataTransfer.setData("source", "week");
-                          }}
-                          {...clickOrDouble(() => openWeekPanel(ds, ev, idx), () => setWeeklyDoneFor(ds, ev.l, !isWeeklyDone(ds, ev.l)))}
-                        >
-                          {text}
-                        </div>
+                        <Fragment key={idx}>
+                          {line("before")}
+                          <div
+                            className={`ev ev-${ev.t}${isWeeklyDone(ds, ev.l) ? " ev-done" : ""}${draggingChip?.ds === ds && draggingChip.idx === idx ? " ev-dragging" : ""}`}
+                            title={text}
+                            draggable
+                            onDragStart={(e) => {
+                              e.stopPropagation();
+                              draggedChip.current = { ds, idx, label: ev.l };
+                              e.dataTransfer.setData("week-chip", JSON.stringify({ ds, idx }));
+                              e.dataTransfer.setData("text/plain", ev.l);
+                              e.dataTransfer.setData("source", "week");
+                              e.dataTransfer.effectAllowed = "move";
+                              setDraggingChip({ ds, idx });
+                            }}
+                            onDragEnd={clearChipDrag}
+                            onDragOver={(e) => onChipDragOver(e, ds, idx)}
+                            onDrop={(e) => onChipDrop(e, ds, idx)}
+                            {...clickOrDouble(() => openWeekPanel(ds, ev, idx), () => setWeeklyDoneFor(ds, ev.l, !isWeeklyDone(ds, ev.l)))}
+                          >
+                            {text}
+                          </div>
+                          {line("after")}
+                        </Fragment>
                       );
                     })
                   ) : (

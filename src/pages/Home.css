@@ -126,6 +126,13 @@ body { font-family: var(--font); background: var(--bg); color: var(--t1); font-s
 .wd-now { display: inline-flex; align-items: center; gap: 3px; font-size: 9px; font-weight: 600; color: #ef4444; font-variant-numeric: tabular-nums; }
 .wd-now i { width: 5px; height: 5px; border-radius: 50%; background: #ef4444; }
 .ev[draggable="true"] { cursor: grab; }
+.ev[draggable="true"]:active, .ev.ev-dragging { cursor: grabbing; }
+.ev.ev-dragging { opacity: .45; }
+/* Reorder insertion line: zero-height so it doesn't shift the chips, and a
+   sibling of the chip because .ev clips overflow. */
+.ev-ins { position: relative; height: 0; pointer-events: none; z-index: 1; }
+.ev-ins::before { content: ""; position: absolute; left: 0; right: 0; top: -2px; height: 2px; background: #3b82f6; }
+.ev-ins::after { content: ""; position: absolute; left: -2px; top: -4px; width: 6px; height: 6px; border-radius: 50%; background: #3b82f6; }
 .drag-over-day { background: var(--blue-bg) !important; outline: 2px dashed var(--blue); outline-offset: -2px; border-radius: 6px; }
 
 /* ── NEW TASK BAR ── */
