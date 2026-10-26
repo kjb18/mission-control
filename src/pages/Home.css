@@ -375,6 +375,9 @@ body { font-family: var(--font); background: var(--bg); color: var(--t1); font-s
 
 /* ── Topbar brief: one line, full text on hover ── */
 .tb-brief { min-width: 0; }
+.tb-triage { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; font-family: var(--font); font-size: 10px; font-weight: 600; color: var(--amber-dk); background: var(--amber-bg); border: none; border-radius: 20px; padding: 2px 8px; cursor: pointer; white-space: nowrap; }
+.tb-triage:hover { background: #fde68a; }
+.tb-triage svg { width: 10px; height: 10px; stroke: var(--amber-dk); fill: none; }
 .tb-brief-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 
 /* ── Crosshairs: today's featured target ── */

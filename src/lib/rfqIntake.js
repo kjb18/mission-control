@@ -2,7 +2,7 @@ import { supabase } from "./supabaseClient";
 import { createTask, CLICKUP_RFQ_TASK_LIST_ID } from "./clickup";
 import { createEvent, EVENT_COLOR_IDS } from "./googleCalendar";
 
-async function resolveOrCreateClient(name) {
+export async function resolveOrCreateClient(name) {
   if (!name || !name.trim()) return null;
   const trimmed = name.trim();
 

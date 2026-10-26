@@ -24,6 +24,8 @@ export function stageOf(status) {
   return STAGES.find((s) => (s.includes ?? [s.key]).includes(status))?.key ?? status;
 }
 
+// The board is built from rfqs filtered to STAGE_KEYS, so deals still waiting in
+// triage (status "triage_pending", no rfqs row yet) can never show on it.
 export async function fetchPipelineRfqs() {
   const { data, error } = await supabase
     .from("rfqs")

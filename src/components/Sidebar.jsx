@@ -15,6 +15,7 @@ import {
   ContactsIcon,
   LearningIcon,
   TruckIcon,
+  FunnelIcon,
   SettingsIcon,
   LogoMark,
 } from "./icons";
@@ -30,6 +31,7 @@ const NAV_SECTIONS = [
   {
     label: "Operations",
     items: [
+      { to: "/triage", label: "Triage", icon: FunnelIcon, badgeKey: "triage" },
       { to: "/pipeline", label: "Pipeline", icon: PipelineIcon },
       { to: "/intake", label: "Intake", icon: IntakeIcon },
       { to: "/sourcing", label: "Sourcing", icon: SourcingIcon },
@@ -60,7 +62,7 @@ const NAV_SECTIONS = [
   },
 ];
 
-export default function Sidebar({ isOpen, onNavigate }) {
+export default function Sidebar({ isOpen, onNavigate, triageCount = 0 }) {
   const { user, signOut } = useAuth();
   const { isComplete } = useCheckIn();
 
@@ -97,8 +99,8 @@ export default function Sidebar({ isOpen, onNavigate }) {
               </div>
             )}
             <div className="space-y-0.5">
-              {section.items.map(({ to, label, icon, end, tone }) => (
-                <NavItem key={to} to={to} end={end} icon={icon} tone={tone} onClick={onNavigate}>
+              {section.items.map(({ to, label, icon, end, tone, badgeKey }) => (
+                <NavItem key={to} to={to} end={end} icon={icon} tone={tone} onClick={onNavigate} badge={badgeKey === "triage" ? triageCount : 0}>
                   {label}
                 </NavItem>
               ))}

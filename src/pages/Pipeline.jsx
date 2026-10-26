@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   STAGES,
   QUOTE_EXPIRY_DAYS,
@@ -13,6 +13,7 @@ import {
 import PoReceiptModal from "./pipeline/PoReceiptModal";
 import ConfirmDeliveryModal from "./pipeline/ConfirmDeliveryModal";
 import { ensureDealsForRfqs } from "../lib/deals";
+import { countTriagePendingDeals } from "../lib/triage";
 import { PageHeader, Card, Badge, Button } from "../components/ui";
 
 const URGENCY_STYLES = {
@@ -30,6 +31,13 @@ export default function Pipeline() {
   const [dragOverStage, setDragOverStage] = useState(null);
   const [poReceiptCard, setPoReceiptCard] = useState(null);
   const [deliveryCard, setDeliveryCard] = useState(null);
+  const [triageCount, setTriageCount] = useState(0);
+
+  useEffect(() => {
+    countTriagePendingDeals()
+      .then(setTriageCount)
+      .catch((e) => console.warn("[Pipeline] triage count unavailable:", e.message));
+  }, []);
 
   const load = useCallback(() => {
     // Every RFQ gets a deal (once) before the cards are read, so each card can link to it.
@@ -94,6 +102,17 @@ export default function Pipeline() {
       <PageHeader
         title="Pipeline Board"
         subtitle="Drag a card to move it manually — it also moves itself as RFQs progress elsewhere."
+        action={
+          triageCount > 0 && (
+            <Link
+              to="/triage"
+              className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 text-amber-800 font-semibold hover:bg-amber-200 transition-colors"
+              style={{ fontSize: 11, padding: "4px 10px" }}
+            >
+              {triageCount} awaiting triage →
+            </Link>
+          )
+        }
       />
 
       {error && (

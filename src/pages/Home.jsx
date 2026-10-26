@@ -4,6 +4,7 @@ import homeCss from "./Home.css?raw";
 import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { useCheckIn } from "../lib/CheckInContext";
+import { countPendingTriage } from "../lib/triage";
 import { fetchAdminBacklogTasks, CLICKUP_WORKSPACE_ID } from "../lib/clickup";
 import { createEvent, isGoogleCalendarConfigured } from "../lib/googleCalendar";
 import { getAccessToken, adoptAccessToken } from "../lib/googleAuth";
@@ -371,6 +372,7 @@ async function dailyLogsHasColumns(columns) {
 const Icon = ({ children }) => <svg viewBox="0 0 24 24">{children}</svg>;
 const ICONS = {
   home: <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />,
+  funnel: <path d="M4 4h16v2.2a2 2 0 01-.6 1.4L15 12v7l-6 2v-8.5L4.5 7.6A2 2 0 014 6.2z" />,
   pipeline: (<><rect x="3" y="3" width="7" height="18" /><rect x="14" y="3" width="7" height="10" /></>),
   pulse: <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />,
   search: (<><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>),
@@ -399,6 +401,7 @@ const NAV = [
   {
     section: "Operations",
     items: [
+      { label: "Triage", to: "/triage", icon: "funnel" },
       { label: "Pipeline", to: "/pipeline", icon: "pipeline" },
       { label: "Intake", to: "/intake", icon: "pulse" },
       { label: "Sourcing", to: "/sourcing", icon: "search" },
@@ -739,8 +742,16 @@ export default function Home() {
   const [learnModule, setLearnModule] = useState(null);
   const [seoOkr, setSeoOkr] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [triagePending, setTriagePending] = useState(0);
   const schema = useRef({ mitColumns: false, timeBlocks: false, mitDone: false, mitMeta: false });
   const savedMitCount = useRef(0);
+
+  // Pending triage items, for the pill next to the morning brief.
+  useEffect(() => {
+    countPendingTriage()
+      .then(setTriagePending)
+      .catch((e) => console.warn("[Home] triage count unavailable:", e.message));
+  }, []);
 
   const [showRitual, setShowRitual] = useState(() => !ritualDismissed());
   const [ritualDone, setRitualDone] = useState(false);
@@ -2591,6 +2602,12 @@ export default function Home() {
               <div className="tb-brief" title={aiBrief ?? brief}>
                 <svg viewBox="0 0 24 24">{ICONS.sparkle}</svg>
                 <span className="tb-brief-text">{aiBrief ?? brief}</span>
+                {triagePending > 0 && (
+                  <button type="button" className="tb-triage" onClick={() => navigate("/triage")}>
+                    <svg viewBox="0 0 24 24">{ICONS.funnel}</svg>
+                    {triagePending} RFQ{triagePending === 1 ? "" : "s"} to triage
+                  </button>
+                )}
               </div>
             </div>
             <div className="tb-r">

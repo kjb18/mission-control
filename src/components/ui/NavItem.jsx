@@ -1,6 +1,6 @@
 import { NavLink } from "react-router-dom";
 
-export default function NavItem({ to, end, icon: Icon, children, tone = "blue", onClick }) {
+export default function NavItem({ to, end, icon: Icon, children, tone = "blue", onClick, badge = 0 }) {
   const isPurple = tone === "purple";
 
   return (
@@ -29,6 +29,15 @@ export default function NavItem({ to, end, icon: Icon, children, tone = "blue", 
             />
           )}
           <span className="truncate">{children}</span>
+          {badge > 0 && (
+            <span
+              className="ml-auto shrink-0 rounded-full bg-amber-100 text-amber-800 font-semibold tabular-nums"
+              style={{ fontSize: 9, padding: "1px 6px" }}
+              aria-label={`${badge} pending`}
+            >
+              {badge}
+            </span>
+          )}
         </>
       )}
     </NavLink>
