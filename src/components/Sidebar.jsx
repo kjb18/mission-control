@@ -12,7 +12,8 @@ import {
   PlanningIcon,
   ContentIcon,
   SeoIcon,
-  ContactsIcon,
+  BuildingIcon,
+  PersonIcon,
   LearningIcon,
   TruckIcon,
   FunnelIcon,
@@ -53,9 +54,15 @@ const NAV_SECTIONS = [
     ],
   },
   {
+    label: "CRM",
+    items: [
+      { to: "/companies", label: "Companies", icon: BuildingIcon },
+      { to: "/people", label: "People", icon: PersonIcon },
+    ],
+  },
+  {
     label: "Workspace",
     items: [
-      { to: "/contacts", label: "Contacts", icon: ContactsIcon },
       { to: "/learning-hub", label: "Learning Hub", icon: LearningIcon },
       { to: "/settings", label: "Settings", icon: SettingsIcon },
     ],

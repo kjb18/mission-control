@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   DECLINE_REASONS,
   UNDO_WINDOW_MS,
@@ -131,8 +132,8 @@ function TriageCard({ item, fading, busy, onAccept, onDecline, onOverride }) {
   );
 }
 
-function ManualModal({ onClose, onSaved, onError }) {
-  const [form, setForm] = useState({ client_name: "", rfq_number: "", subject: "", items: "", closing_date: "", notes: "" });
+function ManualModal({ initial, onClose, onSaved, onError }) {
+  const [form, setForm] = useState({ client_name: initial?.client_name ?? "", rfq_number: "", subject: "", items: "", closing_date: "", notes: "" });
   const [saving, setSaving] = useState(false);
   const [touched, setTouched] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -154,6 +155,7 @@ function ManualModal({ onClose, onSaved, onError }) {
         rfq_number: form.rfq_number.trim(),
         subject: form.subject.trim(),
         notes: form.notes.trim(),
+        company_id: initial?.company_id ?? null,
       });
       onSaved(row);
     } catch (e) {
@@ -207,7 +209,16 @@ export default function Triage() {
   const [loadError, setLoadError] = useState(null);
   const [busyId, setBusyId] = useState(null);
   const [fadingId, setFadingId] = useState(null);
-  const [modalOpen, setModalOpen] = useState(false);
+  // /triage?new=1&company=<name>&company_id=<id> (from a company's Deals tab) opens the
+  // manual form with that company filled in.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [prefill, setPrefill] = useState(() =>
+    searchParams.get("new") ? { client_name: searchParams.get("company") ?? "", company_id: searchParams.get("company_id") } : null
+  );
+  const [modalOpen, setModalOpen] = useState(Boolean(prefill));
+  useEffect(() => {
+    if (searchParams.get("new")) setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
   const [now, setNow] = useState(() => Date.now());
   const [toast, showToast] = useToast();
 
@@ -385,10 +396,15 @@ export default function Triage() {
 
       {modalOpen && (
         <ManualModal
-          onClose={() => setModalOpen(false)}
+          initial={prefill}
+          onClose={() => {
+            setModalOpen(false);
+            setPrefill(null);
+          }}
           onSaved={(row) => {
             setItems((list) => [row, ...list]);
             setModalOpen(false);
+            setPrefill(null);
             showToast("RFQ added to the triage queue");
             notifyTriageChanged();
           }}

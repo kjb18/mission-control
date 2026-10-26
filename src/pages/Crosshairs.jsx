@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { fetchTargets } from "../lib/crosshairs";
 import TargetCard from "./crosshairs/TargetCard";
 import TargetFormModal from "./crosshairs/TargetFormModal";
+import AddToCrosshairsModal from "./crosshairs/AddToCrosshairsModal";
 import LogTouchpointModal from "./crosshairs/LogTouchpointModal";
 import { PageHeader, Button, EmptyState } from "../components/ui";
 
@@ -9,7 +10,8 @@ export default function Crosshairs() {
   const [targets, setTargets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [formTarget, setFormTarget] = useState(null); // null closed, {} for create, target for edit
+  const [formTarget, setFormTarget] = useState(null); // null closed, target for edit
+  const [adding, setAdding] = useState(false);
   const [touchpointTarget, setTouchpointTarget] = useState(null);
 
   function load() {
@@ -24,6 +26,7 @@ export default function Crosshairs() {
 
   function handleSaved() {
     setFormTarget(null);
+    setAdding(false);
     setTouchpointTarget(null);
     load();
   }
@@ -34,8 +37,8 @@ export default function Crosshairs() {
         title="Target Accounts"
         subtitle="Sorted by priority, then by the most neglected last touchpoint first."
         action={
-          <Button variant="primary" className="!bg-violet-600" onClick={() => setFormTarget({})}>
-            + New Target
+          <Button variant="primary" className="!bg-violet-600" onClick={() => setAdding(true)}>
+            + Add to Crosshairs
           </Button>
         }
       />
@@ -49,9 +52,9 @@ export default function Crosshairs() {
       {!loading && targets.length === 0 ? (
         <EmptyState
           title="No targets yet"
-          subtitle="Add your first target account to start tracking touchpoints."
-          ctaLabel="+ New Target"
-          onCta={() => setFormTarget({})}
+          subtitle="Add a company to Crosshairs to start tracking touchpoints."
+          ctaLabel="+ Add to Crosshairs"
+          onCta={() => setAdding(true)}
           tone="purple"
         />
       ) : (
@@ -67,9 +70,10 @@ export default function Crosshairs() {
         </div>
       )}
 
+      {adding && <AddToCrosshairsModal onClose={() => setAdding(false)} onSaved={handleSaved} />}
       {formTarget !== null && (
         <TargetFormModal
-          target={formTarget.id ? formTarget : null}
+          target={formTarget}
           onClose={() => setFormTarget(null)}
           onSaved={handleSaved}
         />

@@ -1,0 +1,6 @@
+/* People page additions: the linked company under a name, and the company filter chip. */
+.pp-company-link { display: block; font-size: 11px; color: #64748b; background: none; border: none; padding: 0; margin-top: 1px; cursor: pointer; font-family: inherit; text-align: left; }
+.pp-company-link:hover { color: #1d4ed8; text-decoration: underline; }
+.pp-filter-chip { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; color: #334155; background: #eff6ff; border-radius: 8px; padding: 6px 12px; align-self: flex-start; }
+.pp-filter-clear { color: #1d4ed8; font-weight: 600; text-decoration: none; }
+.pp-filter-clear:hover { text-decoration: underline; }

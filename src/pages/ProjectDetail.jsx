@@ -45,6 +45,7 @@ export default function ProjectDetail() {
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState({});
   const [clients, setClients] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [rfqs, setRfqs] = useState([]);
   const [pos, setPos] = useState([]);
   const [quotes, setQuotes] = useState([]);
@@ -113,6 +114,7 @@ export default function ProjectDetail() {
     loadProject();
     loadLinked();
     supabase.from("clients").select("id, name").order("name").then(({ data }) => setClients(data ?? []));
+    supabase.from("companies").select("id, name").order("name").then(({ data }) => setCompanies(data ?? []));
   }, [loadProject, loadLinked]);
 
   // ---- Saving ------------------------------------------------------------------
@@ -221,6 +223,7 @@ export default function ProjectDetail() {
           saveNumber={saveNumber}
           saved={saved}
           clients={clients}
+          companies={companies}
           rfqs={rfqs}
           pos={pos}
           quotes={quotes}
@@ -244,7 +247,7 @@ export default function ProjectDetail() {
 // ============================ Tab 1: Overview ====================================
 
 
-function OverviewTab({ project, set, save, saveStage, saveNumber, saved, clients, rfqs, pos, quotes, sourcing, expenses, missionCount, taskCount }) {
+function OverviewTab({ project, set, save, saveStage, saveNumber, saved, clients, companies, rfqs, pos, quotes, sourcing, expenses, missionCount, taskCount }) {
   const stage = stageOfProject(project);
   // Recomputed on every render, so edits in the Expenses tab show here at once.
   const pnl = projectPnl(project.invoice_amount, expenses);
@@ -268,7 +271,11 @@ function OverviewTab({ project, set, save, saveStage, saveNumber, saved, clients
     </select>
   );
 
-  const clientOptions = clients.map((c) => ({ id: c.id, label: c.name }));
+  // The Client field picks from Companies (company_id). projects.client_id keeps pointing at
+  // the matching legacy clients row, by name, for the RFQ / quotation code that still uses it.
+  const clientOptions = companies.map((c) => ({ id: c.id, label: c.name }));
+  const legacyClientId = (name) => clients.find((c) => c.name.toLowerCase() === (name ?? "").trim().toLowerCase())?.id ?? null;
+  const companyIdFor = (name) => companies.find((c) => c.name.toLowerCase() === (name ?? "").trim().toLowerCase())?.id ?? null;
 
   // ---- Timeline ----
   const sourcingStart = sourcing.map((s) => s.started?.slice(0, 10)).filter(Boolean).sort()[0] ?? null;
@@ -296,11 +303,16 @@ function OverviewTab({ project, set, save, saveStage, saveNumber, saved, clients
             <Field label="Client" saved={saved.client_name}>
               <Combobox
                 value={project.client_name}
-                placeholder="Search clients…"
+                placeholder="Search companies…"
                 options={clientOptions}
-                onChange={(v) => set({ client_name: v, client_id: null })}
-                onPick={(o) => save({ client_id: o.id, client_name: o.label }, "client_name")}
-                onBlurText={() => save({ client_name: project.client_name || null, client_id: project.client_id ?? null }, "client_name")}
+                onChange={(v) => set({ client_name: v, client_id: null, company_id: null })}
+                onPick={(o) => save({ company_id: o.id, client_name: o.label, client_id: legacyClientId(o.label) }, "client_name")}
+                onBlurText={() =>
+                  save(
+                    { client_name: project.client_name || null, client_id: legacyClientId(project.client_name), company_id: companyIdFor(project.client_name) },
+                    "client_name"
+                  )
+                }
               />
             </Field>
             <Field label="VAT Type" saved={saved.vat_type}>{select("vat_type", VAT_TYPES, "VAT Inclusive")}</Field>

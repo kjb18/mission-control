@@ -3,7 +3,10 @@ import { supabase } from "./supabaseClient";
 export const CONTACT_TAGS = ["Client", "Supplier"];
 
 export async function fetchContacts() {
-  const { data, error } = await supabase.from("contacts").select("*").order("name", { ascending: true });
+  const { data, error } = await supabase
+    .from("contacts")
+    .select("*, companies(id, name)")
+    .order("name", { ascending: true });
   if (error) throw error;
   return data ?? [];
 }

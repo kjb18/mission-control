@@ -183,6 +183,7 @@ export default function Planning() {
   };
 
   // ---- Task panel ------------------------------------------------------------
+  const companyName = (id) => hierarchy.companyNameById?.(id) ?? "";
   const openPanel = (item) => {
     if (level === "project") {
       navigate(`/projects/${item.id}`);
@@ -196,7 +197,10 @@ export default function Planning() {
       id: item.id,
       title: nameOf(level, item),
       source: `${LEVEL_LABEL[level].slice(0, -1)} · Planning`,
+      // Projects carry a company (company_id); tasks and missions inherit it from their project.
+      companyField: level === "project",
       fields: {
+        ...(level === "project" ? { company: companyName(item.company_id) } : {}),
         area: area?.name ?? "",
         project: project?.name ?? "",
         mission: missionOf(item)?.name ?? "",
@@ -221,7 +225,16 @@ export default function Planning() {
     const common = { status: keyFor(t.level, fields.status), due_date: fields.due_date || null };
     const row =
       t.level === "project"
-        ? { name: title, area_id: ids.area_id, description: fields.notes || null, ...common }
+        ? {
+            name: title,
+            area_id: ids.area_id,
+            description: fields.notes || null,
+            // Untouched unless the project had a company or one was chosen (the list may have failed to load).
+            ...(fields.company || t.fields.company ? { company_id: hierarchy.ids.company(fields.company) ?? null } : {}),
+            // The project page shows this name as its Client, so keep the two in step.
+            ...(fields.company ? { client_name: fields.company } : {}),
+            ...common,
+          }
         : t.level === "mission"
           ? { name: title, area_id: ids.area_id, project_id: ids.project_id, priority: fields.priority, notes: fields.notes || null, ...common }
           : { title, ...ids, priority: fields.priority, notes: fields.notes || null, due_time: fields.due_time || null, ...common };

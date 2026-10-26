@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabaseClient";
 import { SEED_AREAS } from "./taskFields";
+import { createMinimalCompany } from "./companies";
 
 // Areas → projects → missions (→ work_items). Tables from migration 0017.
 // If the tables are unreachable, areas fall back to the six seed names and
@@ -16,10 +17,11 @@ function localList(key) {
 }
 
 export async function fetchHierarchy() {
-  const [areas, projects, missions] = await Promise.all([
+  const [areas, projects, missions, companies] = await Promise.all([
     supabase.from("areas").select("id, name, color, icon").order("name"),
-    supabase.from("projects").select("id, name, area_id, status, due_date, description, created_at, client_name, stage, stage_changed_at, updated_at, deadline, invoice_amount").order("created_at"),
+    supabase.from("projects").select("id, name, area_id, status, due_date, description, created_at, client_name, company_id, stage, stage_changed_at, updated_at, deadline, invoice_amount").order("created_at"),
     supabase.from("missions").select("id, name, project_id, area_id, status, priority, due_date, notes, created_at").order("created_at"),
+    supabase.from("companies").select("id, name").order("name"),
   ]);
   const tablesOk = !areas.error && !projects.error && !missions.error;
   if (!tablesOk) {
@@ -29,9 +31,10 @@ export async function fetchHierarchy() {
       areas: SEED_AREAS.map((name) => ({ id: null, name })),
       projects: localList("mc_projects").map((name) => ({ id: null, name, area_id: null })),
       missions: localList("mc_missions").map((name) => ({ id: null, name, project_id: null, area_id: null })),
+      companies: [],
     };
   }
-  return { tablesOk, areas: areas.data ?? [], projects: projects.data ?? [], missions: missions.data ?? [] };
+  return { tablesOk, areas: areas.data ?? [], projects: projects.data ?? [], missions: missions.data ?? [], companies: companies.data ?? [] };
 }
 
 export async function createProject({ name, areaId }) {
@@ -56,7 +59,7 @@ export async function createMission({ name, projectId, areaId }) {
  * by project, and inline create.
  */
 export function useHierarchy() {
-  const [state, setState] = useState({ tablesOk: false, areas: [], projects: [], missions: [] });
+  const [state, setState] = useState({ tablesOk: false, areas: [], projects: [], missions: [], companies: [] });
   const reload = useCallback(async () => setState(await fetchHierarchy()), []);
   useEffect(() => {
     reload();
@@ -67,6 +70,7 @@ export function useHierarchy() {
     const projectByName = (n) => state.projects.find((p) => p.name === n);
     return {
       areas: state.areas.map((a) => a.name),
+      companies: (state.companies ?? []).map((c) => c.name),
       projectsFor: (areaName) => {
         const area = areaByName(areaName);
         return state.projects.filter((p) => !area?.id || p.area_id === area.id).map((p) => p.name);
@@ -76,7 +80,9 @@ export function useHierarchy() {
         return state.missions.filter((m) => !project?.id || m.project_id === project.id).map((m) => m.name);
       },
       create: async (type, name, { area, project } = {}) => {
-        if (!state.tablesOk) {
+        if (type === "company") {
+          await createMinimalCompany(name);
+        } else if (!state.tablesOk) {
           const key = type === "project" ? "mc_projects" : "mc_missions";
           const list = localList(key);
           if (!list.includes(name)) localStorage.setItem(key, JSON.stringify([...list, name]));
@@ -88,10 +94,12 @@ export function useHierarchy() {
         }
         await reload();
       },
+      companyNameById: (id) => (state.companies ?? []).find((c) => c.id === id)?.name ?? "",
       ids: {
         area: (n) => areaByName(n)?.id ?? null,
         project: (n) => projectByName(n)?.id ?? null,
         mission: (n) => state.missions.find((m) => m.name === n)?.id ?? null,
+        company: (n) => (state.companies ?? []).find((c) => c.name === n)?.id ?? null,
       },
     };
   }, [state, reload]);

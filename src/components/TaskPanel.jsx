@@ -198,6 +198,20 @@ export default function TaskPanel({ open, task, hierarchy, onClose, onSave, onDe
                     onCreate={(name) => hierarchy.create("mission", name, { area: fields.area, project: fields.project })}
                   />
                 </div>
+                {task.companyField && (
+                  <div className="tp-row">
+                    <span className="tp-label">Company</span>
+                    <SmartSelect
+                      value={fields.company ?? ""}
+                      options={hierarchy.companies ?? []}
+                      onChange={setValue("company")}
+                      allowNone
+                      placeholder="No company"
+                      createLabel="Create new company"
+                      onCreate={(name) => hierarchy.create("company", name)}
+                    />
+                  </div>
+                )}
                 <div className="tp-row">
                   <span className="tp-label">Type</span>
                   <select className="tp-input" value={fields.type} onChange={set("type")}>

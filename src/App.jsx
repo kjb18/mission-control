@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/AuthContext";
 import { CheckInProvider } from "./lib/CheckInContext";
 import LoginScreen from "./components/LoginScreen";
@@ -17,7 +17,8 @@ import ProjectDetail from "./pages/ProjectDetail";
 import DealDetail from "./pages/DealDetail";
 import Brewing from "./pages/Brewing";
 import LearningHub from "./pages/LearningHub";
-import Contacts from "./pages/Contacts";
+import Companies from "./pages/Companies";
+import People from "./pages/People";
 import Logistics from "./pages/Logistics";
 import Triage from "./pages/Triage";
 import Seo from "./pages/Seo";
@@ -59,7 +60,10 @@ function AppRoutes() {
           <Route path="deals/:id" element={<DealDetail />} />
           <Route path="brewing" element={<Brewing />} />
           <Route path="learning-hub" element={<LearningHub />} />
-          <Route path="contacts" element={<Contacts />} />
+          {/* /contacts moved to /people; the redirect keeps old links working. */}
+          <Route path="contacts" element={<Navigate to="/people" replace />} />
+          <Route path="companies" element={<Companies />} />
+          <Route path="people" element={<People />} />
           <Route path="logistics" element={<Logistics />} />
           <Route path="triage" element={<Triage />} />
           <Route path="seo" element={<Seo />} />

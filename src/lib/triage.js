@@ -1,5 +1,7 @@
 import { supabase } from "./supabaseClient";
 import { resolveOrCreateClient } from "./rfqIntake";
+import { manilaToday } from "./dateUtils";
+import { findCompanyIdByName } from "./companies";
 
 // RFQ Triage (migration 0027). Items wait in triage_queue; a deal is only
 // "real" Pipeline work once it has an rfqs row, because the board reads rfqs.
@@ -24,7 +26,7 @@ export const effectiveVerdict = (item) =>
 // ---- Manila dates -------------------------------------------------------------------
 const manilaDay = (d) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(d); // yyyy-mm-dd
 
-export const manilaToday = () => manilaDay(new Date());
+export { manilaToday };
 export const isManilaToday = (iso) => Boolean(iso) && manilaDay(new Date(iso)) === manilaToday();
 const manilaMidnightISO = (day = manilaToday()) => new Date(`${day}T00:00:00+08:00`).toISOString();
 
@@ -98,7 +100,8 @@ export const notifyTriageChanged = () => window.dispatchEvent(new Event("triage:
 // ---- Mutations ----------------------------------------------------------------------
 
 /** Manual entry: a pending queue row plus a linked triage_pending deal. */
-export async function createManualRfq({ client_name, rfq_number, subject, items, closing_date, notes }) {
+export async function createManualRfq({ client_name, rfq_number, subject, items, closing_date, notes, company_id = null }) {
+  const companyId = company_id || (await findCompanyIdByName(client_name));
   const names = (items ?? "")
     .split(/\n|,/)
     .map((s) => s.trim())
@@ -107,6 +110,7 @@ export async function createManualRfq({ client_name, rfq_number, subject, items,
     .from("deals")
     .insert({
       client_name,
+      company_id: companyId,
       rfq_number: rfq_number || null,
       title: rfq_number || subject || client_name,
       status: "triage_pending",
@@ -163,6 +167,10 @@ export async function acceptItem(item) {
   };
   const title = item.rfq_number || item.subject || item.client_name || "Untitled RFQ";
 
+  // Link the deal to its company when the client name matches one in Companies.
+  const companyId = await findCompanyIdByName(item.client_name);
+  const companyFields = companyId ? { company_id: companyId } : {};
+
   let dealId = item.deal_id;
   const createdDeal = !dealId;
   if (createdDeal) {
@@ -177,6 +185,7 @@ export async function acceptItem(item) {
         received_date: received,
         closing_date: item.closing_date,
         ...triageFields,
+        ...companyFields,
       })
       .select("id")
       .single();
@@ -214,7 +223,7 @@ export async function acceptItem(item) {
 
     const { error: dealError } = await supabase
       .from("deals")
-      .update({ rfq_id: rfqId, status: "intake_confirmed", stage: "intake_confirmed", stage_changed_at: now, ...triageFields })
+      .update({ rfq_id: rfqId, status: "intake_confirmed", stage: "intake_confirmed", stage_changed_at: now, ...triageFields, ...companyFields })
       .eq("id", dealId);
     if (dealError) throw dealError;
 

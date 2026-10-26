@@ -1,7 +1,10 @@
 import { supabase } from "./supabaseClient";
 import { todayISODate } from "./dateUtils";
+import { PRIORITIES, updateCompany, logCrosshairsTouchpoint } from "./companies";
 
-export const PRIORITIES = ["Hot", "Medium", "Low", "Nurturing"];
+// Crosshairs targets are companies with crosshairs_active = true (migration 0028).
+// crosshairs_targets is no longer read or written; it stays in the database for rollback.
+export { PRIORITIES };
 
 const PRIORITY_RANK = { Hot: 0, Medium: 1, Low: 2, Nurturing: 2 };
 
@@ -18,67 +21,45 @@ function sortTargets(targets) {
 }
 
 export async function fetchTargets() {
-  const { data, error } = await supabase.from("crosshairs_targets").select("*");
+  const { data, error } = await supabase
+    .from("companies")
+    .select("*, contacts(name)")
+    .eq("crosshairs_active", true);
   if (error) throw error;
   return sortTargets(data ?? []);
 }
 
 export async function fetchTarget(id) {
-  const { data, error } = await supabase.from("crosshairs_targets").select("*").eq("id", id).single();
+  const { data, error } = await supabase.from("companies").select("*").eq("id", id).single();
   if (error) throw error;
   return data;
 }
 
-export async function createTarget(fields) {
-  const { data, error } = await supabase.from("crosshairs_targets").insert(fields).select().single();
-  if (error) throw error;
-  return data;
+/** Edits a Crosshairs company's fields. */
+export const updateTarget = updateCompany;
+
+/** Puts an existing company on Crosshairs with the given priority. */
+export function addToCrosshairs(companyId, priority) {
+  return updateCompany(companyId, { crosshairs_active: true, priority });
 }
 
-export async function updateTarget(id, fields) {
-  const { data, error } = await supabase
-    .from("crosshairs_targets")
-    .update(fields)
-    .eq("id", id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
+/** Takes a company off Crosshairs. The company and its history stay in the directory. */
+export function removeFromCrosshairs(companyId) {
+  return updateCompany(companyId, { crosshairs_active: false });
 }
 
-export async function deleteTarget(id) {
-  const { error } = await supabase.from("crosshairs_targets").delete().eq("id", id);
-  if (error) throw error;
-}
-
-export async function fetchTouchpoints(targetId) {
+export async function fetchTouchpoints(companyId) {
   const { data, error } = await supabase
     .from("crosshairs_touchpoints")
     .select("*")
-    .eq("target_id", targetId)
+    .eq("company_id", companyId)
     .order("touchpoint_date", { ascending: false });
   if (error) throw error;
   return data ?? [];
 }
 
-/** Task 1: log a touchpoint and bump the target's last_touchpoint_date. */
-export async function logTouchpoint(targetId, { date, note }) {
-  const touchpointDate = date || todayISODate();
-
-  const { error: insertError } = await supabase
-    .from("crosshairs_touchpoints")
-    .insert({ target_id: targetId, touchpoint_date: touchpointDate, note });
-  if (insertError) throw insertError;
-
-  const { data, error: updateError } = await supabase
-    .from("crosshairs_targets")
-    .update({ last_touchpoint_date: touchpointDate })
-    .eq("id", targetId)
-    .select()
-    .single();
-  if (updateError) throw updateError;
-  return data;
-}
+/** Logs a touchpoint and bumps the company's last_touchpoint_date. */
+export const logTouchpoint = logCrosshairsTouchpoint;
 
 // --- Daily rotation (Task 2) ---------------------------------------------
 
@@ -135,10 +116,12 @@ export async function fetchTodaysRotatedTarget() {
     .maybeSingle();
 
   if (log?.crosshairs_rotation?.target_id) {
+    // Migrated companies kept their old target ids, so a cached pick still resolves.
     const { data: cached } = await supabase
-      .from("crosshairs_targets")
+      .from("companies")
       .select("*")
       .eq("id", log.crosshairs_rotation.target_id)
+      .eq("crosshairs_active", true)
       .maybeSingle();
     if (cached) return cached;
     // Target was deleted since — fall through and recompute.

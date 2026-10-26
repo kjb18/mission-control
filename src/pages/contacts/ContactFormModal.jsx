@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import Modal from "../../components/Modal";
 import { CONTACT_TAGS, createContact, updateContact, deleteContact, fetchClientsForLinking } from "../../lib/contacts";
+import { CONTACT_TYPES, RELATIONSHIP_STRENGTHS, fetchCompanyOptions, createMinimalCompany } from "../../lib/companies";
+import CompanyPicker from "../../components/CompanyPicker";
 
 const empty = {
   name: "",
@@ -12,9 +14,13 @@ const empty = {
   last_contact_date: "",
   notes: "",
   client_id: "",
+  company_id: "",
+  contact_type: "Decision Maker",
+  relationship_strength: "Secondary",
 };
 
-export default function ContactFormModal({ contact, onClose, onSaved }) {
+/** defaultCompany ({ id, name }) pre-fills the company when adding from a company's panel. */
+export default function ContactFormModal({ contact, defaultCompany = null, onClose, onSaved }) {
   const isEdit = Boolean(contact);
   const [form, setForm] = useState(
     contact
@@ -28,15 +34,22 @@ export default function ContactFormModal({ contact, onClose, onSaved }) {
           last_contact_date: contact.last_contact_date ?? "",
           notes: contact.notes ?? "",
           client_id: contact.client_id ?? "",
+          company_id: contact.company_id ?? "",
+          contact_type: contact.contact_type ?? "Decision Maker",
+          relationship_strength: contact.relationship_strength ?? "Secondary",
         }
-      : empty
+      : defaultCompany
+        ? { ...empty, company: defaultCompany.name, company_id: defaultCompany.id }
+        : empty
   );
   const [clients, setClients] = useState([]);
+  const [companies, setCompanies] = useState(defaultCompany ? [defaultCompany] : []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchClientsForLinking().then(setClients).catch(() => {});
+    fetchCompanyOptions().then(setCompanies).catch(() => {});
   }, []);
 
   function update(field, value) {
@@ -52,7 +65,12 @@ export default function ContactFormModal({ contact, onClose, onSaved }) {
     setSaving(true);
     setError(null);
     try {
-      const payload = { ...form, client_id: form.client_id || null, last_contact_date: form.last_contact_date || null };
+      const payload = {
+        ...form,
+        client_id: form.client_id || null,
+        company_id: form.company_id || null,
+        last_contact_date: form.last_contact_date || null,
+      };
       if (isEdit) await updateContact(contact.id, payload);
       else await createContact(payload);
       onSaved();
@@ -83,10 +101,20 @@ export default function ContactFormModal({ contact, onClose, onSaved }) {
             <span className="block text-xs text-ink-secondary mb-1">Full Name</span>
             <input value={form.name} onChange={(e) => update("name", e.target.value)} className="input" />
           </label>
-          <label className="block">
+          <div className="block">
             <span className="block text-xs text-ink-secondary mb-1">Company</span>
-            <input value={form.company} onChange={(e) => update("company", e.target.value)} className="input" />
-          </label>
+            <CompanyPicker
+              companies={companies}
+              value={form.company_id || null}
+              // The legacy text column stays in sync so older screens still show the name.
+              onChange={(id, company) => setForm((f) => ({ ...f, company_id: id ?? "", company: company?.name ?? "" }))}
+              onCreate={async (name) => {
+                const created = await createMinimalCompany(name);
+                setCompanies((list) => (list.some((c) => c.id === created.id) ? list : [...list, created]));
+                return created;
+              }}
+            />
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
@@ -100,6 +128,24 @@ export default function ContactFormModal({ contact, onClose, onSaved }) {
                 <option key={t} value={t}>
                   {t}
                 </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className="block text-xs text-ink-secondary mb-1">Contact Type</span>
+            <select value={form.contact_type} onChange={(e) => update("contact_type", e.target.value)} className="input">
+              {CONTACT_TYPES.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="block text-xs text-ink-secondary mb-1">Relationship Strength</span>
+            <select value={form.relationship_strength} onChange={(e) => update("relationship_strength", e.target.value)} className="input">
+              {RELATIONSHIP_STRENGTHS.map((t) => (
+                <option key={t} value={t}>{t}</option>
               ))}
             </select>
           </label>

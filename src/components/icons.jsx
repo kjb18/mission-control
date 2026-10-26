@@ -181,3 +181,23 @@ export const FunnelIcon = (p) => (
     <path d="M4 4h16v2.2a2 2 0 0 1-.6 1.4L15 12v7l-6 2v-8.5L4.5 7.6A2 2 0 0 1 4 6.2z" />
   </svg>
 );
+
+export const BuildingIcon = (p) => (
+  <svg viewBox="0 0 24 24" {...base} {...p}>
+    <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4" />
+    <path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01" />
+  </svg>
+);
+
+export const PersonIcon = (p) => (
+  <svg viewBox="0 0 24 24" {...base} {...p}>
+    <circle cx="12" cy="8" r="3.5" />
+    <path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" />
+  </svg>
+);
+
+export const FlameIcon = (p) => (
+  <svg viewBox="0 0 24 24" {...base} {...p}>
+    <path d="M12 3c1 3.2 4.5 4.8 4.5 9a4.5 4.5 0 0 1-9 0c0-1.7.7-2.9 1.6-3.9.2 1.2.9 1.9 1.7 2.2C10.5 8 10.8 5.4 12 3Z" />
+  </svg>
+);

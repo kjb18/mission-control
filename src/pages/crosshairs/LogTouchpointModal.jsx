@@ -25,7 +25,7 @@ export default function LogTouchpointModal({ target, onClose, onSaved }) {
   }
 
   return (
-    <Modal title={`Log Touchpoint — ${target.target_name}`} onClose={onClose}>
+    <Modal title={`Log Touchpoint — ${target.name}`} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <label className="block">
           <span className="block text-xs text-ink-secondary mb-1">Date</span>

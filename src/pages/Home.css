@@ -234,6 +234,7 @@ body { font-family: var(--font); background: var(--bg); color: var(--t1); font-s
 .xh-row:last-child { border-bottom: none; }
 .xh-dot, .bl-dot, .br-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .xh-n { flex: 1; font-weight: 600; color: var(--t1); }
+.xh-ago { font-size: 10px; color: var(--t4); white-space: nowrap; }
 .bl-area.drag-over-list { background: var(--blue-bg); outline: 2px dashed var(--blue); outline-offset: -2px; }
 .bl-row { display: flex; align-items: flex-start; gap: 7px; padding: 7px 14px; border-bottom: 1px solid var(--border-l); font-size: 12px; cursor: grab; transition: background .1s; }
 .bl-row:active { cursor: grabbing; }

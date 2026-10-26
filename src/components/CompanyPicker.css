@@ -1,0 +1,11 @@
+.cp-wrap { position: relative; width: 100%; }
+.cp-input { width: 100%; border: 1px solid #e8edf2; border-radius: 8px; padding: 8px 10px; font-size: 13px; font-family: inherit; color: #0f172a; background: #fff; outline: none; }
+.cp-input:focus { border-color: #3b82f6; }
+.cp-list { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 70; max-height: 220px; overflow-y: auto; background: #fff; border: 1px solid #e8edf2; border-radius: 8px; box-shadow: 0 4px 12px rgba(15,23,42,.1); padding: 4px 0; }
+.cp-opt { padding: 7px 10px; font-size: 13px; color: #0f172a; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-opt:hover { background: #eff6ff; }
+.cp-opt.sel { color: #1d4ed8; font-weight: 600; }
+.cp-none { color: #94a3b8; }
+.cp-create { color: #3b82f6; font-weight: 600; border-top: 1px solid #f1f5f9; }
+.cp-empty, .cp-error { padding: 7px 10px; font-size: 12px; color: #94a3b8; }
+.cp-error { color: #ef4444; }

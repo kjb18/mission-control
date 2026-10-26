@@ -1,35 +1,19 @@
 import { useState } from "react";
 import Modal from "../../components/Modal";
-import { PRIORITIES, createTarget, updateTarget, deleteTarget } from "../../lib/crosshairs";
+import { PRIORITIES, updateTarget, removeFromCrosshairs } from "../../lib/crosshairs";
 import { Button } from "../../components/ui";
 
-const empty = {
-  target_name: "",
-  industry: "",
-  priority: "Medium",
-  estimated_value: "",
-  primary_contact_name: "",
-  current_stage: "",
-  next_suggested_action: "",
-  notes: "",
-};
-
 export default function TargetFormModal({ target, onClose, onSaved }) {
-  const isEdit = Boolean(target);
-  const [form, setForm] = useState(
-    target
-      ? {
-          target_name: target.target_name ?? "",
-          industry: target.industry ?? "",
-          priority: target.priority ?? "Medium",
-          estimated_value: target.estimated_value ?? "",
-          primary_contact_name: target.primary_contact_name ?? "",
-          current_stage: target.current_stage ?? "",
-          next_suggested_action: target.next_suggested_action ?? "",
-          notes: target.notes ?? "",
-        }
-      : empty
-  );
+  // A target is a company on Crosshairs; new ones come from "+ Add to Crosshairs".
+  const [form, setForm] = useState({
+    name: target.name ?? "",
+    industry: target.industry ?? "",
+    priority: target.priority ?? "Medium",
+    estimated_deal_value: target.estimated_deal_value ?? "",
+    current_stage: target.current_stage ?? "",
+    next_suggested_action: target.next_suggested_action ?? "",
+    notes: target.notes ?? "",
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
@@ -39,16 +23,22 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.target_name.trim()) {
-      setError("Target name is required.");
+    if (!form.name.trim()) {
+      setError("Company name is required.");
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      const payload = { ...form, estimated_value: form.estimated_value === "" ? null : Number(form.estimated_value) };
-      if (isEdit) await updateTarget(target.id, payload);
-      else await createTarget(payload);
+      await updateTarget(target.id, {
+        name: form.name.trim(),
+        industry: form.industry.trim() || null,
+        priority: form.priority,
+        estimated_deal_value: form.estimated_deal_value === "" ? null : Number(form.estimated_deal_value),
+        current_stage: form.current_stage.trim() || null,
+        next_suggested_action: form.next_suggested_action.trim() || null,
+        notes: form.notes.trim() || null,
+      });
       onSaved();
     } catch (err) {
       setError(err.message);
@@ -58,10 +48,10 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete ${target.target_name}? This also deletes its touchpoint history.`)) return;
+    if (!confirm(`Remove ${target.name} from Crosshairs? The company stays in Companies.`)) return;
     setSaving(true);
     try {
-      await deleteTarget(target.id);
+      await removeFromCrosshairs(target.id);
       onSaved();
     } catch (err) {
       setError(err.message);
@@ -70,11 +60,11 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
   }
 
   return (
-    <Modal title={isEdit ? "Edit Target" : "New Target"} onClose={onClose}>
+    <Modal title="Edit Target" onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
         <label className="block">
-          <span className="block text-xs text-ink-secondary mb-1">Target Name</span>
-          <input value={form.target_name} onChange={(e) => update("target_name", e.target.value)} className="input" />
+          <span className="block text-xs text-ink-secondary mb-1">Company Name</span>
+          <input value={form.name} onChange={(e) => update("name", e.target.value)} className="input" />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
@@ -98,16 +88,8 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
             <input
               type="number"
               step="0.01"
-              value={form.estimated_value}
-              onChange={(e) => update("estimated_value", e.target.value)}
-              className="input"
-            />
-          </label>
-          <label className="block">
-            <span className="block text-xs text-ink-secondary mb-1">Primary Contact</span>
-            <input
-              value={form.primary_contact_name}
-              onChange={(e) => update("primary_contact_name", e.target.value)}
+              value={form.estimated_deal_value}
+              onChange={(e) => update("estimated_deal_value", e.target.value)}
               className="input"
             />
           </label>
@@ -133,16 +115,14 @@ export default function TargetFormModal({ target, onClose, onSaved }) {
 
         <div className="flex gap-2 pt-2">
           <Button type="submit" variant="primary" className="!bg-violet-600" disabled={saving}>
-            {saving ? "Saving…" : isEdit ? "Save Changes" : "Create Target"}
+            {saving ? "Saving…" : "Save Changes"}
           </Button>
           <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          {isEdit && (
-            <Button type="button" variant="danger" className="ml-auto !bg-red-500/10 !text-red-600" onClick={handleDelete} disabled={saving}>
-              Delete
-            </Button>
-          )}
+          <Button type="button" variant="danger" className="ml-auto !bg-red-500/10 !text-red-600" onClick={handleDelete} disabled={saving}>
+            Remove from Crosshairs
+          </Button>
         </div>
       </form>
     </Modal>

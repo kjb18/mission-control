@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { fetchContacts } from "../lib/contacts";
+import { fetchCompanyOptions } from "../lib/companies";
 import { csvToContacts, bulkInsertContacts } from "../lib/contactsCsv";
 import ContactFormModal from "./contacts/ContactFormModal";
+import "./People.css";
 import Modal from "../components/Modal";
 import FileDropOverlay, { useFileDrop } from "../components/FileDropOverlay";
 import Toast, { useToast } from "../components/Toast";
@@ -13,11 +16,17 @@ const SORTABLE_COLUMNS = [
   { key: "name", label: "Name" },
   { key: "company", label: "Company" },
   { key: "title", label: "Role" },
+  { key: "contact_type", label: "Type" },
+  { key: "relationship_strength", label: "Strength" },
   { key: "tag", label: "Tag" },
   { key: "last_contact_date", label: "Last Contact" },
 ];
 
-export default function Contacts() {
+export default function People() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const companyFilter = searchParams.get("company"); // from a company card's contact count
+  const [companies, setCompanies] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -40,6 +49,9 @@ export default function Contacts() {
   }
 
   useEffect(load, []);
+  useEffect(() => {
+    fetchCompanyOptions().then(setCompanies).catch(() => {});
+  }, []);
 
   function toggleSort(key) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -53,10 +65,12 @@ export default function Contacts() {
     const q = search.trim().toLowerCase();
     let rows = contacts.filter((c) => {
       if (tagFilter !== "All" && c.tag !== tagFilter) return false;
+      if (companyFilter && c.company_id !== companyFilter) return false;
       if (!q) return true;
       return (
         c.name?.toLowerCase().includes(q) ||
         c.company?.toLowerCase().includes(q) ||
+        c.companies?.name?.toLowerCase().includes(q) ||
         c.email?.toLowerCase().includes(q)
       );
     });
@@ -67,7 +81,7 @@ export default function Contacts() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return rows;
-  }, [contacts, search, tagFilter, sortKey, sortDir]);
+  }, [contacts, search, tagFilter, companyFilter, sortKey, sortDir]);
 
   async function readCsv(file) {
     if (!isCsv(file)) {
@@ -89,7 +103,11 @@ export default function Contacts() {
   async function confirmImport() {
     setImporting(true);
     try {
-      await bulkInsertContacts(importPreview.contacts);
+      // Link rows to an existing company when the CSV's company name matches one.
+      const byName = new Map(companies.map((c) => [c.name.toLowerCase(), c.id]));
+      await bulkInsertContacts(
+        importPreview.contacts.map((c) => ({ ...c, company_id: byName.get((c.company ?? "").toLowerCase()) ?? null }))
+      );
       const n = importPreview.contacts.length;
       setImportPreview(null);
       showToast(`${n} contact${n === 1 ? "" : "s"} imported successfully`);
@@ -118,7 +136,25 @@ export default function Contacts() {
         key === "tag"
           ? (c) => <Badge variant={c.tag === "Supplier" ? "purple" : "blue"}>{c.tag}</Badge>
           : key === "name"
-          ? (c) => c.name
+          ? (c) => (
+              <div>
+                <div>{c.name}</div>
+                {c.companies?.name && (
+                  <button
+                    type="button"
+                    className="pp-company-link"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/companies?open=${c.companies.id}`);
+                    }}
+                  >
+                    {c.companies.name}
+                  </button>
+                )}
+              </div>
+            )
+          : key === "company"
+          ? (c) => c.companies?.name || c.company || "—"
           : (c) => c[key] || "—",
     })),
     {
@@ -151,7 +187,7 @@ export default function Contacts() {
   return (
     <div className="max-w-6xl mx-auto space-y-5">
       <PageHeader
-        title="Directory"
+        title="People"
         action={
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => csvInputRef.current?.click()}>
@@ -180,6 +216,13 @@ export default function Contacts() {
       {error && (
         <p className="text-sm text-red-600 bg-red-400/10 border border-red-400/20 rounded-[10px] px-3 py-2">
           {error}
+        </p>
+      )}
+
+      {companyFilter && (
+        <p className="pp-filter-chip">
+          Showing contacts at <b>{companies.find((c) => c.id === companyFilter)?.name ?? "this company"}</b>
+          <Link to="/people" onClick={() => setSearchParams({})} className="pp-filter-clear">Clear ×</Link>
         </p>
       )}
 

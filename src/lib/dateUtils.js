@@ -1,3 +1,8 @@
+/** Today's date (yyyy-mm-dd) in Manila, regardless of the browser's timezone. */
+export function manilaToday() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Manila" }).format(new Date());
+}
+
 export function todayISODate() {
   const now = new Date();
   const offset = now.getTimezoneOffset();

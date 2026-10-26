@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../lib/AuthContext";
 import { useCheckIn } from "../lib/CheckInContext";
 import { countPendingTriage } from "../lib/triage";
+import { logHomeTouchpoint } from "../lib/companies";
 import { fetchAdminBacklogTasks, CLICKUP_WORKSPACE_ID } from "../lib/clickup";
 import { createEvent, isGoogleCalendarConfigured } from "../lib/googleCalendar";
 import { getAccessToken, adoptAccessToken } from "../lib/googleAuth";
@@ -383,6 +384,7 @@ const ICONS = {
   clock: (<><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></>),
   flame: <path d="M8.5 14.5A2.5 2.5 0 0011 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 11-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 002.5 2.5z" />,
   calendar: (<><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></>),
+  building: (<><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4" /><path d="M9 9h.01M9 12h.01M9 15h.01M9 18h.01" /></>),
   users: (<><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></>),
   book: (<><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" /><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" /></>),
   settings: (<><circle cx="12" cy="12" r="3" /><path d="M19.07 4.93l-1.41 1.41M5.34 17.66l-1.41 1.41M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 18.66l1.41 1.41M2 12h2M20 12h2" /></>),
@@ -423,9 +425,15 @@ const NAV = [
     ],
   },
   {
+    section: "CRM",
+    items: [
+      { label: "Companies", to: "/companies", icon: "building" },
+      { label: "People", to: "/people", icon: "users" },
+    ],
+  },
+  {
     section: "Workspace",
     items: [
-      { label: "Contacts", to: "/contacts", icon: "users" },
       { label: "Learning Hub", to: "/learning-hub", icon: "book" },
       { label: "Settings", to: "/settings", icon: "settings" },
     ],
@@ -587,7 +595,7 @@ function MorningRitual({ firstName, mit1, hotTarget, seoOkr, onClose, onComplete
             <div className="mm-prime">
               <div className="mm-prime-card">
                 <div className="mm-prime-label">Today's Crosshairs target</div>
-                <div className="mm-prime-val">{hotTarget?.target_name ?? "No targets yet"}</div>
+                <div className="mm-prime-val">{hotTarget?.name ?? "No targets yet"}</div>
                 <div className="mm-prime-sub">
                   {hotTarget
                     ? [hotTarget.priority, hotTarget.next_suggested_action || hotTarget.current_stage, lastContact == null ? "No contact logged" : `Last contact ${lastContact} day${lastContact === 1 ? "" : "s"} ago`]
@@ -851,7 +859,7 @@ export default function Home() {
           .from("invoices")
           .select("id", { count: "exact", head: true })
           .or(`status.eq.overdue,and(status.neq.paid,due_date.lt.${today})`),
-        supabase.from("crosshairs_targets").select("target_name, priority, next_suggested_action"),
+        supabase.from("companies").select("name, priority, next_suggested_action").eq("crosshairs_active", true),
       ]);
       const top = [...(xh.data ?? [])].sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9))[0];
       const rfqCount = count.count ?? 0;
@@ -860,7 +868,7 @@ export default function Home() {
         `Open RFQs: ${rfqCount}.`,
         `Most urgent: ${urgent ? `${urgent.rfq_number || urgent.title} closing ${urgent.closing_date}` : "none"}.`,
         `Overdue invoices: ${overdue.count ?? 0}.`,
-        `Top Crosshairs target: ${top ? `${top.target_name} (${top.priority})${top.next_suggested_action ? ` — next: ${top.next_suggested_action}` : ""}` : "none"}.`,
+        `Top Crosshairs target: ${top ? `${top.name} (${top.priority})${top.next_suggested_action ? ` — next: ${top.next_suggested_action}` : ""}` : "none"}.`,
       ].join(" ");
       let text;
       try {
@@ -997,7 +1005,7 @@ export default function Home() {
 
   const loadGrowth = useCallback(async () => {
     const [xh, br, lt, okrs] = await Promise.all([
-      supabase.from("crosshairs_targets").select("*"),
+      supabase.from("companies").select("*").eq("crosshairs_active", true),
       supabase.from("brewing_items").select("*"),
       supabase.from("learning_topics").select("*").eq("status", "active").order("updated_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("okrs").select("*"),
@@ -1296,7 +1304,7 @@ export default function Home() {
     openPanel({
       kind: "crosshairs",
       id: t.id,
-      title: t.target_name,
+      title: t.name,
       source: "Crosshairs target",
       fields: { ...pickFields(extra), priority: t.priority, notes: t.notes ?? "" },
       priorityOptions: ["Hot", "Medium", "Low", "Nurturing"],
@@ -1427,9 +1435,9 @@ export default function Home() {
         console.warn("[Home] saving hitlist task to work_items failed:", (existing.error ?? res.error).message);
       }
     } else if (t.kind === "crosshairs") {
-      const { error } = await supabase.from("crosshairs_targets").update({ target_name: title, priority, notes: notes || null }).eq("id", t.id);
-      if (error) console.warn("[Home] updating crosshairs target failed:", error.message);
-      else setTargets((prev) => prev.map((x) => (x.id === t.id ? { ...x, target_name: title, priority, notes } : x)));
+      const { error } = await supabase.from("companies").update({ name: title, priority, notes: notes || null }).eq("id", t.id);
+      if (error) console.warn("[Home] updating crosshairs company failed:", error.message);
+      else setTargets((prev) => prev.map((x) => (x.id === t.id ? { ...x, name: title, priority, notes } : x)));
       saveTaskProps(`crosshairs:${t.id}`, rest);
     } else if (t.kind === "brewing") {
       const { error } = await supabase.from("brewing_items").update({ name: title, status, notes: notes || null }).eq("id", t.id);
@@ -1466,8 +1474,9 @@ export default function Home() {
     } else if (t.kind === "hitlist") {
       persistLogTasks(logTasksRef.current.filter((x) => x.id !== t.id));
     } else if (t.kind === "crosshairs") {
-      const { error } = await supabase.from("crosshairs_targets").delete().eq("id", t.id);
-      if (error) console.warn("[Home] deleting crosshairs target failed:", error.message);
+      // The company itself stays in the directory; it just leaves Crosshairs.
+      const { error } = await supabase.from("companies").update({ crosshairs_active: false }).eq("id", t.id);
+      if (error) console.warn("[Home] removing company from Crosshairs failed:", error.message);
       else setTargets((prev) => prev.filter((x) => x.id !== t.id));
     } else if (t.kind === "brewing") {
       const { error } = await supabase.from("brewing_items").delete().eq("id", t.id);
@@ -1493,17 +1502,15 @@ export default function Home() {
     const t = featuredTarget;
     if (!t) return;
     setTouchSaving(true);
-    const today = isoDate(getManilaDate());
-    const ins = await supabase
-      .from("crosshairs_touchpoints")
-      .insert({ target_id: t.id, note: touchNote.trim() || null, touchpoint_date: today });
-    if (ins.error) console.warn("[Home] crosshairs_touchpoints unavailable — updating last_touchpoint_date only:", ins.error.message);
-    const upd = await supabase.from("crosshairs_targets").update({ last_touchpoint_date: today }).eq("id", t.id);
-    setTouchSaving(false);
-    if (ins.error && upd.error) {
-      console.warn("[Home] logging touchpoint failed:", upd.error.message);
+    let today;
+    try {
+      today = await logHomeTouchpoint(t.id, touchNote.trim());
+    } catch (e) {
+      console.warn("[Home] logging touchpoint failed:", e.message);
+      setTouchSaving(false);
       return;
     }
+    setTouchSaving(false);
     setTargets((prev) => prev.map((x) => (x.id === t.id ? { ...x, last_touchpoint_date: today } : x)));
     setTouchNote("");
     setTouchOpen(false);
@@ -2344,9 +2351,9 @@ export default function Home() {
             return (
               <div className="xh-feat">
                 <div className="xh-feat-label">Today's target</div>
-                <div className="xh-feat-name" onClick={() => openCrosshairsPanel(featuredTarget)}>{featuredTarget.target_name}</div>
+                <div className="xh-feat-name" onClick={() => openCrosshairsPanel(featuredTarget)}>{featuredTarget.name}</div>
                 <div className="xh-feat-badges">
-                  {featuredTarget.industry && <span className="bdg bdg-gr">{featuredTarget.industry}</span>}
+                  {(featuredTarget.types ?? []).map((t) => <span key={t} className="bdg bdg-gr">{t}</span>)}
                   <span className={`bdg ${s.bdg}`}>{s.label}</span>
                 </div>
                 {featuredTarget.next_suggested_action && (
@@ -2388,8 +2395,9 @@ export default function Home() {
             return (
               <div key={t.id} className="xh-row" onClick={() => openCrosshairsPanel(t)}>
                 <div className="xh-dot" style={{ background: s.dot }}></div>
-                <div className="xh-n">{t.target_name}</div>
+                <div className="xh-n">{t.name}</div>
                 <span className={`bdg ${s.bdg}`}>{s.label}</span>
+                <span className="xh-ago">{t.last_touchpoint_date ? (daysAgo(t.last_touchpoint_date) <= 0 ? "today" : `${daysAgo(t.last_touchpoint_date)}d ago`) : "never"}</span>
               </div>
             );
           })}

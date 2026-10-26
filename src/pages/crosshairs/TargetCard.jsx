@@ -19,7 +19,7 @@ export default function TargetCard({ target, onLogTouchpoint, onEdit }) {
     <Card className={`space-y-2.5 ${neglected ? "!border-red-400/40" : ""}`}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-semibold text-white">{target.target_name}</p>
+          <p className="text-sm font-semibold text-white">{target.name}</p>
           <p className="text-xs text-ink-secondary">{target.industry || "—"}</p>
         </div>
         <PriorityBadge priority={target.priority} />
@@ -29,7 +29,7 @@ export default function TargetCard({ target, onLogTouchpoint, onEdit }) {
         <div>
           <p className="text-ink-muted">Deal value</p>
           <p className="text-white">
-            {target.estimated_value ? currency.format(target.estimated_value) : "—"}
+            {target.estimated_deal_value ? currency.format(target.estimated_deal_value) : "—"}
           </p>
         </div>
         <div>
@@ -38,7 +38,7 @@ export default function TargetCard({ target, onLogTouchpoint, onEdit }) {
         </div>
         <div>
           <p className="text-ink-muted">Contact</p>
-          <p className="text-white">{target.primary_contact_name || "—"}</p>
+          <p className="text-white">{target.contacts?.[0]?.name || "—"}</p>
         </div>
         <div>
           <p className="text-ink-muted">Last touchpoint</p>
